@@ -1,0 +1,4 @@
+[
+  { "customer": "Acme", "subject_canonical": "SSO_LOGIN_BUG", "targetDate": "2026-06-30" },
+  { "customer": "Acme", "subject_canonical": "EXPORT_FEATURE", "targetDate": "2026-07-15" }
+]
