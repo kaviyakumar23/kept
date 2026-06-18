@@ -1,0 +1,36 @@
+{
+  "name": "kept",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kept — a human-verified, event-sourced obligation ledger for shared customer Slack channels.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "eval": "tsx src/eval/runner.ts",
+    "demo": "tsx src/demo/storyboard.ts",
+    "start": "tsx src/server/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0",
+    "@slack/bolt": "^4.7.3",
+    "bullmq": "^5.34.0",
+    "dotenv": "^16.4.7",
+    "ioredis": "^5.4.2",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
+  }
+}

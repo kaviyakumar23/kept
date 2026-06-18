@@ -1,0 +1,23 @@
+# Real persistence substrate for Kept (per build spec: Postgres event store + Redis/BullMQ).
+# The engine and its test suite are hermetic (in-memory adapters); these services back
+# the production PostgresEventStore and BullmqScheduler adapters.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kept
+      POSTGRES_PASSWORD: kept
+      POSTGRES_DB: kept
+    ports:
+      - "5432:5432"
+    volumes:
+      - kept_pg:/var/lib/postgresql/data
+      - ./src/store/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  kept_pg:
