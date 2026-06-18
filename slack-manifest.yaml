@@ -1,0 +1,55 @@
+# Slack app manifest for Kept — paste at api.slack.com/apps → Create New App → From a manifest.
+# Configures exactly what the code uses (src/server/slackApp.ts): message + app_home events,
+# interactivity (confirm/verify/closure cards + edit modals + view_submission), the /kept
+# command, the App Home ledger, and Socket Mode (no public URL needed for Slack).
+#
+# After creating: Basic Information → App-Level Tokens → generate a token with `connections:write`
+# (that is SLACK_APP_TOKEN). Then Install to Workspace and copy the Bot Token + Signing Secret.
+#
+# To run over HTTP instead of Socket Mode: set socket_mode_enabled: false and add a request_url of
+# https://<your-host>/slack/events under BOTH event_subscriptions and interactivity (Bolt serves all
+# three — events, actions, commands — at /slack/events).
+display_information:
+  name: Kept
+  description: Human-verified, event-sourced obligation ledger for shared customer channels.
+  background_color: "#1f2d3d"
+
+features:
+  bot_user:
+    display_name: Kept
+    always_online: true
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: true
+  slash_commands:
+    - command: /kept
+      description: Show the obligation ledger for a customer
+      usage_hint: "[customer]"
+      should_escape: false
+
+oauth_config:
+  scopes:
+    bot:
+      - chat:write # post confirm/verify/closure cards, owner DMs, in-thread closure
+      - im:write # open a DM with the owner for private cards (conversations.open)
+      - commands # the /kept slash command
+      - channels:history # read messages in public channels Kept is in
+      - groups:history # read messages in private / Slack Connect shared channels Kept is in
+      - channels:read # channel metadata
+      - groups:read # private/shared channel metadata
+    # Uncomment to enable cross-channel RTS (KEPT_SLACK_USER_SEARCH=1) — needs a user token:
+    # user:
+    #   - search:read
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels # new message in a public channel → detect an obligation
+      - message.groups # new message in a private / Slack Connect shared channel
+      - app_home_opened # publish the App Home obligation-ledger dashboard
+  interactivity:
+    is_enabled: true # buttons, modals, and view_submission (edit-and-confirm / edit-the-reply)
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  token_rotation_enabled: false

@@ -94,7 +94,9 @@ DATABASE_URL=postgres://localhost:5432/kept REDIS_URL=redis://localhost:6379 \
 
 `npm run demo` prints the entire loop — the private confirm card, Linear issue, duplicate-webhook suppression, semantic dedupe, merge+deploy reconciliation, the Gate-2 verify card, the sanitized in-thread closure, the reopen, the two-sided ledger, and the full audit history — all driven through the **real** orchestrator + engine with recording/simulated adapters.
 
-The live app (`npm start`) runs the real Slack surface (Events API + Block Kit) on top of the same orchestrator; Linear + deploy arrive as webhooks (`POST /webhooks/{linear,github,deploy}`). Each external dependency upgrades from its simulated adapter to the real one when its env is set (`DATABASE_URL` → Postgres, `REDIS_URL` → BullMQ, `ANTHROPIC_API_KEY` → Claude, `LINEAR_API_KEY` → Linear). See `.env.example`.
+The live app (`npm start`) runs the real Slack surface (Events API + Block Kit) on top of the same orchestrator; Linear/Jira + deploy arrive as webhooks (`POST /webhooks/{linear,jira,github,deploy}`). Each external dependency upgrades from its simulated adapter to the real one when its env is set (`DATABASE_URL` → Postgres, `REDIS_URL` → BullMQ, `ANTHROPIC_API_KEY` → Claude, `LINEAR_*`/`JIRA_*` → real work items). See `.env.example`.
+
+**Slack setup:** create the app at api.slack.com → *From a manifest* using [`slack-manifest.yaml`](slack-manifest.yaml) (it declares the scopes, events, `/kept` command, interactivity, App Home, and Socket Mode). Then generate an app-level token (`connections:write`) → `SLACK_APP_TOKEN`, install to the workspace → copy the bot token + signing secret, and invite the bot to your (Slack Connect) channel.
 
 The engine and its tests are **hermetic** — no database or network needed (in-memory adapters). The production substrate is real:
 
