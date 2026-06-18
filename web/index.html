@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kept — the obligation ledger for shared customer channels</title>
+<meta name="description" content="Kept remembers what your company owes every customer — and makes sure the customer hears when it's done.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;background:#F4F1EA;color:#1B1A17;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:17px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+  h1,h2{font-optical-sizing:auto;}
+  ::selection{background:#DCEDE8;color:#0B5346;}
+  a{color:inherit;}
+  @keyframes keptRise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes keptBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+  ::-webkit-scrollbar{height:9px;width:9px;}
+  ::-webkit-scrollbar-thumb{background:#D2CAB6;border-radius:8px;}
+  ::-webkit-scrollbar-track{background:#ECE8DE;}
+</style>
+</head>
+<body id="top">
+<div style="background:#F4F1EA;overflow-x:hidden;">
+
+<!-- ============ NAV ============ -->
+<header style="position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);background:rgba(244,241,234,0.82);border-bottom:1px solid #E4DECF;">
+  <nav style="max-width:1120px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;">
+    <a href="#top" style="display:flex;align-items:center;gap:11px;text-decoration:none;">
+      <span style="width:25px;height:25px;border-radius:6px;background:#0F6E5C;display:flex;align-items:center;justify-content:center;color:#F4F1EA;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px;">K</span>
+      <span style="font-family:'Fraunces',serif;font-weight:600;font-size:20px;letter-spacing:-0.01em;">Kept</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:#837C6E;">
+      <a href="#problem" style="text-decoration:none;" style-hover="color:#0F6E5C;">problem</a>
+      <a href="#lifecycle" style="text-decoration:none;" style-hover="color:#0F6E5C;">lifecycle</a>
+      <a href="#guarantees" style="text-decoration:none;" style-hover="color:#0F6E5C;">guarantees</a>
+      <a href="#architecture" style="text-decoration:none;" style-hover="color:#0F6E5C;">architecture</a>
+      <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="text-decoration:none;color:#0F6E5C;border:1px solid #0F6E5C;padding:7px 13px;border-radius:8px;" style-hover="background:#0F6E5C;color:#F4F1EA;">GitHub ↗</a>
+    </div>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<section id="top" style="max-width:1120px;margin:0 auto;padding:clamp(44px,7vw,88px) 24px clamp(52px,8vw,96px);">
+  <div style="display:flex;flex-wrap:wrap;gap:clamp(40px,5vw,60px);align-items:center;">
+    <div style="flex:1 1 470px;min-width:300px;animation:keptRise .55s ease both;">
+      <span style="display:inline-flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid #D2CAB6;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.02em;color:#837C6E;background:#FBF9F3;">
+        <span style="width:7px;height:7px;border-radius:50%;background:#0F6E5C;"></span>
+        Slack-native · event-sourced · human-verified
+      </span>
+      <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(2.5rem,6vw,4rem);line-height:1.05;letter-spacing:-0.02em;margin:24px 0 0;color:#1B1A17;">
+        Kept remembers what your company owes <span style="color:#0F6E5C;">every customer</span> — and makes sure the customer hears when it&rsquo;s&nbsp;done.
+      </h1>
+      <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:22px 0 0;max-width:60ch;">
+        A Slack agent that keeps a human-verified, event-sourced <em style="font-style:normal;color:#1B1A17;font-weight:600;">obligation ledger</em>: every request a customer makes and every promise your team makes — captured the moment it&rsquo;s said, tracked through its real lifecycle, closed back in the original thread.
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;">
+        <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 21px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;" style-hover="background:#2E2B25;">
+          <span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> View on GitHub
+        </a>
+        <a href="#demo" style="display:inline-flex;align-items:center;gap:10px;background:transparent;color:#0F6E5C;padding:13px 21px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;" style-hover="background:#DCEDE8;">
+          <span style="width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:8px;">▶</span> Watch the demo
+        </a>
+      </div>
+    </div>
+
+    <!-- Slack confirm card -->
+    <div style="flex:1 1 370px;min-width:300px;animation:keptRise .65s .1s ease both;">
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-left:4px solid #0F6E5C;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(27,26,23,.06),0 18px 40px -20px rgba(27,26,23,.28);">
+        <div style="display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #E4DECF;">
+          <span style="width:9px;height:9px;border-radius:2px;background:#0F6E5C;"></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#1B1A17;font-weight:500;"># northwind &harr; acme</span>
+          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;padding:3px 8px;border:1px solid #E4DECF;border-radius:5px;">shared · connect</span>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
+          <div style="display:flex;gap:11px;">
+            <span style="flex:none;width:30px;height:30px;border-radius:6px;background:#ECE8DE;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;">PN</span>
+            <div>
+              <div style="font-size:13px;"><strong style="font-weight:600;">Priya</strong> <span style="color:#837C6E;font-family:'IBM Plex Mono',monospace;font-size:11px;">Northwind · 9:14</span></div>
+              <div style="font-size:14px;color:#46433C;margin-top:2px;line-height:1.45;">Any chance SSO lands this week? Our security review is Friday.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:11px;">
+            <span style="flex:none;width:30px;height:30px;border-radius:6px;background:#DCEDE8;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;">AM</span>
+            <div>
+              <div style="font-size:13px;"><strong style="font-weight:600;">Amelia</strong> <span style="color:#837C6E;font-family:'IBM Plex Mono',monospace;font-size:11px;">you · 9:14</span></div>
+              <div style="font-size:14px;color:#46433C;margin-top:2px;line-height:1.45;">We&rsquo;ll have SSO live for you this week.</div>
+            </div>
+          </div>
+
+          <sc-if value="{{ cardPending }}" hint-placeholder-val="{{ true }}">
+          <div style="border:1px solid #E4DECF;border-radius:9px;background:#F8F1DF;padding:14px;margin-top:2px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">
+              <span style="width:18px;height:18px;border-radius:4px;background:#8A6A12;color:#F8F1DF;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;">K</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A6A12;letter-spacing:0.03em;text-transform:uppercase;">Kept · candidate detected</span>
+            </div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;font-family:'IBM Plex Mono',monospace;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:7px;padding:11px 13px;">
+              <span style="color:#837C6E;">owes</span><span>SSO live for Northwind</span>
+              <span style="color:#837C6E;">due</span><span>this week · by Fri review</span>
+              <span style="color:#837C6E;">owner</span><span>Amelia (you)</span>
+            </div>
+            <p style="font-size:12.5px;color:#46433C;margin:12px 0 12px;line-height:1.45;">Track this as a promise to the customer? Nothing is recorded until you confirm.</p>
+            <div style="display:flex;gap:9px;">
+              <button onClick="{{ approve }}" style="flex:1;background:#1F6B49;color:#FBF9F3;border:none;border-radius:7px;padding:10px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;" style-hover="background:#14503A;">Approve commitment</button>
+              <button style="flex:none;background:transparent;color:#B5502E;border:1px solid #E3C8BC;border-radius:7px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13.5px;cursor:pointer;" style-hover="background:#F3DFD4;">Not a commitment</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;margin-top:11px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">
+              <span style="width:6px;height:6px;border-radius:1px;background:#0F6E5C;"></span> Gate 1 · only the account owner can make this real · private to your team
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ cardApproved }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid #BFD3EC;border-radius:9px;background:#DCE8F5;padding:14px;margin-top:2px;animation:keptRise .35s ease both;">
+            <div style="display:flex;align-items:center;gap:9px;">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.06em;color:#1F5FA6;background:#FBF9F3;border:1px solid #BFD3EC;border-radius:5px;padding:3px 8px;">OPEN</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#1F5FA6;">tracked as obligation #1043</span>
+            </div>
+            <p style="font-size:12.5px;color:#46433C;margin:11px 0 0;line-height:1.5;">On the ledger. Kept now links the work, watches for fulfillment, and will return to <em style="font-style:normal;color:#1B1A17;font-weight:600;">this thread</em> — only after a human approves the reply.</p>
+            <button onClick="{{ undo }}" style="margin-top:12px;background:transparent;color:#837C6E;border:none;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px;">replay</button>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+      <p style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;margin:12px 0 0;">↑ a real Kept confirm card — try <span style="color:#0F6E5C;">Approve</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section id="problem" style="border-top:1px solid #E4DECF;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#B5502E;">01 · The problem</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;max-width:20ch;">Promises are made in chat. Fulfillment lives everywhere else. The customer is the last to know.</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:#E4DECF;border:1px solid #E4DECF;border-radius:10px;overflow:hidden;margin-top:40px;">
+      <div style="background:#FBF9F3;padding:28px 26px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A39B8C;">01</span>
+        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">Customer requests and team promises are made <strong style="color:#1B1A17;font-weight:600;">casually, in shared Slack channels</strong> — between two other messages, never written down as commitments.</p>
+      </div>
+      <div style="background:#FBF9F3;padding:28px 26px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A39B8C;">02</span>
+        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">Fulfillment lives <strong style="color:#1B1A17;font-weight:600;">elsewhere</strong> — in tickets, in code, in deploys, in someone&rsquo;s memory. None of it points back to the thread where the promise was made.</p>
+      </div>
+      <div style="background:#FBF9F3;padding:28px 26px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B5502E;">03</span>
+        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">The customer is usually the <strong style="color:#1B1A17;font-weight:600;">last to hear it&rsquo;s done</strong>. The work ships; the follow-up gets <span style="color:#B5502E;text-decoration:line-through;text-decoration-color:rgba(181,80,46,0.55);">dropped</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WEDGE ============ -->
+<section style="border-top:1px solid #E4DECF;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">02 · The wedge</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;">Not another inbound ticketer.</h2>
+    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:0;line-height:1.55;">Inbound-only Slack ticketing (Pylon, Thena) logs what the customer asked. Kept tracks the part nobody owns: what <em style="font-style:normal;color:#1B1A17;font-weight:600;">you</em> promised back.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:38px;">
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
+        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:17px;">&harr;</span>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Bidirectional</h3>
+        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Tracks what your team <strong style="color:#1B1A17;font-weight:600;">owes</strong> the customer — the promises — not just the inbound asks.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
+        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:16px;">&check;</span>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Verified fulfillment</h3>
+        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Closes on real availability <em style="font-style:normal;color:#1B1A17;font-weight:600;">to the customer</em>, human-confirmed — never on a &ldquo;Done&rdquo; flag.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
+        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:16px;">&#8617;</span>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Closes the loop</h3>
+        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Returns to the <strong style="color:#1B1A17;font-weight:600;">original thread</strong> with the promise as evidence — on human approval.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PULL QUOTE (inverted band) ============ -->
+<section style="background:#1B1A17;">
+  <div style="max-width:1000px;margin:0 auto;padding:clamp(60px,9vw,104px) 24px;">
+    <div style="border-left:3px solid #B5502E;padding-left:clamp(20px,3vw,32px);">
+      <blockquote style="margin:0;font-family:'Fraunces',serif;font-weight:500;font-size:clamp(1.6rem,3.6vw,2.6rem);line-height:1.32;letter-spacing:-0.015em;color:#F4F1EA;">
+        Ticketing systems track whether work is marked <span style="font-family:'IBM Plex Mono',monospace;font-size:0.78em;color:#A7A39A;">done</span>. Kept tracks whether the <span style="color:#36C2A8;">promise made to the customer</span> was actually <span style="color:#36C2A8;">kept</span> — and whether the customer was <span style="color:#E2774E;">told</span>.
+      </blockquote>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIFECYCLE ============ -->
+<section id="lifecycle" style="border-top:1px solid #E4DECF;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">03 · The lifecycle</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;max-width:24ch;">An obligation has a life. Two of its steps belong to a human.</h2>
+    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:0 0 26px;line-height:1.55;">Step through it — every transition writes one immutable line to the audit history on the right.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px;">
+      <span style="display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:6px 11px;"><span style="width:7px;height:7px;border-radius:1px;background:#0F6E5C;"></span>Gate 1 — account manager confirms the commitment</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:6px 11px;"><span style="width:7px;height:7px;border-radius:1px;background:#0F6E5C;"></span>Gate 2 — human verifies, then approves the reply</span>
+    </div>
+
+    <div style="overflow-x:auto;padding:24px 0 10px;">
+      <div style="position:relative;min-width:820px;padding-top:8px;">
+        <div style="position:absolute;top:15px;left:8px;right:8px;height:2px;background:#D2CAB6;"></div>
+        <div style="position:absolute;top:15px;left:8px;height:2px;background:#0F6E5C;width:{{ progressWidth }};transition:width .45s ease;"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;">
+          <sc-for list="{{ nodes }}" as="node" hint-placeholder-count="7">
+            <button onClick="{{ node.onClick }}" style="{{ node.style }}">
+              <span style="{{ node.gateStyle }}">{{ node.gateLabel }}</span>
+              <span style="{{ node.dotStyle }}"></span>
+              <span style="{{ node.pillStyle }}">{{ node.key }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:30px;">
+      <!-- detail panel -->
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="{{ detailPillStyle }}">{{ currentKey }}</span>
+          <span style="{{ actorTagStyle }}">{{ actorTag }}</span>
+        </div>
+        <h3 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.375rem;letter-spacing:-0.01em;margin:18px 0 0;">{{ currentTitle }}</h3>
+        <p style="font-size:15px;line-height:1.62;color:#46433C;margin:11px 0 0;">{{ currentDesc }}</p>
+        <div style="margin-top:auto;padding-top:20px;display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#837C6E;">
+          actor &rarr; <span style="{{ actorColorStyle }}">{{ currentActor }}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:9px;margin-top:18px;">
+          <button onClick="{{ step }}" style="background:#1B1A17;color:#F4F1EA;border:none;border-radius:8px;padding:11px 18px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer;" style-hover="background:#2E2B25;">{{ stepLabel }} &rarr;</button>
+          <button onClick="{{ reopen }}" style="background:transparent;color:#A8431F;border:1px solid #E3C8BC;border-radius:8px;padding:11px 16px;font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:14px;cursor:pointer;" style-hover="background:#F3DFD4;">&#8635; Customer disputes</button>
+          <button onClick="{{ reset }}" style="background:transparent;color:#837C6E;border:none;font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer;padding:11px 6px;text-decoration:underline;text-underline-offset:3px;">reset</button>
+        </div>
+        <div style="{{ reopenNoteStyle }}">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A8431F;font-weight:500;">&#8635; REOPENED &rarr; IN_PROGRESS</span>
+          <span style="font-size:13px;color:#46433C;line-height:1.5;display:block;margin-top:5px;">The obligation outlives the ticket. A customer dispute reopens it even if the tracker still says &ldquo;Done&rdquo;.</span>
+        </div>
+      </div>
+
+      <!-- audit log -->
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid #E4DECF;background:#F4F1EA;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;font-weight:500;">audit_history</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">append-only · obligation #1043</span>
+          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A39B8C;letter-spacing:0.08em;">IMMUTABLE</span>
+        </div>
+        <div style="padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:13px;">
+          <sc-for list="{{ logEntries }}" as="row" hint-placeholder-count="3">
+            <div style="display:flex;gap:11px;animation:keptRise .3s ease both;">
+              <span style="color:#A39B8C;flex:none;">{{ row.t }}</span>
+              <div style="min-width:0;">
+                <span style="{{ row.chipStyle }}">{{ row.state }}</span>
+                <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">{{ row.by }}</span>
+                <div style="color:#837C6E;margin-top:3px;word-break:break-word;">{{ row.note }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <span style="color:#0F6E5C;display:inline-block;width:8px;height:15px;background:#0F6E5C;animation:keptBlink 1.1s step-end infinite;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GUARANTEES ============ -->
+<section id="guarantees" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">04 · The guarantees</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;">Six invariants the engine will not break.</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:18px;margin-top:40px;">
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No accidental commitment</h3>
+        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">A customer request becomes a promise only when the account owner approves it.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No false fulfillment</h3>
+        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">A ticket status or merged PR is evidence, not truth. Closure needs reconciled evidence — merge + deploy reaching the customer, or the customer&rsquo;s own confirmation — plus a human.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No duplicated side effects</h3>
+        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Repeated Slack events and webhooks never double-create an obligation or double-notify a customer.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No confidential leakage</h3>
+        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Internal evidence — PRs, deploys, internal notes — never reaches the shared customer channel.</p>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G5</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">Complete auditability</h3>
+        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Every transition records source, evidence, actor, timestamp, prior/new state, and approval.</p>
+      </div>
+      <div style="background:#F3DFD4;border:1px solid #E3C8BC;border-radius:10px;padding:24px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A8431F;font-weight:600;">G6</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B5502E;">the keystone</span></div>
+        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#A8431F;line-height:1.3;">The obligation outlives the ticket</h3>
+        <p style="font-size:14px;line-height:1.6;color:#7A3A22;margin:0;">A customer dispute reopens it — even if the ticket stays &ldquo;Done&rdquo; forever.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NUMBERS ============ -->
+<section style="border-top:1px solid #E4DECF;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">05 · The numbers</span>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid #D2CAB6;border-bottom:1px solid #D2CAB6;margin-top:28px;">
+      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">false closures</div>
+      </div>
+      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">100<span style="font-size:0.5em;">%</span></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">duplicate-event suppression</div>
+      </div>
+      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0<span style="font-size:0.5em;">%</span></div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">customer-facing leakage</div>
+      </div>
+      <div style="padding:34px 24px;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">unauthorized customer messages</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between;margin-top:24px;">
+      <p style="font-size:0.8125rem;line-height:1.6;color:#837C6E;margin:0;max-width:64ch;">Enforced by the deterministic engine and proven across an adversarial test battery — <strong style="color:#1B1A17;font-weight:600;">111 automated tests</strong>, <strong style="color:#1B1A17;font-weight:600;">5 rounds</strong> of adversarial verification, plus live Postgres/Redis integration tests.</p>
+      <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#0F6E5C;border:1.5px solid #0F6E5C;border-radius:4px;padding:9px 14px;transform:rotate(-3deg);box-shadow:0 0 0 3px #F4F1EA,0 0 0 4px #DCEDE8;">Adversarially&nbsp;verified</span>
+    </div>
+    <div style="display:inline-flex;align-items:center;gap:10px;margin-top:18px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#837C6E;border:1px dashed #D2CAB6;border-radius:6px;padding:9px 13px;">
+      commitment-classification accuracy <span style="color:#0F6E5C;">&lt;measured with your LLM&gt;</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="architecture" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">06 · The architecture</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;">Each technology does exactly one job.</h2>
+    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:14px 0 0;line-height:1.55;">An append-only event store is the backbone. Everything else feeds it or reads from it.</p>
+
+    <div style="display:flex;flex-direction:column;gap:0;margin-top:38px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
+        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">SLACK EVENTS API</span>
+        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">The trigger — a message may contain an obligation.</span>
+      </div>
+      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
+        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">RTS</span>
+        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Permission-safe retrieval of related context — prior commitments, the area owner.</span>
+      </div>
+      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
+
+      <div style="border:1.5px solid #0F6E5C;border-radius:12px;padding:24px;background:#DCEDE8;">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5346;letter-spacing:0.03em;font-weight:600;">EVENT STORE · PostgreSQL</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0F6E5C;">append-only · derived projections · every transition is an event</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:18px;">
+          <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:9px;padding:16px 18px;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#1B1A17;font-weight:500;">Claude · LLM</span>
+            <p style="font-size:13.5px;color:#46433C;line-height:1.55;margin:8px 0 0;">Classification, extraction, drafting <strong style="color:#1B1A17;font-weight:600;">only</strong>. Never decides a transition.</p>
+          </div>
+          <div style="background:#FBF9F3;border:1px solid #B7D7CE;border-radius:9px;padding:16px 18px;">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;font-weight:600;">Guarded FSM · code</span>
+            <p style="font-size:13.5px;color:#46433C;line-height:1.55;margin:8px 0 0;">The only thing that writes state and triggers side effects.</p>
+          </div>
+        </div>
+      </div>
+      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
+
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
+        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">LINEAR / JIRA / GITHUB</span>
+        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Create &amp; link work; deliver fulfillment signals via webhooks.</span>
+      </div>
+      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
+        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">BLOCK KIT + WEB API</span>
+        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Private confirm/verify cards, the App Home ledger, the in-thread closure.</span>
+      </div>
+      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
+        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#837C6E;letter-spacing:0.03em;font-weight:500;">REDIS + BULLMQ</span>
+        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Durable reminders &amp; retries — so a pending promise is never forgotten.</span>
+      </div>
+    </div>
+
+    <div style="margin-top:30px;border-left:3px solid #0F6E5C;background:#FBF9F3;border-radius:0 10px 10px 0;padding:22px 24px;">
+      <p style="font-family:'Fraunces',serif;font-weight:500;font-size:clamp(1.25rem,2.4vw,1.7rem);line-height:1.32;letter-spacing:-0.01em;margin:0;color:#1B1A17;">The model interprets language; <span style="color:#0F6E5C;">code controls state and actions.</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STACK ============ -->
+<section style="border-top:1px solid #E4DECF;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(44px,7vw,72px) 24px;">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#A39B8C;">Stack</span>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">TypeScript</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Slack Bolt</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">PostgreSQL <span style="color:#A39B8C;">(event store)</span></span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Redis + BullMQ</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Linear &amp; Jira</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">GitHub / deploy webhooks</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Zod</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:9px 13px;">guarded finite-state machine</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">provider-agnostic LLM <span style="color:#A39B8C;">(Claude)</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer id="demo" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
+  <div style="max-width:1120px;margin:0 auto;padding:clamp(52px,8vw,88px) 24px clamp(36px,5vw,52px);">
+    <div style="display:flex;flex-wrap:wrap;gap:36px;justify-content:space-between;align-items:flex-start;">
+      <div style="max-width:44ch;">
+        <div style="display:flex;align-items:center;gap:11px;">
+          <span style="width:29px;height:29px;border-radius:7px;background:#0F6E5C;display:flex;align-items:center;justify-content:center;color:#F4F1EA;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px;">K</span>
+          <span style="font-family:'Fraunces',serif;font-weight:600;font-size:24px;letter-spacing:-0.01em;">Kept</span>
+        </div>
+        <p style="font-size:15px;color:#46433C;line-height:1.6;margin:16px 0 0;">Remembers what your company owes every customer — and makes sure the customer hears when it&rsquo;s done.</p>
+      </div>
+      <div style="display:flex;gap:13px;flex-wrap:wrap;">
+        <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;" style-hover="background:#2E2B25;"><span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> GitHub repo ↗</a>
+        <a href="#demo" style="display:inline-flex;align-items:center;gap:9px;background:transparent;color:#0F6E5C;padding:13px 20px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;" style-hover="background:#DCEDE8;"><span style="width:16px;height:16px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:7px;">▶</span> Demo video</a>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;margin-top:48px;padding-top:24px;border-top:1px solid #E4DECF;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A39B8C;">
+      <span>github.com/kaviyakumar23/kept &middot; demo: <span style="color:#837C6E;">&lt;your-demo-url&gt;</span></span>
+      <span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:1px;background:#0F6E5C;"></span>Built for the New Slack Agent track</span>
+    </div>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
