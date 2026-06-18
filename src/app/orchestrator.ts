@@ -1,0 +1,334 @@
+import type { ObligationService } from "../engine/obligationService.js";
+import type { Obligation } from "../domain/obligation.js";
+import type { CommandContext } from "../domain/commands.js";
+import type { Evidence } from "../domain/evidence.js";
+import type { ObligationId } from "../domain/ids.js";
+import { userActor } from "../domain/events.js";
+import { project } from "../domain/projection.js";
+import { resolve, type ResolutionCandidate } from "../engine/entityGraph.js";
+import { assessFulfillment } from "../engine/reconciliation.js";
+import { notifyKey } from "../engine/idempotency.js";
+import { buildClosureDraft } from "../policy/audience.js";
+import { checkRoadmapConflict, type RoadmapEntry, type RoadmapSource } from "../policy/roadmap.js";
+import { computeReminders, type Scheduler } from "../scheduler/scheduler.js";
+import type { LlmProvider } from "../llm/provider.js";
+import { proposeFromMessage } from "../llm/propose.js";
+import type { WorkItemAdapter, CreatedWorkItem } from "../integrations/linear.js";
+import type { RtsRetriever } from "../slack/rts.js";
+import { EMPTY_RTS, type RtsContext } from "../slack/rts.js";
+import type { Notifier, SentMessage } from "../slack/notifier.js";
+import { confirmCard, possibleFulfillmentCard, closureDraftCard } from "../slack/blocks.js";
+
+export interface OrchestratorDeps {
+  service: ObligationService;
+  llm: LlmProvider;
+  workItems: WorkItemAdapter;
+  rts: RtsRetriever;
+  notifier: Notifier;
+  scheduler?: Scheduler;
+  clock?: () => number;
+  currentDate?: () => string;
+  /** Who receives the private cards for an obligation (defaults: owner → RTS owner → fallback). */
+  ownerResolver?: (o: Obligation, rts: RtsContext) => string;
+  fallbackOwner?: string;
+  /** Approved roadmap targets — a committed date earlier than the target raises a private warning. */
+  roadmap?: RoadmapEntry[];
+  /** A live roadmap source (takes precedence over the static `roadmap` array). */
+  roadmapSource?: RoadmapSource;
+}
+
+export interface SlackMessage {
+  team: string;
+  channel: string;
+  threadTs: string;
+  ts: string;
+  userId: string;
+  userToken?: string;
+  text: string;
+  permalink?: string;
+}
+
+export type IngestResult =
+  | { kind: "confirm_card_sent"; obligationId: ObligationId; owner: string; sent: SentMessage }
+  | { kind: "deduped"; obligationId: ObligationId }
+  | { kind: "skipped"; signal: string };
+
+export type NotifyResult =
+  | { kind: "notified"; obligation: Obligation; posted: SentMessage | null }
+  | { kind: "rejected"; reason: string };
+
+/**
+ * KeptOrchestrator — the transport-agnostic application layer. The Bolt app, the
+ * webhook server, and the demo all drive THESE methods. It enforces, end to end,
+ * that: a human approves each gate; customer-facing text passes the sanitizer;
+ * RTS context is used but never persisted; reminders/notifications go to the owner.
+ */
+export class KeptOrchestrator {
+  private readonly now: () => number;
+  private readonly today: () => string;
+  constructor(private readonly d: OrchestratorDeps) {
+    this.now = d.clock ?? (() => Date.now());
+    this.today = d.currentDate ?? (() => new Date(this.now()).toISOString().slice(0, 10));
+  }
+
+  private ctx(obligationId: ObligationId, idempotencyKey: string, approvedBy?: string | null, actorId?: string): CommandContext {
+    const now = this.now();
+    return {
+      obligationId,
+      actor: actorId ? userActor(actorId) : "system",
+      source: { system: "slack", ref: null, accessible_to_user: true },
+      idempotencyKey,
+      at: new Date(now).toISOString(),
+      approvedBy: approvedBy ?? null,
+      now,
+    };
+  }
+
+  private owner(o: Obligation, rts: RtsContext): string {
+    if (this.d.ownerResolver) return this.d.ownerResolver(o, rts);
+    return o.owner ?? rts.suggestedOwner ?? this.d.fallbackOwner ?? "U_ACCOUNT_MANAGER";
+  }
+
+  // --- inbound: a new customer-channel message -----------------------------
+  /** Detect a request/commitment in a message and send the Gate-1 confirm card. */
+  async ingestMessage(msg: SlackMessage): Promise<IngestResult> {
+    const at = new Date(this.now()).toISOString();
+    const proposal = await proposeFromMessage(
+      this.d.llm,
+      msg.text,
+      {
+        actor: userActor(msg.userId),
+        source: { system: "slack", ref: msg.permalink ?? null, accessible_to_user: true },
+        idempotencyKey: `slack:${msg.team}:${msg.channel}:${msg.ts}:request_detected`,
+        at,
+        now: this.now(),
+        currentDate: this.today(),
+      },
+    );
+    if (!proposal.actionable) return { kind: "skipped", signal: proposal.classification.signal };
+
+    // RTS context — permission-safe, EPHEMERAL (never persisted).
+    const rts = await this.d.rts.retrieve({
+      customer: proposal.detectInput.customer,
+      subject_canonical: proposal.detectInput.subject_canonical,
+      channel: msg.channel,
+      userId: msg.userId,
+      userToken: msg.userToken,
+    });
+
+    const result = await this.d.service.detectRequest({
+      ...proposal.detectInput,
+      owner: proposal.detectInput.owner ?? rts.suggestedOwner,
+      slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
+    });
+
+    if (result.status === "deduped") return { kind: "deduped", obligationId: result.obligation.id };
+    if (result.status !== "created") return { kind: "skipped", signal: proposal.classification.signal };
+
+    // Secondary beat: warn (privately, on the card) if the committed date contradicts the roadmap.
+    const roadmap = this.d.roadmapSource ? await this.d.roadmapSource.list() : (this.d.roadmap ?? []);
+    const warning = roadmap.length ? checkRoadmapConflict(result.obligation, roadmap) : null;
+
+    const owner = this.owner(result.obligation, rts);
+    const sent = await this.d.notifier.sendPrivate(owner, {
+      text: `New obligation: ${result.obligation.customer} — ${result.obligation.outcome}`,
+      blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined),
+    });
+    return { kind: "confirm_card_sent", obligationId: result.obligation.id, owner, sent };
+  }
+
+  // --- Gate 1: account owner confirms --------------------------------------
+  async confirmCommitment(
+    obligationId: ObligationId,
+    approverId: string,
+    edits?: { outcome?: string; due?: string | null; owner?: string },
+  ): Promise<{ obligation: Obligation | null; work: CreatedWorkItem | null }> {
+    const o = await this.d.service.getObligation(obligationId);
+    if (!o) throw new Error(`unknown obligation ${obligationId}`);
+
+    // Gate 1 FIRST — no side effects until the human approval is validated AND
+    // persisted. A rejected gate (e.g. blank approver) or a raced concurrent click
+    // (idempotent loser → suppressed) creates no Linear issue.
+    const confirm = await this.d.service.dispatch(
+      { kind: "CONFIRM_COMMITMENT", outcome: edits?.outcome ?? o.outcome, due: edits?.due ?? o.due, owner: edits?.owner ?? o.owner ?? approverId },
+      this.ctx(obligationId, `${obligationId}:confirm`, approverId, approverId),
+    );
+    if (confirm.status !== "applied") return { obligation: confirm.obligation ?? o, work: null };
+
+    // Winner only: create + link exactly one system-of-record work item.
+    const work = await this.d.workItems.createIssue({
+      title: edits?.outcome ?? o.outcome,
+      description: `Tracked by Kept for ${o.customer}.`,
+    });
+    await this.d.service.dispatch(
+      { kind: "LINK_WORK_ITEM", work_system: this.d.workItems.system, work_ref: work.ref },
+      this.ctx(obligationId, `${obligationId}:link`, approverId, approverId),
+    );
+
+    const updated = await this.d.service.getObligation(obligationId);
+    if (this.d.scheduler && updated) {
+      for (const job of computeReminders(updated)) await this.d.scheduler.schedule(job);
+    }
+    return { obligation: updated, work };
+  }
+
+  async dismiss(obligationId: ObligationId, approverId: string): Promise<Obligation | null> {
+    const r = await this.d.service.dispatch({ kind: "DISMISS" }, this.ctx(obligationId, `${obligationId}:dismiss`, approverId, approverId));
+    return r.obligation ?? null;
+  }
+
+  // --- inbound webhooks: evidence ------------------------------------------
+  /** Resolve the obligation a webhook refers to via the entity graph. */
+  private async findByRefs(refs: ResolutionCandidate["refs"]): Promise<Obligation | null> {
+    const all = await this.d.service.listObligations(this.now());
+    return resolve({ customer: "", subject_canonical: "", refs }, all);
+  }
+
+  /** A work item moved to "in progress" (e.g. Linear status webhook). */
+  async startWork(refs: ResolutionCandidate["refs"], idempotencyKey: string): Promise<Obligation | null> {
+    const o = await this.findByRefs(refs);
+    if (!o) return null;
+    const r = await this.d.service.dispatch({ kind: "START_WORK" }, this.ctx(o.id, idempotencyKey));
+    return r.obligation ?? null;
+  }
+
+  /**
+   * A fulfillment signal (PR merged, deploy, ticket Done, customer reply) arrived.
+   * Records it as evidence; if reconciliation now shows availability, sends the
+   * Gate-2 verify card to the owner.
+   */
+  async recordFulfillmentSignal(input: {
+    refs: ResolutionCandidate["refs"];
+    evidence: Evidence;
+    idempotencyKey: string;
+  }): Promise<{ kind: "no_match" } | { kind: "recorded"; obligation: Obligation; verifyCardSent: boolean }> {
+    const o = await this.findByRefs(input.refs);
+    if (!o) return { kind: "no_match" };
+    const r = await this.d.service.dispatch(
+      { kind: "RECORD_FULFILLMENT_SIGNAL", evidence: input.evidence },
+      this.ctx(o.id, input.idempotencyKey),
+    );
+    const updated = r.obligation ?? (await this.d.service.getObligation(o.id))!;
+
+    let verifyCardSent = false;
+    if (updated.state === "POSSIBLE_FULFILLMENT") {
+      const assessment = assessFulfillment(updated.evidence);
+      if (assessment.sufficientForVerification) {
+        await this.d.notifier.sendPrivate(this.owner(updated, EMPTY_RTS), {
+          text: `Possible fulfillment — verify ${updated.customer} / ${updated.outcome}?`,
+          blocks: possibleFulfillmentCard(updated, assessment),
+        });
+        verifyCardSent = true;
+      }
+    }
+    return { kind: "recorded", obligation: updated, verifyCardSent };
+  }
+
+  // --- Gate 2: verify, then draft + approve the customer-facing closure -----
+  async verify(obligationId: ObligationId, approverId: string): Promise<{ obligation: Obligation | null; draftSent: boolean }> {
+    const before = await this.d.service.getObligation(obligationId);
+    if (!before) throw new Error(`unknown obligation ${obligationId}`);
+    const assessment = assessFulfillment(before.evidence);
+    const r = await this.d.service.dispatch(
+      { kind: "VERIFY_FULFILLMENT", rationale: assessment.rationale },
+      this.ctx(obligationId, `${obligationId}:verify:${before.state_version}`, approverId, approverId),
+    );
+    if (r.status !== "applied" || !r.obligation) return { obligation: r.obligation ?? null, draftSent: false };
+
+    const draft = buildClosureDraft(r.obligation);
+    await this.d.notifier.sendPrivate(this.owner(r.obligation, EMPTY_RTS), {
+      text: `Ready to close the loop with ${r.obligation.customer}`,
+      blocks: closureDraftCard(r.obligation, draft),
+    });
+    return { obligation: r.obligation, draftSent: true };
+  }
+
+  /** Approve & send the auto-generated sanitized closure into the ORIGINAL thread. */
+  async approveSend(obligationId: ObligationId, approverId: string): Promise<NotifyResult> {
+    const o = await this.d.service.getObligation(obligationId);
+    if (!o) throw new Error(`unknown obligation ${obligationId}`);
+    return this.notifyWithText(o, approverId, buildClosureDraft(o).text);
+  }
+
+  /** Approve & send a HUMAN-EDITED reply — still leak-checked by the engine before it goes out. */
+  async approveSendWithText(obligationId: ObligationId, approverId: string, text: string): Promise<NotifyResult> {
+    const o = await this.d.service.getObligation(obligationId);
+    if (!o) throw new Error(`unknown obligation ${obligationId}`);
+    return this.notifyWithText(o, approverId, text);
+  }
+
+  private async notifyWithText(o: Obligation, approverId: string, text: string): Promise<NotifyResult> {
+    // The engine re-checks leak-safety on this command and rejects a leaky draft.
+    const res = await this.d.service.dispatch(
+      { kind: "NOTIFY_CUSTOMER", draftText: text, draftRef: null },
+      this.ctx(o.id, notifyKey(o.id, "CUSTOMER_NOTIFIED", o.state_version), approverId, approverId),
+    );
+    if (res.status !== "applied" || !res.obligation) return { kind: "rejected", reason: res.reason ?? "notify rejected" };
+
+    let posted: SentMessage | null = null;
+    const s = res.obligation.entity_refs.slack;
+    if (s?.channel && s.thread_ts) {
+      posted = await this.d.notifier.postInThread({ channel: s.channel, threadTs: s.thread_ts, text });
+    }
+    return { kind: "notified", obligation: res.obligation, posted };
+  }
+
+  // --- customer reply: confirm or reopen -----------------------------------
+  async recordCustomerConfirmation(obligationId: ObligationId): Promise<Obligation | null> {
+    const r = await this.d.service.dispatch({ kind: "RECORD_CUSTOMER_CONFIRMATION" }, this.ctx(obligationId, `${obligationId}:cust_confirm`));
+    return r.obligation ?? null;
+  }
+
+  /** Customer says it still fails — reopen, even though the ticket is Done, and resume work. */
+  async reopen(obligationId: ObligationId, reason: string): Promise<Obligation | null> {
+    await this.d.service.dispatch({ kind: "REOPEN", reason }, this.ctx(obligationId, `${obligationId}:reopen`));
+    const r = await this.d.service.dispatch({ kind: "START_WORK" }, this.ctx(obligationId, `${obligationId}:resume`));
+    return r.obligation ?? (await this.d.service.getObligation(obligationId));
+  }
+
+  /**
+   * Best-effort routing of a customer reply on an existing obligation: a success
+   * phrase confirms; a "still fails" phrase reopens. (The demo also calls
+   * recordCustomerConfirmation / reopen directly for determinism.)
+   */
+  async ingestCustomerReply(msg: SlackMessage, subject_canonical: string, customer: string): Promise<Obligation | null> {
+    const all = await this.d.service.listObligations(this.now());
+    const o = resolve({ customer, subject_canonical }, all.filter((x) => ["CUSTOMER_NOTIFIED", "CLOSED"].includes(x.state)));
+    if (!o) return null;
+    if (/\b(still|again)\b.*(fail|broken|not working|doesn'?t work)/i.test(msg.text)) {
+      return this.reopen(o.id, "customer reports it still fails");
+    }
+    if (/\b(works|working|resolved|fixed|confirmed|looks good)\b/i.test(msg.text)) {
+      return this.recordCustomerConfirmation(o.id);
+    }
+    return o;
+  }
+
+  // --- read surfaces (ledger / audit / home / modals) ----------------------
+  async ledgerFor(customer: string): Promise<Obligation[]> {
+    const all = await this.d.service.listObligations(this.now());
+    return all.filter((o) => o.customer.toUpperCase() === customer.toUpperCase());
+  }
+
+  /** All obligations, for the App Home dashboard. */
+  async allObligations(): Promise<Obligation[]> {
+    return this.d.service.listObligations(this.now());
+  }
+
+  /** A single obligation projection (for opening a modal). */
+  async obligation(id: ObligationId): Promise<Obligation | null> {
+    return this.d.service.getObligation(id, this.now());
+  }
+
+  /** The auto-generated sanitized closure text (to prefill the edit-reply modal). */
+  async closureDraftText(id: ObligationId): Promise<string | null> {
+    const o = await this.d.service.getObligation(id, this.now());
+    return o ? buildClosureDraft(o).text : null;
+  }
+
+  async auditFor(obligationId: ObligationId): Promise<{ obligation: Obligation; events: import("../domain/events.js").ObligationEvent[] } | null> {
+    const events = await this.d.service.getEvents(obligationId);
+    if (events.length === 0) return null;
+    return { obligation: project(events, { now: this.now() }), events };
+  }
+}
