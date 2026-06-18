@@ -9,8 +9,9 @@ import type { Scheduler } from "../scheduler/scheduler.js";
 import { AnthropicProvider } from "../llm/anthropic.js";
 import { MockLlmProvider } from "../llm/mock.js";
 import type { LlmProvider } from "../llm/provider.js";
-import { SimulatedLinearAdapter, LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.js";
+import { LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
+import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { WebClient } from "@slack/web-api";
 import { LedgerRtsRetriever, CompositeRtsRetriever, SlackRtsRetriever, type SlackSearchClient } from "../slack/rts.js";
 import { FileRoadmapSource, type RoadmapSource } from "../policy/roadmap.js";
@@ -46,12 +47,27 @@ async function main() {
     ? new AnthropicProvider({ apiKey: cfg.anthropicApiKey, model: cfg.llmModel })
     : new MockLlmProvider(heuristicResponder);
 
-  const workItems: WorkItemAdapter =
-    process.env.JIRA_BASE_URL && process.env.JIRA_EMAIL && process.env.JIRA_API_TOKEN && process.env.JIRA_PROJECT_KEY
-      ? new JiraApiAdapter({ baseUrl: process.env.JIRA_BASE_URL, email: process.env.JIRA_EMAIL, apiToken: process.env.JIRA_API_TOKEN, projectKey: process.env.JIRA_PROJECT_KEY })
-      : process.env.LINEAR_API_KEY && process.env.LINEAR_TEAM_ID
-        ? new LinearApiAdapter({ apiKey: process.env.LINEAR_API_KEY, teamId: process.env.LINEAR_TEAM_ID })
-        : new SimulatedLinearAdapter();
+  // Work items go through MCP by default (the hackathon's "MCP server integration").
+  // Precedence: Linear MCP > Atlassian/Jira MCP > legacy direct-API adapters >
+  // an in-process SIMULATED MCP server (real client↔server round-trip, no network).
+  let workItemsMode: string;
+  let workItems: WorkItemAdapter;
+  if (process.env.LINEAR_MCP_TOKEN) {
+    workItems = McpWorkItemAdapter.linear({ token: process.env.LINEAR_MCP_TOKEN, url: process.env.LINEAR_MCP_URL, teamId: process.env.LINEAR_TEAM_ID, toolName: process.env.KEPT_MCP_TOOL });
+    workItemsMode = "mcp:linear";
+  } else if (process.env.ATLASSIAN_MCP_TOKEN) {
+    workItems = McpWorkItemAdapter.atlassian({ token: process.env.ATLASSIAN_MCP_TOKEN, url: process.env.ATLASSIAN_MCP_URL, cloudId: process.env.JIRA_CLOUD_ID, projectKey: process.env.JIRA_PROJECT_KEY, toolName: process.env.KEPT_MCP_TOOL });
+    workItemsMode = "mcp:atlassian";
+  } else if (process.env.JIRA_BASE_URL && process.env.JIRA_EMAIL && process.env.JIRA_API_TOKEN && process.env.JIRA_PROJECT_KEY) {
+    workItems = new JiraApiAdapter({ baseUrl: process.env.JIRA_BASE_URL, email: process.env.JIRA_EMAIL, apiToken: process.env.JIRA_API_TOKEN, projectKey: process.env.JIRA_PROJECT_KEY });
+    workItemsMode = "jira-rest";
+  } else if (process.env.LINEAR_API_KEY && process.env.LINEAR_TEAM_ID) {
+    workItems = new LinearApiAdapter({ apiKey: process.env.LINEAR_API_KEY, teamId: process.env.LINEAR_TEAM_ID });
+    workItemsMode = "linear-graphql";
+  } else {
+    workItems = await createSimulatedMcpWorkItems();
+    workItemsMode = "mcp:simulated";
+  }
 
   const fallbackOwner = process.env.KEPT_DEFAULT_OWNER ?? "U_ACCOUNT_MANAGER";
 
@@ -107,7 +123,7 @@ async function main() {
   console.log(`[kept] Slack app on :${slackPort}`);
   const roadmapMode = process.env.KEPT_ROADMAP_FILE ? "file" : cfg.databaseUrl ? "postgres" : "none";
   const rtsMode = process.env.KEPT_SLACK_USER_SEARCH === "1" ? "ledger+slack-search" : "ledger";
-  console.log(`[kept] store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItems.system} · reminders=${cfg.redisUrl ? "bullmq" : "in-memory"} · roadmap=${roadmapMode} · rts=${rtsMode}`);
+  console.log(`[kept] store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${cfg.redisUrl ? "bullmq" : "in-memory"} · roadmap=${roadmapMode} · rts=${rtsMode}`);
 }
 
 main().catch((err) => {

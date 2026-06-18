@@ -12,7 +12,7 @@ import { InMemoryEventStore } from "../store/memoryStore.js";
 import { ObligationService } from "../engine/obligationService.js";
 import { InMemoryScheduler } from "../scheduler/inMemoryScheduler.js";
 import { MockLlmProvider } from "../llm/mock.js";
-import { SimulatedLinearAdapter } from "../integrations/linear.js";
+import { createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { LedgerRtsRetriever } from "../slack/rts.js";
 import { RecordingNotifier } from "../slack/notifier.js";
 import { KeptOrchestrator } from "../app/orchestrator.js";
@@ -57,10 +57,13 @@ async function main() {
   const scheduler = new InMemoryScheduler((j) => {
     reminders.push(`${j.kind}@${new Date(j.fireAt).toISOString().slice(0, 10)}`);
   });
+  // Work items are created through a REAL MCP client↔server round-trip (an
+  // in-process simulated MCP server) — Kept's deterministic MCP client, no network.
+  const workItems = await createSimulatedMcpWorkItems({ startAt: 118 });
   const orch = new KeptOrchestrator({
     service,
     llm: new MockLlmProvider(heuristicResponder),
-    workItems: new SimulatedLinearAdapter({ startAt: 118 }),
+    workItems,
     // Real, ledger-backed RTS: prior commitments come from the obligation ledger; the
     // area owner from a configurable map. Results are ephemeral (never persisted).
     rts: new LedgerRtsRetriever({
@@ -104,7 +107,7 @@ async function main() {
   beat("0:25  Account manager clicks Confirm → one Linear issue, events appended");
   const { work } = await orch.confirmCommitment(id, "U_AM");
   if (!work) throw new Error("confirm was not applied");
-  log(`  → created ${work.ref} (${work.url})`);
+  log(`  → created ${work.ref} (${work.url}) — via an MCP create_issue tool call (code chose the tool, not the model)`);
   log(`  → reminders scheduled: ${scheduler.pending().map((j) => j.kind).join(", ")}`);
   log(renderBlocks(ledgerView("Acme", await orch.ledgerFor("Acme"))));
 
