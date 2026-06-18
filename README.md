@@ -12,7 +12,7 @@ Kept is a Slack-native agent for shared customer channels. It maintains a **huma
 
 ## What's in this repo
 
-The deterministic, event-sourced obligation **engine** (fully unit-tested + an independent eval harness) **and** the **Layer-4 adapters** on top of the `ObligationService` seam: a transport-agnostic orchestrator, the Slack surface (Bolt events + Block Kit confirm/verify/closure cards, App Home ledger dashboard, edit modals, audit history), webhook ingestion (Linear/GitHub/deploy), and a Linear work-item adapter. `npm run demo` drives the whole loop with no external services.
+The deterministic, event-sourced obligation **engine** (fully unit-tested + an independent eval harness) **and** the **Layer-4 adapters** on top of the `ObligationService` seam: a transport-agnostic orchestrator, the Slack surface (Bolt events + Block Kit confirm/verify/closure cards, App Home ledger dashboard, edit modals, audit history), webhook ingestion (Linear/GitHub/deploy), and work-item adapters (Linear + Jira) driven over **MCP** — Kept is a deterministic MCP client. `npm run demo` drives the whole loop with no external services (work items go through a real in-process MCP server).
 
 ```
 Slack Events / webhooks ─► propose Command ─► decide() ─► EVENT STORE ─► projection
@@ -30,7 +30,7 @@ Slack Events / webhooks ─► propose Command ─► decide() ─► EVENT STOR
 | **3. Engine infrastructure** | Append-only store, projections, idempotency, multi-source reconciliation, entity graph. | `src/engine/*`, `src/store/*` |
 | **4. Integration & policy** | Audience-safe outputs, action tiers, reminders, roadmap check. | `src/policy/*`, `src/scheduler/*` |
 
-On top of those four layers, the **adapter layer** translates the outside world onto the engine: `src/app/orchestrator.ts` (transport-agnostic — every Slack action and webhook flows through it), `src/slack/*` (Block Kit cards, notifier, RTS), `src/integrations/linear.ts` (work items), `src/webhooks/*` (Linear/GitHub/deploy ingestion), and `src/server/*` (the Bolt + HTTP transports). The orchestrator holds *no* business rules — it only sequences calls into the engine, so the gates, sanitization, and reconciliation are enforced in exactly one place.
+On top of those four layers, the **adapter layer** translates the outside world onto the engine: `src/app/orchestrator.ts` (transport-agnostic — every Slack action and webhook flows through it), `src/slack/*` (Block Kit cards, notifier, RTS), `src/integrations/{linear,jira,mcp}.ts` (work items created over MCP — a deterministic MCP client, never the LLM), `src/webhooks/*` (Linear/GitHub/deploy ingestion), and `src/server/*` (the Bolt + HTTP transports). The orchestrator holds *no* business rules — it only sequences calls into the engine, so the gates, sanitization, and reconciliation are enforced in exactly one place.
 
 **The keystone:** the LLM never writes an event like `CUSTOMER_NOTIFIED`. It proposes a `Command`; the deterministic engine (`decide()` in `src/engine/commandHandler.ts`) validates guards + evidence + approval and only then emits events. *The model interprets language; code controls state and actions.*
 
@@ -81,7 +81,7 @@ The two mandatory human gates:
 ```bash
 npm install
 npm run typecheck     # tsc --noEmit
-npm test              # vitest — 111 tests (engine + adapters + adversarial-regression), fully hermetic
+npm test              # vitest — 115 tests (engine + adapters + MCP + adversarial-regression), fully hermetic
 npm run demo          # the full E3 storyboard, end to end, no external services
 npm run eval          # the evaluation harness (metrics)
 npm start             # run the live app (Slack Events + webhook server) — needs tokens
@@ -94,7 +94,7 @@ DATABASE_URL=postgres://localhost:5432/kept REDIS_URL=redis://localhost:6379 \
 
 `npm run demo` prints the entire loop — the private confirm card, Linear issue, duplicate-webhook suppression, semantic dedupe, merge+deploy reconciliation, the Gate-2 verify card, the sanitized in-thread closure, the reopen, the two-sided ledger, and the full audit history — all driven through the **real** orchestrator + engine with recording/simulated adapters.
 
-The live app (`npm start`) runs the real Slack surface (Events API + Block Kit) on top of the same orchestrator; Linear/Jira + deploy arrive as webhooks (`POST /webhooks/{linear,jira,github,deploy}`). Each external dependency upgrades from its simulated adapter to the real one when its env is set (`DATABASE_URL` → Postgres, `REDIS_URL` → BullMQ, `ANTHROPIC_API_KEY` → Claude, `LINEAR_*`/`JIRA_*` → real work items). See `.env.example`.
+The live app (`npm start`) runs the real Slack surface (Events API + Block Kit) on top of the same orchestrator; Linear/Jira + deploy arrive as webhooks (`POST /webhooks/{linear,jira,github,deploy}`). Each external dependency upgrades from its simulated adapter to the real one when its env is set (`DATABASE_URL` → Postgres, `REDIS_URL` → BullMQ, `ANTHROPIC_API_KEY` → Claude, `LINEAR_MCP_TOKEN`/`ATLASSIAN_MCP_TOKEN` → the hosted Linear/Atlassian **MCP** servers; default is an in-process MCP server). See `.env.example`.
 
 **Slack setup:** create the app at api.slack.com → *From a manifest* using [`slack-manifest.yaml`](slack-manifest.yaml) (it declares the scopes, events, `/kept` command, interactivity, App Home, and Socket Mode). Then generate an app-level token (`connections:write`) → `SLACK_APP_TOKEN`, install to the workspace → copy the bot token + signing secret, and invite the bot to your (Slack Connect) channel.
 
@@ -138,15 +138,19 @@ Every finding became a permanent regression test (`tests/hardening.test.ts`, `te
 
 ## Stack
 
-Bolt + TypeScript · Slack Events API · RTS (targeted retrieval) · PostgreSQL (event store + projections) · Redis + BullMQ (reminders, retries) · Linear/Jira adapter (API/MCP) · optional GitHub/deploy webhook · Zod (LLM structured-output validation) · explicit guarded-transition module · provider-agnostic LLM interface (default `claude-opus-4-8`) · Block Kit.
+Bolt + TypeScript · Slack Events API · RTS (targeted retrieval) · PostgreSQL (event store + projections) · Redis + BullMQ (reminders, retries) · **MCP** for work items (Model Context Protocol — a deterministic MCP client + an in-process simulated MCP server; hosted Linear/Atlassian MCP servers plug in with a token) · optional GitHub/deploy webhook · Zod (LLM structured-output validation) · explicit guarded-transition module · provider-agnostic LLM interface (default `claude-opus-4-8`) · Block Kit.
+
+### MCP integration (deterministic client)
+
+Kept satisfies the "MCP server integration" requirement *without* handing the model the controls. After the engine passes Gate 1, the orchestrator calls a specific MCP tool (`create_issue`) with computed arguments — the LLM never selects the tool. `src/integrations/mcp.ts` is a streamable-HTTP MCP client for Linear (`https://mcp.linear.app/mcp`) and Atlassian/Jira (`https://mcp.atlassian.com/v1/mcp`) behind the same `WorkItemAdapter` interface, plus an in-process **simulated MCP server** (`createSimulatedMcpWorkItems`) so the demo and the hermetic tests exercise a real MCP client↔server round-trip (`listTools` + `callTool`) with no network or OAuth. Tool resolution, argument building, and result parsing are configurable, since the hosted servers' schemas evolve.
 
 > Structured LLM output uses **forced tool-use** + Zod validation (`src/llm/anthropic.ts`), the most portable structured-output path.
 
 ## Built & remaining
 
-**Built:** the engine (Parts C/D) + the Layer-4 adapters — orchestrator, Slack surface (Bolt events, Block Kit confirm/verify/closure cards, `/kept` ledger), the **App Home dashboard** (live two-sided ledger grouped by customer, with a History drill-in modal), **Edit modals** (edit-and-confirm at Gate 1; edit-the-customer-reply at closure — the edited reply is re-leak-checked by the engine before it can send), RTS — both a **ledger-backed retriever** (prior commitments + area owner) and a **cross-channel Slack-search retriever** (`SlackRtsRetriever`, permission-safe via the user token, surfaces channel-scoped context not raw text) behind a `CompositeRtsRetriever`, the **roadmap-contradiction warning** with pluggable sources (static / **file** / **Postgres**), **Linear *and* Jira work-item adapters** behind one `WorkItemAdapter` interface (a full-loop test runs the entire lifecycle on Jira — same guarantees, different provider), Linear/Jira/GitHub/deploy webhook ingestion, the live-app boot, and the reproducible demo. The real `PostgresEventStore`, `BullmqScheduler`, and `PostgresRoadmapSource` are **verified against live Postgres + Redis** by the integration suite.
+**Built:** the engine (Parts C/D) + the Layer-4 adapters — orchestrator, Slack surface (Bolt events, Block Kit confirm/verify/closure cards, `/kept` ledger), the **App Home dashboard** (live two-sided ledger grouped by customer, with a History drill-in modal), **Edit modals** (edit-and-confirm at Gate 1; edit-the-customer-reply at closure — the edited reply is re-leak-checked by the engine before it can send), RTS — both a **ledger-backed retriever** (prior commitments + area owner) and a **cross-channel Slack-search retriever** (`SlackRtsRetriever`, permission-safe via the user token, surfaces channel-scoped context not raw text) behind a `CompositeRtsRetriever`, the **roadmap-contradiction warning** with pluggable sources (static / **file** / **Postgres**), **Linear *and* Jira work-item adapters** behind one `WorkItemAdapter` interface, created over **MCP** (a deterministic MCP client; an in-process simulated MCP server exercises a real client↔server round-trip in the demo + tests, and the hosted Linear/Atlassian MCP servers plug in with a token), Linear/Jira/GitHub/deploy webhook ingestion, the live-app boot, and the reproducible demo. The real `PostgresEventStore`, `BullmqScheduler`, and `PostgresRoadmapSource` are **verified against live Postgres + Redis** by the integration suite.
 
-**Remaining (production polish):** user-token OAuth storage so `SlackRtsRetriever` has per-user tokens to search with in production (the retriever + composite are built and unit-tested; live activation needs the token store); and a full end-to-end run against a real Slack Connect workspace (needs a bot token + tunnel). The `LinearApiAdapter` (real GraphQL) is implemented but not yet exercised against a live Linear account.
+**Remaining (production polish):** user-token OAuth storage so `SlackRtsRetriever` has per-user tokens to search with in production (the retriever + composite are built and unit-tested; live activation needs the token store); and a full end-to-end run against a real Slack Connect workspace (needs a bot token + tunnel). The hosted Linear + Atlassian **MCP** servers are wired via the streamable-HTTP MCP client (Bearer token); the demo + tests run against an in-process MCP server, so the live hosted servers just need OAuth/token credentials. The legacy direct-API `LinearApiAdapter` / `JiraApiAdapter` (GraphQL/REST) remain as fallbacks.
 
 ### Known hardening items (deferred, documented)
 

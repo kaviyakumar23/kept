@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1510" width="1280" height="1510" font-family="'IBM Plex Sans', -apple-system, system-ui, sans-serif">
+  <defs>
+    <style>
+      .h{font-family:'Fraunces',Georgia,'Times New Roman',serif;}
+      .s{font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;}
+      .m{font-family:'IBM Plex Mono','SF Mono',Menlo,monospace;}
+    </style>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0F6E5C"/>
+    </marker>
+    <marker id="arrm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#A39B8C"/>
+    </marker>
+    <marker id="arrd" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0B5346"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="1510" fill="#F4F1EA"/>
+
+  <!-- ============ HEADER ============ -->
+  <rect x="40" y="40" width="30" height="30" rx="7" fill="#0F6E5C"/>
+  <text x="55" y="61" class="m" font-size="15" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="80" y="63" class="h" font-size="22" font-weight="600" fill="#1B1A17">Kept</text>
+  <text x="1240" y="58" class="m" font-size="11" fill="#A39B8C" text-anchor="end">github.com/kaviyakumar23/kept</text>
+
+  <text x="40" y="118" class="m" font-size="12" letter-spacing="2" fill="#0F6E5C">ARCHITECTURE</text>
+  <text x="40" y="156" class="h" font-size="34" font-weight="600" fill="#1B1A17">How Kept keeps a promise</text>
+  <text x="40" y="184" class="s" font-size="15" fill="#5A5345">A customer message becomes a verified, in-thread closure — and the model never decides a transition.</text>
+
+  <!-- ============ MAIN FLOW (centered column x 330..950, center 640) ============ -->
+
+  <!-- S1 -->
+  <rect x="330" y="220" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="220" width="4" height="72" rx="2" fill="#0F6E5C"/>
+  <circle cx="372" cy="256" r="14" fill="#0F6E5C"/>
+  <text x="372" y="261" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">1</text>
+  <text x="400" y="251" class="s" font-size="17" font-weight="600" fill="#1B1A17">Slack surface — the live trigger</text>
+  <text x="400" y="274" class="m" font-size="12" fill="#837C6E">Bolt · Events API · Block Kit · App Home · Socket Mode</text>
+
+  <!-- c1 -->
+  <line x1="640" y1="294" x2="640" y2="330" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="513" y="303" width="254" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="316" class="m" font-size="11" fill="#5A5345" text-anchor="middle">customer message in a shared channel</text>
+
+  <!-- S2 -->
+  <rect x="330" y="332" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="332" width="4" height="72" rx="2" fill="#837C6E"/>
+  <circle cx="372" cy="368" r="14" fill="#837C6E"/>
+  <text x="372" y="373" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">2</text>
+  <text x="400" y="363" class="s" font-size="17" font-weight="600" fill="#1B1A17">LLM proposes a Command</text>
+  <text x="400" y="386" class="m" font-size="12" fill="#837C6E">classify + extract · claude-opus-4-8 / Mock · language only</text>
+
+  <!-- LLM callout (left) -->
+  <rect x="44" y="330" width="250" height="76" rx="10" fill="#F4F1EA" stroke="#E4DECF" stroke-dasharray="4 3"/>
+  <text x="60" y="354" class="m" font-size="10.5" letter-spacing="1" fill="#A39B8C">PROPOSER</text>
+  <text x="60" y="376" class="s" font-size="12.5" fill="#3A352D">Forced tool-use + Zod at the</text>
+  <text x="60" y="393" class="s" font-size="12.5" fill="#3A352D">boundary. Emits a Command —</text>
+  <text x="60" y="410" class="s" font-size="12.5" font-weight="600" fill="#0B5346">never an event.</text>
+  <line x1="294" y1="368" x2="328" y2="368" stroke="#A39B8C" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrm)"/>
+
+  <!-- c2 -->
+  <line x1="640" y1="406" x2="640" y2="442" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="503" y="415" width="274" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="428" class="m" font-size="11" fill="#5A5345" text-anchor="middle">a Command — the LLM never writes state</text>
+
+  <!-- S3 ENGINE (taller, ink accent) -->
+  <rect x="330" y="444" width="620" height="98" rx="11" fill="#FBF9F3" stroke="#1B1A17" stroke-width="1.5"/>
+  <rect x="330" y="444" width="4" height="98" rx="2" fill="#1B1A17"/>
+  <circle cx="372" cy="480" r="14" fill="#1B1A17"/>
+  <text x="372" y="485" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">3</text>
+  <text x="400" y="478" class="s" font-size="17" font-weight="600" fill="#1B1A17">decide() — the pure guard pipeline</text>
+  <text x="400" y="502" class="m" font-size="11.5" fill="#5A5345">envelope → idempotency → leak + evidence-consistency → zero-copy</text>
+  <text x="400" y="521" class="m" font-size="11.5" fill="#5A5345">→ reconciliation gate → canApply (TRANSITIONS)</text>
+  <rect x="804" y="508" width="128" height="20" rx="10" fill="#DCEDE8"/>
+  <text x="868" y="522" class="m" font-size="10.5" font-weight="600" fill="#0B5346" text-anchor="middle">pure · no I/O</text>
+
+  <!-- c3 -->
+  <line x1="640" y1="544" x2="640" y2="580" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="540" y="553" width="200" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="566" class="m" font-size="11" fill="#5A5345" text-anchor="middle">append · zero-copy enforced</text>
+
+  <!-- S4 EVENT STORE -->
+  <rect x="330" y="582" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="582" width="4" height="72" rx="2" fill="#0B5346"/>
+  <circle cx="372" cy="618" r="14" fill="#0B5346"/>
+  <text x="372" y="623" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">4</text>
+  <text x="400" y="613" class="s" font-size="17" font-weight="600" fill="#1B1A17">Append-only event store → CANDIDATE</text>
+  <text x="400" y="636" class="m" font-size="12" fill="#837C6E">PostgreSQL (real) / in-memory (hermetic) · 16 event kinds · ON CONFLICT DO NOTHING</text>
+
+  <!-- short connector to gate1 -->
+  <line x1="640" y1="654" x2="640" y2="676" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- GATE 1 -->
+  <rect x="330" y="678" width="620" height="56" rx="11" fill="#DCEDE8" stroke="#B7D7CE" stroke-width="1.5"/>
+  <rect x="330" y="678" width="4" height="56" rx="2" fill="#0B5346"/>
+  <text x="356" y="706" class="m" font-size="16" fill="#0B5346">⬡</text>
+  <text x="384" y="703" class="s" font-size="14.5" font-weight="600" fill="#0B5346">Gate 1 — the owner confirms the commitment</text>
+  <text x="384" y="724" class="m" font-size="11" fill="#0B5346">CANDIDATE → OPEN · canApply rejects unless approved_by is set</text>
+  <rect x="838" y="694" width="94" height="24" rx="12" fill="#FBF9F3" stroke="#B7D7CE"/>
+  <text x="885" y="710" class="m" font-size="11" font-weight="600" fill="#0B5346" text-anchor="middle">✓ human</text>
+
+  <!-- gate1 -> S5 -->
+  <line x1="640" y1="734" x2="640" y2="772" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="470" y="744" width="340" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="757" class="m" font-size="11" fill="#5A5345" text-anchor="middle">work item created over MCP — only after the gate persists</text>
+
+  <!-- S5 -->
+  <rect x="330" y="774" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="774" width="4" height="72" rx="2" fill="#0F6E5C"/>
+  <circle cx="372" cy="810" r="14" fill="#0F6E5C"/>
+  <text x="372" y="815" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">5</text>
+  <text x="400" y="805" class="s" font-size="17" font-weight="600" fill="#1B1A17">Track — evidence attaches</text>
+  <text x="400" y="828" class="m" font-size="12" fill="#837C6E">OPEN → IN_PROGRESS → POSSIBLE_FULFILLMENT  (possible, not done)</text>
+
+  <!-- webhooks callout (right) -->
+  <rect x="986" y="766" width="254" height="92" rx="10" fill="#F4F1EA" stroke="#E4DECF" stroke-dasharray="4 3"/>
+  <text x="1002" y="788" class="m" font-size="10.5" letter-spacing="1" fill="#A39B8C">MCP · INTEGRATIONS · WEBHOOKS</text>
+  <text x="1002" y="808" class="m" font-size="11" fill="#3A352D">create_issue → Linear / Atlassian MCP</text>
+  <text x="1002" y="826" class="m" font-size="11" fill="#3A352D">/webhooks/{linear,jira,github,deploy}</text>
+  <text x="1002" y="844" class="m" font-size="11" fill="#3A352D">map*Webhook → evidence</text>
+  <line x1="986" y1="812" x2="952" y2="812" stroke="#A39B8C" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrm)"/>
+
+  <!-- c5 -->
+  <line x1="640" y1="846" x2="640" y2="882" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="505" y="855" width="270" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="868" class="m" font-size="11" fill="#5A5345" text-anchor="middle">multi-source signals to reconcile</text>
+
+  <!-- S6 RECONCILE -->
+  <rect x="330" y="884" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="884" width="4" height="72" rx="2" fill="#0B5346"/>
+  <circle cx="372" cy="920" r="14" fill="#0B5346"/>
+  <text x="372" y="925" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">6</text>
+  <text x="400" y="915" class="s" font-size="17" font-weight="600" fill="#1B1A17">Reconcile — evidence, not truth</text>
+  <text x="400" y="938" class="m" font-size="11.5" fill="#837C6E">assessFulfillment: 2 lanes — customer confirmation  OR  merged PR + prod deploy</text>
+
+  <!-- short connector to gate2 -->
+  <line x1="640" y1="956" x2="640" y2="978" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- GATE 2 -->
+  <rect x="330" y="980" width="620" height="56" rx="11" fill="#DCEDE8" stroke="#B7D7CE" stroke-width="1.5"/>
+  <rect x="330" y="980" width="4" height="56" rx="2" fill="#0B5346"/>
+  <text x="356" y="1008" class="m" font-size="16" fill="#0B5346">⬡</text>
+  <text x="384" y="1005" class="s" font-size="14.5" font-weight="600" fill="#0B5346">Gate 2 — a human verifies fulfillment</text>
+  <text x="384" y="1026" class="m" font-size="11" fill="#0B5346">POSSIBLE_FULFILLMENT → VERIFIED · approval + sufficient evidence</text>
+  <rect x="838" y="996" width="94" height="24" rx="12" fill="#FBF9F3" stroke="#B7D7CE"/>
+  <text x="885" y="1012" class="m" font-size="11" font-weight="600" fill="#0B5346" text-anchor="middle">✓ human</text>
+
+  <!-- gate2 -> S7 -->
+  <line x1="640" y1="1036" x2="640" y2="1074" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="566" y="1046" width="148" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="1059" class="m" font-size="11" fill="#5A5345" text-anchor="middle">VERIFIED</text>
+
+  <!-- S7 DRAFT -->
+  <rect x="330" y="1076" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#E4DECF"/>
+  <rect x="330" y="1076" width="4" height="72" rx="2" fill="#0F6E5C"/>
+  <circle cx="372" cy="1112" r="14" fill="#0F6E5C"/>
+  <text x="372" y="1117" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">7</text>
+  <text x="400" y="1107" class="s" font-size="17" font-weight="600" fill="#1B1A17">Draft a sanitized closure</text>
+  <text x="400" y="1130" class="m" font-size="12" fill="#837C6E">buildClosureDraft + leak check · owner approves or edits (re-checked)</text>
+
+  <!-- c7 -->
+  <line x1="640" y1="1148" x2="640" y2="1184" stroke="#0F6E5C" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="475" y="1157" width="330" height="18" rx="4" fill="#F4F1EA"/>
+  <text x="640" y="1170" class="m" font-size="11" fill="#5A5345" text-anchor="middle">only on applied — leak re-checked on the command</text>
+
+  <!-- S8 -->
+  <rect x="330" y="1186" width="620" height="72" rx="11" fill="#FBF9F3" stroke="#0F6E5C" stroke-width="1.5"/>
+  <rect x="330" y="1186" width="4" height="72" rx="2" fill="#0F6E5C"/>
+  <circle cx="372" cy="1222" r="14" fill="#0F6E5C"/>
+  <text x="372" y="1227" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">8</text>
+  <text x="400" y="1217" class="s" font-size="17" font-weight="600" fill="#1B1A17">Post in the original thread → CUSTOMER_NOTIFIED</text>
+  <text x="400" y="1240" class="m" font-size="12" fill="#837C6E">the customer finally hears it is done — sanitized, human-approved</text>
+
+  <!-- REOPENED loop (far left, dashed) -->
+  <path d="M 330,1222 C 250,1140 250,890 330,810" fill="none" stroke="#0B5346" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrd)"/>
+  <text x="176" y="1006" class="m" font-size="11" font-weight="600" fill="#0B5346" text-anchor="middle">customer disputes</text>
+  <text x="176" y="1023" class="m" font-size="11" font-weight="600" fill="#0B5346" text-anchor="middle">→ REOPENED</text>
+  <text x="176" y="1042" class="m" font-size="10" fill="#A39B8C" text-anchor="middle">outlives the ticket</text>
+
+  <!-- ============ FOOTER ============ -->
+  <line x1="40" y1="1304" x2="1240" y2="1304" stroke="#E4DECF"/>
+
+  <text x="40" y="1338" class="m" font-size="11" letter-spacing="1.5" fill="#0F6E5C">THE BACKBONE</text>
+  <text x="40" y="1362" class="s" font-size="13" fill="#3A352D">State is a pure fold of an append-only event log — every transition is an event; projectAt() reconstructs any point in time. A logic change is a replay, not a migration.</text>
+
+  <!-- legend -->
+  <circle cx="48" cy="1396" r="6" fill="#0F6E5C"/>
+  <text x="64" y="1401" class="s" font-size="13" fill="#1B1A17"><tspan font-weight="600">Real and live:</tspan> Slack (Events API · Block Kit · App Home · Socket Mode), PostgreSQL event store, Redis + BullMQ scheduler.</text>
+  <rect x="42" y="1418" width="12" height="12" rx="2" fill="none" stroke="#A39B8C" stroke-dasharray="3 2"/>
+  <text x="64" y="1429" class="s" font-size="13" fill="#1B1A17"><tspan font-weight="600">Work items over MCP:</tspan> Linear and Jira behind one WorkItemAdapter — in-process MCP server in the demo; hosted Linear/Atlassian MCP servers plug in.</text>
+
+  <text x="40" y="1466" class="m" font-size="11" fill="#837C6E">The LLM only classifies, extracts and drafts and proposes a Command — the deterministic engine decides every transition. The model never emits an event, mutates state, or chooses an MCP tool.</text>
+  <text x="40" y="1486" class="m" font-size="11" fill="#837C6E">115 hermetic tests + 5 live integration tests · 5 adversarial hardening rounds · the model interprets language, code controls state and actions.</text>
+</svg>
