@@ -12,6 +12,23 @@ Kept is a Slack-native agent for shared customer channels. It maintains a **huma
 
 ---
 
+## For judges — 2-minute evaluation
+
+No accounts, tokens, or services required:
+
+```bash
+npm install
+npm test            # 115 hermetic tests (engine + adapters + MCP + adversarial regressions)
+npm run demo        # the full obligation lifecycle, end to end, in your terminal
+```
+
+- **Required technology — MCP:** work items are created by calling an MCP tool. Kept is a *deterministic* MCP client — code picks the tool after a passed gate; the model never does. See [MCP integration](#mcp-integration-deterministic-client) and `src/integrations/mcp.ts` (`npm run demo` runs a real MCP client↔server round-trip in-process).
+- **The thesis, in two files:** the guarded state machine + two human gates (`src/domain/stateMachine.ts`) and the pure, I/O-free `decide()` (`src/engine/commandHandler.ts`).
+- **Artifacts:** architecture diagram → `docs/architecture.png` · write-up → `docs/DEVPOST.md` · landing page → `docs/index.html` · demo script → `docs/DEMO_SCRIPT.md`.
+- **Honest framing:** Slack is the real, live surface; Postgres + Redis/BullMQ are real (exercised by the live integration suite). Linear/Jira run over MCP — the demo + tests use an in-process MCP server; the hosted Linear/Atlassian MCP servers plug in with a token. The LLM only proposes; a deterministic engine decides every transition.
+
+---
+
 ## What's in this repo
 
 The deterministic, event-sourced obligation **engine** (fully unit-tested + an independent eval harness) **and** the **Layer-4 adapters** on top of the `ObligationService` seam: a transport-agnostic orchestrator, the Slack surface (Bolt events + Block Kit confirm/verify/closure cards, App Home ledger dashboard, edit modals, audit history), webhook ingestion (Linear/GitHub/deploy), and work-item adapters (Linear + Jira) driven over **MCP** — Kept is a deterministic MCP client. `npm run demo` drives the whole loop with no external services (work items go through a real in-process MCP server).
