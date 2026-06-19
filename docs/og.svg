@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <style>
+      .h{font-family:'Fraunces',Georgia,'Times New Roman',serif;}
+      .s{font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;}
+      .m{font-family:'IBM Plex Mono','SF Mono',Menlo,monospace;}
+    </style>
+  </defs>
+
+  <rect width="1200" height="630" fill="#F4F1EA"/>
+  <rect x="0" y="0" width="12" height="630" fill="#0F6E5C"/>
+
+  <!-- wordmark -->
+  <rect x="80" y="64" width="54" height="54" rx="13" fill="#0F6E5C"/>
+  <text x="107" y="101" class="m" font-size="29" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="148" y="106" class="h" font-size="38" font-weight="600" fill="#1B1A17">Kept</text>
+
+  <!-- eyebrow -->
+  <text x="82" y="196" class="m" font-size="20" letter-spacing="3" fill="#0F6E5C">SLACK-NATIVE · HUMAN-VERIFIED · EVENT-SOURCED</text>
+
+  <!-- headline -->
+  <text x="80" y="282" class="h" font-size="58" font-weight="600" fill="#1B1A17">Never treat one message, ticket,</text>
+  <text x="80" y="350" class="h" font-size="58" font-weight="600" fill="#1B1A17">or merged PR as <tspan fill="#0F6E5C">truth.</tspan></text>
+
+  <!-- subline -->
+  <text x="80" y="410" class="s" font-size="25" fill="#46433C">A human-verified obligation ledger for shared customer channels.</text>
+
+  <!-- chips -->
+  <g>
+    <rect x="80" y="460" width="104" height="46" rx="10" fill="#DCEDE8" stroke="#B7D7CE"/>
+    <text x="132" y="489" class="m" font-size="19" font-weight="600" fill="#0B5346" text-anchor="middle">Slack</text>
+    <rect x="196" y="460" width="92" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
+    <text x="242" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">MCP</text>
+    <rect x="300" y="460" width="208" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
+    <text x="404" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">two human gates</text>
+    <rect x="520" y="460" width="188" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
+    <text x="614" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">event-sourced</text>
+  </g>
+
+  <!-- footer -->
+  <line x1="80" y1="556" x2="1120" y2="556" stroke="#E4DECF"/>
+  <text x="80" y="592" class="m" font-size="20" fill="#837C6E">github.com/kaviyakumar23/kept</text>
+  <g>
+    <circle cx="980" cy="586" r="6" fill="#0F6E5C"/>
+    <text x="996" y="592" class="m" font-size="20" fill="#46433C">New Slack Agent</text>
+  </g>
+</svg>
