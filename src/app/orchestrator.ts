@@ -66,6 +66,8 @@ export type NotifyResult =
 export class KeptOrchestrator {
   private readonly now: () => number;
   private readonly today: () => string;
+  /** Per-obligation lock serializing work-item create+link (concurrency- and retry-safe). */
+  private readonly linkLocks = new Map<ObligationId, Promise<unknown>>();
   constructor(private readonly d: OrchestratorDeps) {
     this.now = d.clock ?? (() => Date.now());
     this.today = d.currentDate ?? (() => new Date(this.now()).toISOString().slice(0, 10));
@@ -153,23 +155,48 @@ export class KeptOrchestrator {
       { kind: "CONFIRM_COMMITMENT", outcome: edits?.outcome ?? o.outcome, due: edits?.due ?? o.due, owner: edits?.owner ?? o.owner ?? approverId },
       this.ctx(obligationId, `${obligationId}:confirm`, approverId, approverId),
     );
-    if (confirm.status !== "applied") return { obligation: confirm.obligation ?? o, work: null };
+    const confirmed = confirm.obligation ?? (await this.d.service.getObligation(obligationId));
+    // Gate rejected (e.g. blank approver) or not a commitment → no side effects.
+    if (!confirmed || ["CANDIDATE", "DISMISSED", "CANCELLED"].includes(confirmed.state)) {
+      return { obligation: confirmed ?? o, work: null };
+    }
 
-    // Winner only: create + link exactly one system-of-record work item.
-    const work = await this.d.workItems.createIssue({
-      title: edits?.outcome ?? o.outcome,
-      description: `Tracked by Kept for ${o.customer}.`,
-    });
-    await this.d.service.dispatch(
-      { kind: "LINK_WORK_ITEM", work_system: this.d.workItems.system, work_ref: work.ref },
-      this.ctx(obligationId, `${obligationId}:link`, approverId, approverId),
-    );
+    // Create + link exactly one system-of-record work item — driven by STATE (confirmed +
+    // unlinked), not the consumed `:confirm` key, so a retry after a transient work-item
+    // failure self-heals instead of leaving a confirmed-but-orphaned obligation. The
+    // per-obligation lock makes it concurrency-safe (no double-create on racing clicks).
+    const work = await this.ensureWorkItem(obligationId, approverId);
 
     const updated = await this.d.service.getObligation(obligationId);
     if (this.d.scheduler && updated) {
       for (const job of computeReminders(updated)) await this.d.scheduler.schedule(job);
     }
     return { obligation: updated, work };
+  }
+
+  /**
+   * Provision the work item once for a confirmed obligation. Serialized per obligation:
+   * concurrent confirms can't double-create (the loser sees the linked item and mints
+   * nothing → returns null), and a failed attempt leaves no LINK event so a later retry
+   * re-attempts. A work-item failure propagates so the caller can surface it.
+   */
+  private async ensureWorkItem(obligationId: ObligationId, approverId: string): Promise<CreatedWorkItem | null> {
+    const prev = this.linkLocks.get(obligationId) ?? Promise.resolve();
+    const run = prev.catch(() => {}).then(async (): Promise<CreatedWorkItem | null> => {
+      const cur = await this.d.service.getObligation(obligationId);
+      if (!cur || cur.work_item) return null; // already linked (or gone) → this call mints nothing
+      const work = await this.d.workItems.createIssue({
+        title: cur.outcome,
+        description: `Tracked by Kept for ${cur.customer}.`,
+      });
+      await this.d.service.dispatch(
+        { kind: "LINK_WORK_ITEM", work_system: this.d.workItems.system, work_ref: work.ref },
+        this.ctx(obligationId, `${obligationId}:link`, approverId, approverId),
+      );
+      return work;
+    });
+    this.linkLocks.set(obligationId, run.catch(() => {}));
+    return run;
   }
 
   async dismiss(obligationId: ObligationId, approverId: string): Promise<Obligation | null> {

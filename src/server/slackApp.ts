@@ -61,6 +61,19 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       /* App Home publish is best-effort */
     }
   };
+  /** Best-effort private notice to the acting user when an action fails after ack(). */
+  const dmUser = async (client: any, userId: string, text: string) => {
+    try {
+      await client.chat.postMessage({ channel: userId, text });
+    } catch {
+      /* notice is best-effort */
+    }
+  };
+
+  // Global safety net so a listener exception never goes unsurfaced.
+  app.error(async (error: any) => {
+    console.error("[kept] slack listener error:", error);
+  });
 
   // App Home — the live obligation-ledger dashboard.
   app.event("app_home_opened", async ({ event, client }: any) => {
@@ -71,8 +84,12 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   // --- gate actions ---
   app.action(new RegExp(`^${ACTIONS.confirm}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    await orch.confirmCommitment(obligationOf(action), body.user.id);
-    await republishHome(client, body.user.id);
+    try {
+      await orch.confirmCommitment(obligationOf(action), body.user.id);
+      await republishHome(client, body.user.id);
+    } catch (err) {
+      await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
+    }
   });
   app.action(new RegExp(`^${ACTIONS.dismiss}:`), async ({ ack, body, action, client }: any) => {
     await ack();
@@ -114,12 +131,16 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.view(CALLBACKS.editObligation, async ({ ack, body, view, client }: any) => {
     const v = view.state.values;
     await ack();
-    await orch.confirmCommitment(view.private_metadata, body.user.id, {
-      outcome: v[FIELDS.outcome.block]?.[FIELDS.outcome.action]?.value || undefined,
-      due: v[FIELDS.due.block]?.[FIELDS.due.action]?.value || null,
-      owner: v[FIELDS.owner.block]?.[FIELDS.owner.action]?.value || undefined,
-    });
-    await republishHome(client, body.user.id);
+    try {
+      await orch.confirmCommitment(view.private_metadata, body.user.id, {
+        outcome: v[FIELDS.outcome.block]?.[FIELDS.outcome.action]?.value || undefined,
+        due: v[FIELDS.due.block]?.[FIELDS.due.action]?.value || null,
+        owner: v[FIELDS.owner.block]?.[FIELDS.owner.action]?.value || undefined,
+      });
+      await republishHome(client, body.user.id);
+    } catch (err) {
+      await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
+    }
   });
   app.view(CALLBACKS.editDraft, async ({ ack, body, view }: any) => {
     const text = view.state.values[FIELDS.draft.block]?.[FIELDS.draft.action]?.value ?? "";

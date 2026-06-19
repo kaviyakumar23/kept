@@ -44,16 +44,20 @@ export interface McpWorkItemOptions {
   clientName?: string;
 }
 
-const REF_RE = /[A-Z][A-Z0-9]*-\d+/;
-const URL_RE = /https?:\/\/[^\s"']+/;
+// Length-bounded so adversarial all-uppercase text can't trigger quadratic backtracking.
+const REF_RE = /[A-Z][A-Z0-9]{0,63}-\d{1,9}/;
+const URL_RE = /https?:\/\/[^\s"']{1,2048}/;
+/** Cap text + traversal depth so a malicious/buggy tool result can't wedge the event loop or blow the stack. */
+const MAX_PARSE_TEXT = 4096;
+const MAX_PARSE_DEPTH = 6;
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : undefined;
 }
 
-/** Depth-first search for the first non-empty string under any of `keys`. */
-function pickString(obj: Record<string, unknown> | undefined, keys: string[]): string | undefined {
-  if (!obj) return undefined;
+/** Depth-first search for the first non-empty string under any of `keys` (depth-capped). */
+function pickString(obj: Record<string, unknown> | undefined, keys: string[], depth = 0): string | undefined {
+  if (!obj || depth > MAX_PARSE_DEPTH) return undefined;
   for (const k of keys) {
     const val = obj[k];
     if (typeof val === "string" && val) return val;
@@ -61,7 +65,7 @@ function pickString(obj: Record<string, unknown> | undefined, keys: string[]): s
   for (const val of Object.values(obj)) {
     const nested = asRecord(val);
     if (nested) {
-      const inner = pickString(nested, keys);
+      const inner = pickString(nested, keys, depth + 1);
       if (inner) return inner;
     }
   }
@@ -79,7 +83,7 @@ function resultText(result: ToolResult): string {
 /** Default {ref,url} extraction: prefer structuredContent, fall back to scanning text. */
 function defaultParse(result: ToolResult): CreatedWorkItem {
   const sc = asRecord((result as { structuredContent?: unknown }).structuredContent);
-  const text = resultText(result);
+  const text = resultText(result).slice(0, MAX_PARSE_TEXT);
   const ref = pickString(sc, ["ref", "identifier", "key", "issueKey", "id"]) ?? text.match(REF_RE)?.[0];
   const url = pickString(sc, ["url", "permalink", "link", "webUrl", "self"]) ?? text.match(URL_RE)?.[0];
   if (!ref) throw new Error(`MCP create-issue returned no parseable issue ref (text: ${text.slice(0, 160)})`);

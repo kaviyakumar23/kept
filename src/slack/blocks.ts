@@ -141,6 +141,9 @@ const STATE_EMOJI: Record<string, string> = {
   VERIFIED: "🟢", CUSTOMER_NOTIFIED: "🟢", CLOSED: "✅", REOPENED: "🔁", DISMISSED: "⚪", CANCELLED: "⚪",
 };
 
+/** Neutralize Slack mrkdwn control chars so an adapter-supplied value can't inject a mention/link. */
+const escapeMrkdwn = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function ledgerLine(o: Obligation): string {
   const flags: string[] = [];
   if (o.flags.is_overdue) flags.push("overdue");
@@ -148,8 +151,8 @@ function ledgerLine(o: Obligation): string {
   if (o.flags.is_disputed) flags.push("disputed");
   if (o.flags.has_scope_change) flags.push("scope changed");
   const tail = flags.length ? `  _(${flags.join(", ")})_` : "";
-  const ref = o.work_item ? `  ·  ${o.work_item.ref}` : "";
-  return `${STATE_EMOJI[o.state] ?? "•"} *${o.outcome}* — ${o.state}${o.due ? `, due ${o.due}` : ""}${ref}${tail}`;
+  const ref = o.work_item ? `  ·  ${escapeMrkdwn(o.work_item.ref)}` : "";
+  return `${STATE_EMOJI[o.state] ?? "•"} *${escapeMrkdwn(o.outcome)}* — ${o.state}${o.due ? `, due ${o.due}` : ""}${ref}${tail}`;
 }
 
 /** The "what we owe Acme" view — request-and-commitment ledger for one customer. */
