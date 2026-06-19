@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1520 760" width="1520" height="760">
+  <defs>
+    <style>
+      .h{font-family:'Fraunces',Georgia,'Times New Roman',serif;}
+      .s{font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;}
+      .m{font-family:'IBM Plex Mono','SF Mono',Menlo,monospace;}
+    </style>
+  </defs>
+
+  <rect width="1520" height="760" fill="#F4F1EA"/>
+
+  <!-- title -->
+  <text x="50" y="52" class="h" font-size="32" font-weight="600" fill="#1B1A17">Kept in Slack — two human gates, one safe closure</text>
+  <text x="50" y="82" class="s" font-size="14.5" fill="#5A5345">Private confirm + verify cards go to the owner; only an approved, sanitized message ever reaches the customer thread. (Real Block Kit from src/slack/blocks.ts.)</text>
+
+  <!-- gate labels + flow -->
+  <text x="275" y="124" class="m" font-size="12" letter-spacing="1.5" fill="#0F6E5C" text-anchor="middle">GATE 1 · CONFIRM</text>
+  <text x="517" y="124" class="m" font-size="15" fill="#A39B8C" text-anchor="middle">→</text>
+  <text x="760" y="124" class="m" font-size="12" letter-spacing="1.5" fill="#0F6E5C" text-anchor="middle">GATE 2 · VERIFY</text>
+  <text x="1002" y="124" class="m" font-size="15" fill="#A39B8C" text-anchor="middle">→</text>
+  <text x="1245" y="124" class="m" font-size="12" letter-spacing="1.5" fill="#0F6E5C" text-anchor="middle">CLOSE THE LOOP</text>
+
+  <!-- ============ CARD 1 — CONFIRM (Gate 1) ============ -->
+  <rect x="50" y="140" width="450" height="500" rx="14" fill="#FFFFFF" stroke="#E4DECF"/>
+  <rect x="72" y="162" width="34" height="34" rx="8" fill="#0F6E5C"/>
+  <text x="89" y="185" class="m" font-size="17" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="116" y="180" class="s" font-size="15" font-weight="700" fill="#1B1A17">Kept</text>
+  <rect x="156" y="169" width="34" height="15" rx="3" fill="#E4DECF"/>
+  <text x="173" y="180" class="m" font-size="9" fill="#6E6A62" text-anchor="middle">APP</text>
+  <text x="198" y="180" class="m" font-size="11" fill="#A39B8C">9:24 AM</text>
+  <!-- header -->
+  <text x="72" y="226" class="s" font-size="15.5" font-weight="700" fill="#1B1A17">Kept · new obligation detected</text>
+  <!-- title + signal -->
+  <text x="72" y="252" class="s" font-size="14" fill="#1B1A17"><tspan font-weight="700">Acme</tspan> — SSO login fix</text>
+  <text x="72" y="272" class="s" font-size="12.5" font-style="italic" fill="#837C6E">Customer request — not yet a commitment</text>
+  <!-- fields grid -->
+  <text x="72" y="302" class="s" font-size="12.5" fill="#46433C"><tspan font-weight="700">Due:</tspan> 2026-06-19</text>
+  <text x="290" y="302" class="s" font-size="12.5" fill="#46433C"><tspan font-weight="700">Owner:</tspan> @you</text>
+  <text x="72" y="324" class="s" font-size="12.5" fill="#46433C"><tspan font-weight="700">Customer:</tspan> Acme</text>
+  <text x="290" y="324" class="s" font-size="12.5" fill="#46433C"><tspan font-weight="700">Confidence:</tspan> 80%</text>
+  <!-- RTS context -->
+  <text x="72" y="352" class="m" font-size="11" fill="#837C6E">Prior to Acme: export feature (OPEN)</text>
+  <!-- roadmap warning -->
+  <rect x="72" y="366" width="406" height="74" rx="8" fill="#FCF4E5" stroke="#E8D9B0"/>
+  <text x="86" y="390" class="s" font-size="12.5" font-weight="700" fill="#6B5A2A">⚠ Roadmap conflict</text>
+  <text x="86" y="410" class="s" font-size="12" fill="#6B5A2A">The committed date (2026-06-19) is earlier than the</text>
+  <text x="86" y="427" class="s" font-size="12" fill="#6B5A2A">roadmap target (2026-06-30). Confirm before promising.</text>
+  <!-- buttons -->
+  <rect x="72" y="458" width="92" height="34" rx="6" fill="#0F6E5C"/>
+  <text x="118" y="480" class="s" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Confirm</text>
+  <rect x="172" y="458" width="64" height="34" rx="6" fill="#FFFFFF" stroke="#CFC8B8"/>
+  <text x="204" y="480" class="s" font-size="13" font-weight="600" fill="#46433C" text-anchor="middle">Edit</text>
+  <rect x="244" y="458" width="128" height="34" rx="6" fill="#FFFFFF" stroke="#E0B4B0"/>
+  <text x="308" y="480" class="s" font-size="13" font-weight="600" fill="#B0413A" text-anchor="middle">Not a request</text>
+  <!-- footer note -->
+  <text x="72" y="520" class="m" font-size="10.5" fill="#A39B8C">Private to you · Kept won't post to the</text>
+  <text x="72" y="536" class="m" font-size="10.5" fill="#A39B8C">customer without your approval.</text>
+
+  <!-- ============ CARD 2 — VERIFY (Gate 2) ============ -->
+  <rect x="535" y="140" width="450" height="500" rx="14" fill="#FFFFFF" stroke="#E4DECF"/>
+  <rect x="557" y="162" width="34" height="34" rx="8" fill="#0F6E5C"/>
+  <text x="574" y="185" class="m" font-size="17" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="601" y="180" class="s" font-size="15" font-weight="700" fill="#1B1A17">Kept</text>
+  <rect x="641" y="169" width="34" height="15" rx="3" fill="#E4DECF"/>
+  <text x="658" y="180" class="m" font-size="9" fill="#6E6A62" text-anchor="middle">APP</text>
+  <text x="683" y="180" class="m" font-size="11" fill="#A39B8C">2:58 PM</text>
+  <text x="557" y="226" class="s" font-size="15.5" font-weight="700" fill="#1B1A17">Kept · possible fulfillment — verify?</text>
+  <text x="557" y="252" class="s" font-size="14" fill="#1B1A17"><tspan font-weight="700">Acme</tspan> — SSO login fix</text>
+  <text x="557" y="282" class="s" font-size="13" font-weight="700" fill="#1B1A17">Reconciled evidence:</text>
+  <text x="557" y="306" class="s" font-size="13" fill="#46433C">•  <tspan font-style="italic" fill="#837C6E">github</tspan> — PR #449 merged</text>
+  <text x="557" y="328" class="s" font-size="13" fill="#46433C">•  <tspan font-style="italic" fill="#837C6E">deploy</tspan> — production · release 2026.06.19</text>
+  <text x="557" y="356" class="m" font-size="11" fill="#837C6E">Merge + production deploy = available.</text>
+  <!-- buttons -->
+  <rect x="557" y="380" width="172" height="34" rx="6" fill="#0F6E5C"/>
+  <text x="643" y="402" class="s" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Verify it's available</text>
+  <rect x="737" y="380" width="74" height="34" rx="6" fill="#FFFFFF" stroke="#CFC8B8"/>
+  <text x="774" y="402" class="s" font-size="13" font-weight="600" fill="#46433C" text-anchor="middle">Not yet</text>
+  <!-- footer note -->
+  <text x="557" y="442" class="m" font-size="10.5" fill="#A39B8C">Ticket-Done alone is never enough — Kept</text>
+  <text x="557" y="458" class="m" font-size="10.5" fill="#A39B8C">reconciles merge + deploy (or a customer reply).</text>
+
+  <!-- ============ CARD 3 — CLOSE THE LOOP ============ -->
+  <rect x="1020" y="140" width="450" height="500" rx="14" fill="#FFFFFF" stroke="#E4DECF"/>
+  <rect x="1042" y="162" width="34" height="34" rx="8" fill="#0F6E5C"/>
+  <text x="1059" y="185" class="m" font-size="17" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="1086" y="180" class="s" font-size="15" font-weight="700" fill="#1B1A17">Kept</text>
+  <rect x="1126" y="169" width="34" height="15" rx="3" fill="#E4DECF"/>
+  <text x="1143" y="180" class="m" font-size="9" fill="#6E6A62" text-anchor="middle">APP</text>
+  <text x="1168" y="180" class="m" font-size="11" fill="#A39B8C">3:01 PM</text>
+  <text x="1042" y="226" class="s" font-size="15.5" font-weight="700" fill="#1B1A17">Kept · ready to close the loop</text>
+  <text x="1042" y="252" class="s" font-size="14" fill="#1B1A17"><tspan font-weight="700">Acme</tspan> — SSO login fix</text>
+  <text x="1042" y="272" class="s" font-size="12.5" fill="#837C6E">Draft reply for the original thread:</text>
+  <!-- quoted draft -->
+  <rect x="1042" y="286" width="4" height="86" rx="2" fill="#CFC8B8"/>
+  <text x="1058" y="308" class="s" font-size="13" fill="#1B1A17">Quick update on the SSO login issue you</text>
+  <text x="1058" y="327" class="s" font-size="13" fill="#1B1A17">reported — it's been fixed and is now live for</text>
+  <text x="1058" y="346" class="s" font-size="13" fill="#1B1A17">your team. Thanks for flagging it.</text>
+  <!-- leak-safety indicator -->
+  <text x="1042" y="394" class="m" font-size="11" fill="#0B5346">1 internal item redacted (linear).  Leak-safe ✅</text>
+  <!-- buttons -->
+  <rect x="1042" y="414" width="146" height="34" rx="6" fill="#0F6E5C"/>
+  <text x="1115" y="436" class="s" font-size="13" font-weight="600" fill="#FFFFFF" text-anchor="middle">Approve &amp; send</text>
+  <rect x="1196" y="414" width="64" height="34" rx="6" fill="#FFFFFF" stroke="#CFC8B8"/>
+  <text x="1228" y="436" class="s" font-size="13" font-weight="600" fill="#46433C" text-anchor="middle">Edit</text>
+  <!-- posted result -->
+  <rect x="1042" y="470" width="406" height="64" rx="8" fill="#F1F7F4" stroke="#CDE5DC"/>
+  <text x="1058" y="494" class="m" font-size="10.5" fill="#0B5346">↪ posted in #acme-collab (original thread)</text>
+  <text x="1058" y="514" class="s" font-size="12" fill="#46433C">The customer finally hears it's done — sanitized,</text>
+  <text x="1058" y="528" class="s" font-size="12" fill="#46433C">human-approved.</text>
+
+  <!-- caption / footer -->
+  <line x1="50" y1="688" x2="1470" y2="688" stroke="#E4DECF"/>
+  <rect x="50" y="708" width="26" height="26" rx="6" fill="#0F6E5C"/>
+  <text x="63" y="726" class="m" font-size="13" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
+  <text x="86" y="727" class="s" font-size="13.5" fill="#46433C">Every consequential transition needs a human gate; the work item is created over MCP, only after Gate 1 persists.</text>
+  <text x="1470" y="727" class="m" font-size="12" fill="#A39B8C" text-anchor="end">github.com/kaviyakumar23/kept</text>
+</svg>
