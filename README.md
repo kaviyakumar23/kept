@@ -18,7 +18,7 @@ No accounts, tokens, or services required:
 
 ```bash
 npm install
-npm test            # 115 hermetic tests (engine + adapters + MCP + adversarial regressions)
+npm test            # 119 hermetic tests (engine + adapters + MCP + adversarial regressions)
 npm run demo        # the full obligation lifecycle, end to end, in your terminal
 ```
 
@@ -100,7 +100,7 @@ The two mandatory human gates:
 ```bash
 npm install
 npm run typecheck     # tsc --noEmit
-npm test              # vitest — 115 tests (engine + adapters + MCP + adversarial-regression), fully hermetic
+npm test              # vitest — 119 tests (engine + adapters + MCP + adversarial-regression), fully hermetic
 npm run demo          # the full E3 storyboard, end to end, no external services
 npm run eval          # the evaluation harness (metrics)
 npm start             # run the live app (Slack Events + webhook server) — needs tokens
@@ -141,15 +141,16 @@ commitment-classification ...... <provider-dependent>
 
 ### Adversarial verification
 
-The guarantees aren't just asserted — they were attacked across three rounds. A multi-agent workflow ran independent skeptics (one per guarantee) that tried to *break* each guarantee against the real code, plus a correctness reviewer and a completeness critic.
+The guarantees aren't just asserted — they were attacked across six rounds. A multi-agent workflow ran independent skeptics (one per guarantee) that tried to *break* each guarantee against the real code, plus a correctness reviewer and a completeness critic.
 
 - **Round 1** found that several guarantees trusted proposer-supplied data: reconciliation ignored `evidence.source`; leak-safety was advisory (not on the command path); detect-time refs were dropped; zero-copy checked field *names* but not *values*. All fixed.
 - **Round 2**, against the fixed code, found *same-class variants* the first fixes missed — a forgeable `slack`-sourced `customer_reply`, Unicode-dash/dotted-`PR` leak bypasses, and value-channel gaps in zero-copy. All fixed.
 - **Round 3** (focused) exhaustively confirmed G2 holds (only the two intended sufficiency lanes exist) and closed one last zero-copy gap: the newline guard missed the other Unicode line terminators (U+2028/U+2029/NEL/VT/FF), through which a multi-line raw body could be smuggled. Fixed.
 - **Round 4** audited the Layer-4 adapters: no gate is bypassable via the Slack/webhook path and nothing reaches the customer channel except an approved, sanitized closure (both confirmed). It found a real **concurrency** class of bugs — `dispatch` reported `"applied"` even when the store idempotently deduped, so two un-serialized gate clicks could double-post to the customer or mint two Linear issues. Fixed at the seam (dispatch now reports `"suppressed"` for a deduped append; `confirmCommitment` validates the gate before any side effect), with concurrency regression tests.
 - **Round 5** audited the Jira work-item path for parity with Linear: the engine **guarantees hold identically** (a Jira "Done" alone is insufficient; no gate bypass), but two Jira-specific **webhook-robustness** gaps surfaced — the mapper crashed (HTTP 500) on Jira's non-status events (comments/deletes), and it read a frequently-absent timestamp, producing colliding idempotency keys. Both fixed (ignore status-less events; use the retry-stable top-level `timestamp`), with regression tests.
+- **Round 6** attacked the new **MCP** work-item path. The gates hold over MCP, but a work-item create failing *after* Gate 1 left a confirmed-but-orphaned obligation that a retry couldn't heal (the consumed `:confirm` key suppressed it) — plus three result-parsing robustness gaps (a quadratic-backtracking `REF_RE`, unbounded `pickString` recursion, and an unescaped work-item ref rendered as Slack mrkdwn on the internal ledger). Fixed: create+link is now driven by obligation **state** behind a per-obligation lock (a retry self-heals; concurrent clicks still mint exactly one), the parser is length/depth-bounded, the Slack handlers surface the failure to the owner, and the ledger escapes adapter-supplied refs — with regression tests.
 
-Every finding became a permanent regression test (`tests/hardening.test.ts`, `tests/orchestrator.test.ts`, `tests/webhooks.test.ts`). This is the "evidence-based, human-verified" principle applied to the engine's own development — and a demonstration of why one round of "looks correct" isn't the same as verified.
+Every finding became a permanent regression test (`tests/hardening.test.ts`, `tests/orchestrator.test.ts`, `tests/webhooks.test.ts`, `tests/mcpHardening.test.ts`). This is the "evidence-based, human-verified" principle applied to the engine's own development — and a demonstration of why one round of "looks correct" isn't the same as verified.
 
 **Accepted design boundaries** (documented, not open bugs): the engine trusts its own integration *adapters* to stamp `evidence.source` honestly (a deploy adapter reports the real environment; the customer-channel adapter sets `source: "customer"` only after verifying the external author), and per correction #3 the durable obligation's derived fields are human-confirmed at Gate 1. Leak detection is defense-in-depth against accidental/common-obfuscation leaks — the mandatory human approval before any customer send is the real backstop against deliberate exfiltration.
 
