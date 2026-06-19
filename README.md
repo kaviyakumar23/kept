@@ -1,5 +1,7 @@
 # Kept
 
+[![CI](https://github.com/kaviyakumar23/kept/actions/workflows/ci.yml/badge.svg)](https://github.com/kaviyakumar23/kept/actions/workflows/ci.yml)
+
 > Kept remembers what your company owes every customer — and makes sure the customer hears when it's done.
 
 Kept is a Slack-native agent for shared customer channels. It maintains a **human-verified, event-sourced obligation ledger**: every request a customer makes and every promise your team makes is captured the moment it's said, tracked through its real lifecycle, reconciled against systems of record, and closed back in the original thread only after a human approves.
