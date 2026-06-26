@@ -74,8 +74,8 @@ Kept is TypeScript (ESM, Node 20+), structured as four deterministic layers arou
 ## Accomplishments that we're proud of
 
 - A genuinely **pure decision core**: `decide()` and `canApply()` perform no I/O, which makes the guarantees testable and the whole engine replayable.
-- **119 hermetic tests + 5 live integration tests.** The engine and unit suite run fully in-memory and deterministic — including a real MCP client↔server round-trip over an in-memory transport; the integration suite verifies the real Postgres event store and Redis/BullMQ scheduler against live services (and each integration test self-skips when its service env is absent).
-- **6 adversarial verification rounds**, where we attacked our own guarantees and turned every finding into a permanent regression test — the command-path leak check plus forged-evidence rejection (Round 1), the all-Unicode line-break zero-copy fix and confirming only two sufficiency lanes exist (Round 3), the retry-stable Jira idempotency key (Round 5), and a Round-6 sweep of the MCP path that fixed a confirmed-but-orphaned obligation on a work-item failure (a retry now self-heals behind a per-obligation lock) plus parser hardening (no quadratic regex, no unbounded recursion). Each hole became a permanent test, not a patch note.
+- **136 hermetic tests + 5 live integration tests.** The engine and unit suite run fully in-memory and deterministic — including a real MCP client↔server round-trip over an in-memory transport and the Slack AI Assistant's query router; the integration suite verifies the real Postgres event store and Redis/BullMQ scheduler against live services (and each integration test self-skips when its service env is absent).
+- **7 adversarial verification rounds**, where we attacked our own guarantees and turned every finding into a permanent regression test — the command-path leak check plus forged-evidence rejection (Round 1), the all-Unicode line-break zero-copy fix (Round 3), the retry-stable Jira idempotency key (Round 5), a Round-6 sweep of the MCP path that fixed a confirmed-but-orphaned obligation on a work-item failure (a retry now self-heals behind a per-obligation lock) plus parser hardening, and a Round-7 sweep of the new Assistant + analytics surfaces (the architecture held — the model only routes into a fixed intent enum, the read is pure — while we hardened escaping, list caps, and a large-ledger crash). Each hole became a permanent test, not a patch note.
 - **Provider parity demonstrated in code.** The full obligation lifecycle runs end-to-end on the simulated Jira adapter too — same guarantees, different provider — proving the `WorkItemAdapter` abstraction holds (both providers behind one interface; the demo runs on Linear).
 - **A clean transport-agnostic core** and a **polished Slack-native UX**: confirm/verify/closure cards, edit modals that re-run the leak check on submit, an App Home dashboard grouped by customer, and a slash-command ledger — all dependency-light, plain-object Block Kit. And a correctness story we can defend line by line: every guarantee maps to a specific guard in a specific file.
 
@@ -116,7 +116,7 @@ BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Block Kit, Sla
 TRY IT OUT (Devpost links field):
   • GitHub repo:   https://github.com/kaviyakumar23/kept
   • Landing page:  <landing-page-url>   (enable GitHub Pages → Settings → Pages → main → /docs)
-  • Run it:        npm install  →  npm test (119 hermetic tests)  →  npm run demo (full-lifecycle storyboard)  →  npm start (Bolt app + webhook server)
+  • Run it:        npm install  →  npm test (136 hermetic tests)  →  npm run demo (full-lifecycle storyboard)  →  npm start (Bolt app + webhook server)
                    Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, LINEAR_* / JIRA_*.
 
 SUBMISSION TRACK: New Slack Agent

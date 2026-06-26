@@ -75,7 +75,7 @@ function render(provider: LlmProvider, pairs: Pair[]): string {
   out.push("");
   out.push("Kept's classifier maps each message to one of nine **typed obligation signals** (request vs. tentative vs. confirmed commitment vs. fulfillment, …) — never a binary is/isn't-a-request. The LLM only *proposes*; the deterministic engine *decides* every transition. This report measures the proposal (classification) quality only.");
   out.push("");
-  out.push("> The lifecycle & safety guarantees — **0 false closures, 100% duplicate suppression, 0% customer-facing leakage, 0 unauthorized actions** — are verified separately by the scenario battery (`npm run eval`) and the hermetic test suite (6 adversarial rounds). They are guarantees by construction, not classifier outputs.");
+  out.push("> The lifecycle & safety guarantees — **0 false closures, 100% duplicate suppression, 0% customer-facing leakage, 0 unauthorized actions** — are verified separately by the scenario battery (`npm run eval`) and the hermetic test suite (7 adversarial rounds). They are guarantees by construction, not classifier outputs.");
   out.push("");
   out.push("## Headline");
   out.push("");
