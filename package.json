@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "eval": "tsx src/eval/runner.ts",
+    "eval:report": "tsx src/eval/report.ts",
     "demo": "tsx src/demo/storyboard.ts",
     "demo:drive": "tsx src/demo/driver.ts",
     "start": "tsx src/server/index.ts"
