@@ -116,7 +116,7 @@ BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Block Kit, Sla
 TRY IT OUT (Devpost links field):
   • GitHub repo:   https://github.com/kaviyakumar23/kept
   • Landing page:  <landing-page-url>   (enable GitHub Pages → Settings → Pages → main → /docs)
-  • Run it:        npm install  →  npm test (111 hermetic tests)  →  npm run demo (full-lifecycle storyboard)  →  npm start (Bolt app + webhook server)
+  • Run it:        npm install  →  npm test (119 hermetic tests)  →  npm run demo (full-lifecycle storyboard)  →  npm start (Bolt app + webhook server)
                    Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, LINEAR_* / JIRA_*.
 
 SUBMISSION TRACK: New Slack Agent

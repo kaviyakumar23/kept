@@ -24,7 +24,7 @@ npm run demo        # the full obligation lifecycle, end to end, in your termina
 
 - **Required technology — MCP:** work items are created by calling an MCP tool. Kept is a *deterministic* MCP client — code picks the tool after a passed gate; the model never does. See [MCP integration](#mcp-integration-deterministic-client) and `src/integrations/mcp.ts` (`npm run demo` runs a real MCP client↔server round-trip in-process).
 - **The thesis, in two files:** the guarded state machine + two human gates (`src/domain/stateMachine.ts`) and the pure, I/O-free `decide()` (`src/engine/commandHandler.ts`).
-- **Artifacts:** architecture diagram → `docs/architecture.png` · write-up → `docs/DEVPOST.md` · landing page → `docs/index.html` · demo script → `docs/DEMO_SCRIPT.md`.
+- **Artifacts:** architecture diagram → `docs/architecture.png` · write-up → `docs/DEVPOST.md` · landing page → `docs/index.html` · demo script → `docs/DEMO_SCRIPT.md` · eval report → `docs/eval-report.md`.
 - **Honest framing:** Slack is the real, live surface; Postgres + Redis/BullMQ are real (exercised by the live integration suite). Linear/Jira run over MCP — the demo + tests use an in-process MCP server; the hosted Linear/Atlassian MCP servers plug in with a token. The LLM only proposes; a deterministic engine decides every transition.
 
 ---
@@ -128,7 +128,7 @@ docker compose up -d   # Postgres event store + Redis/BullMQ
 
 ### Evaluation (`npm run eval`) — example output
 
-Lifecycle & safety metrics are guarantees by construction, demonstrated across the scenario battery; classification runs the configured LLM provider (offline = a heuristic baseline, or set `ANTHROPIC_API_KEY` for the real model's numbers).
+Lifecycle & safety metrics are guarantees by construction, demonstrated across the scenario battery; classification runs the configured LLM provider (offline = a heuristic baseline, or set `ANTHROPIC_API_KEY` for the real model's numbers). The full per-class precision/recall + confusion matrix is published in [`docs/eval-report.md`](docs/eval-report.md) (`npm run eval:report`).
 
 ```
 correct-transition rate ........ 100%
@@ -136,7 +136,7 @@ duplicate-suppression rate ..... 100%
 false-closure rate ............. 0   (across 12 adversarial closure checks, incl. forged evidence + customer denials)
 customer-facing leakage rate ... 0%  (incl. command-path leak rejection)
 unauthorized-action count ...... 0   (across gate checks)
-commitment-classification ...... <provider-dependent>
+signal-classification .......... 90% · macro-F1 0.90  (offline heuristic baseline — see docs/eval-report.md)
 ```
 
 ### Adversarial verification
