@@ -20,8 +20,16 @@ features:
     always_online: true
   app_home:
     home_tab_enabled: true
-    messages_tab_enabled: false
-    messages_tab_read_only_enabled: true
+    # Messages tab must be ON (read-write) for the AI Assistant pane.
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  # AI Assistant pane — conversational ledger queries ("Slack AI capabilities").
+  assistant_view:
+    assistant_description: "Ask the obligation ledger: what's overdue, what we owe a customer, or what's waiting on you to verify."
+    suggested_prompts:
+      - "What's overdue?"
+      - "What did we promise Acme this week?"
+      - "Anything waiting on me to verify?"
   slash_commands:
     - command: /kept
       description: Show the obligation ledger for a customer
@@ -33,6 +41,8 @@ oauth_config:
     bot:
       - chat:write # post confirm/verify/closure cards, owner DMs, in-thread closure
       - im:write # open a DM with the owner for private cards (conversations.open)
+      - im:history # read the user's messages in the AI Assistant thread
+      - assistant:write # the AI Assistant pane: setStatus / setSuggestedPrompts / say
       - commands # the /kept slash command
       - channels:history # read messages in public channels Kept is in
       - groups:history # read messages in private / Slack Connect shared channels Kept is in
@@ -47,7 +57,10 @@ settings:
     bot_events:
       - message.channels # new message in a public channel → detect an obligation
       - message.groups # new message in a private / Slack Connect shared channel
+      - message.im # user messages in the AI Assistant thread
       - app_home_opened # publish the App Home obligation-ledger dashboard
+      - assistant_thread_started # AI Assistant pane opened → greet + suggested prompts
+      - assistant_thread_context_changed # AI Assistant thread context updates
   interactivity:
     is_enabled: true # buttons, modals, and view_submission (edit-and-confirm / edit-the-reply)
   socket_mode_enabled: true

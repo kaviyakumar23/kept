@@ -82,6 +82,7 @@ async function main() {
     botToken: cfg.slack.botToken,
     signingSecret: cfg.slack.signingSecret,
     appToken: cfg.slack.appToken,
+    llm,
     makeOrchestrator: (notifier) => {
       // Reminders/nudges go to the obligation owner — never the customer channel (D3).
       const scheduler: Scheduler = cfg.redisUrl

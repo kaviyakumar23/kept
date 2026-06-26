@@ -1,7 +1,9 @@
 import { App } from "@slack/bolt";
 import { KeptOrchestrator } from "../app/orchestrator.js";
 import type { Notifier } from "../slack/notifier.js";
+import type { LlmProvider } from "../llm/provider.js";
 import { SlackNotifier } from "./slackNotifier.js";
+import { buildKeptAssistant } from "./assistant.js";
 import {
   ACTIONS,
   CALLBACKS,
@@ -22,6 +24,8 @@ export interface SlackAppDeps {
   appToken?: string; // for Socket Mode
   /** Build the orchestrator given the live notifier (which wraps app.client). */
   makeOrchestrator: (notifier: Notifier) => KeptOrchestrator;
+  /** LLM provider for the Assistant's NL query router (the engine still runs the read). */
+  llm: LlmProvider;
 }
 
 /**
@@ -39,6 +43,9 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
 
   const notifier = new SlackNotifier(app.client as any);
   const orch = deps.makeOrchestrator(notifier);
+
+  // Slack AI Assistant pane — conversational ledger queries (lights "Slack AI capabilities").
+  app.assistant(buildKeptAssistant({ orch, llm: deps.llm }));
 
   // A new message in a (shared) channel → detect + Gate-1 card.
   app.message(async ({ message }: any) => {
