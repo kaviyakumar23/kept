@@ -50,8 +50,16 @@ Everything else can stay blank for the demo (store = in-memory, work items = in-
 ## 6. (Optional) Real provider webhooks via a tunnel
 You don't need this for the demo — the driver simulates Linear/GitHub/deploy locally. For real events: expose `:3001` (`cloudflared tunnel --url http://localhost:3001` or `ngrok http 3001`), point Linear/GitHub webhooks at `https://<tunnel>/webhooks/{linear,github}`, set `KEPT_WEBHOOK_SECRET`, and send it as the `x-kept-secret` header.
 
-## 7. Enable GitHub Pages (landing page + OG image)
-Repo → **Settings → Pages** → Source: *Deploy from a branch* → Branch `main`, Folder `/docs` → **Save**. Live at <https://kaviyakumar23.github.io/kept/> (the repo homepage already points there). Verify the link unfurls with the OG card by pasting it into a Slack message.
+## 7. Deploy the landing page to Vercel (free)
+The landing page is static (everything lives in `/docs`), so there's no build step.
+1. <https://vercel.com/new> → **Import** `kaviyakumar23/kept`.
+2. **Framework Preset:** Other · **Build Command:** (leave empty) · **Root Directory:** `docs` · **Output Directory:** (leave empty).
+3. **Deploy** → you'll get `https://kept.vercel.app` (rename the project in *Settings → General* for a different subdomain, or add a custom domain).
+4. Paste the URL into a Slack message to confirm the OG card unfurls (`og.png`).
+
+> The `og:*` / `twitter:image` meta in `docs/index.html` and the repo homepage assume **`https://kept.vercel.app`**. If your project gets a different subdomain, update those three tags + `gh repo edit kaviyakumar23/kept --homepage <url>` (or just tell me the URL and I'll swap them).
+>
+> **Free alternative — GitHub Pages.** Pages is free for *public* repos (only private-repo Pages needs a paid plan), so `kept` qualifies: Settings → Pages → `main` → `/docs`. If you use it, point the OG tags + homepage back at `https://kaviyakumar23.github.io/kept/`.
 
 ## 8. Deploy for judge access (judging window: Jul 14 – Aug 6)
 Judges need to reach a *running* instance. Socket Mode needs only **outbound** network, so any always-on host works:
