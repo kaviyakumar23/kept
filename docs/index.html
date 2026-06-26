@@ -34,6 +34,9 @@
   ::-webkit-scrollbar{height:9px;width:9px;}
   ::-webkit-scrollbar-thumb{background:#D2CAB6;border-radius:8px;}
   ::-webkit-scrollbar-track{background:#ECE8DE;}
+  .kept-action{cursor:pointer;border:none;transition:filter .15s ease,background .15s ease;}
+  .kept-action:hover{filter:brightness(1.08);}
+  .kept-gate{font-family:'IBM Plex Mono',monospace;font-size:12px;border-radius:6px;padding:6px 11px;transition:all .2s ease;}
 </style>
 </head>
 <body id="top">
@@ -74,8 +77,8 @@
         <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 21px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;" style-hover="background:#2E2B25;">
           <span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> View on GitHub
         </a>
-        <a href="#demo" style="display:inline-flex;align-items:center;gap:10px;background:transparent;color:#0F6E5C;padding:13px 21px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;" style-hover="background:#DCEDE8;">
-          <span style="width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:8px;">▶</span> Watch the demo
+        <a href="#try-it" style="display:inline-flex;align-items:center;gap:10px;background:transparent;color:#0F6E5C;padding:13px 21px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;">
+          <span style="width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:8px;">▶</span> Try the live walkthrough
         </a>
       </div>
     </div>
@@ -305,12 +308,36 @@
 </section>
 
 <!-- ============ IN SLACK ============ -->
-<section style="border-top:1px solid #E4DECF;background:#F4F1EA;">
+<section id="try-it" style="border-top:1px solid #E4DECF;background:#F4F1EA;">
   <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">In Slack</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;">Two human gates. One safe closure.</h2>
-    <p style="font-size:16px;color:#46433C;line-height:1.6;max-width:64ch;margin:0 0 28px;">Private confirm and verify cards go to the owner; the work item is created over MCP only after Gate&nbsp;1; and only an approved, sanitized message ever reaches the customer thread.</p>
-    <img src="slack-cards.png" alt="Three Kept Block Kit cards in Slack: the Gate-1 confirm card with a roadmap-conflict warning, the Gate-2 verify card listing reconciled evidence, and the sanitized closure-draft card." loading="lazy" style="width:100%;height:auto;display:block;border:1px solid #E4DECF;border-radius:12px;box-shadow:0 1px 2px rgba(27,26,23,.06),0 24px 50px -28px rgba(27,26,23,.30);">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">Try it · interactive</span>
+    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;">Click one obligation through both gates.</h2>
+    <p style="font-size:16px;color:#46433C;line-height:1.6;max-width:64ch;margin:0 0 22px;">The same beats the live engine runs — no install. Confirm and verify cards stay private to the owner; the work item is created over MCP after Gate&nbsp;1; only an approved, sanitized reply reaches the customer thread.</p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+      <span id="kept-g1" class="kept-gate">Gate 1 · confirm commitment</span>
+      <span id="kept-g2" class="kept-gate">Gate 2 · verify fulfillment</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start;">
+      <div style="background:#FFFFFF;border:1px solid #E4DECF;border-radius:12px;box-shadow:0 1px 2px rgba(27,26,23,.06),0 18px 40px -24px rgba(27,26,23,.25);overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #E4DECF;background:#FBF9F3;">
+          <span style="width:9px;height:9px;border-radius:2px;background:#0F6E5C;"></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#1B1A17;font-weight:500;"># northwind &harr; acme</span>
+          <span id="kept-surface-tag" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;padding:3px 8px;border:1px solid #E4DECF;border-radius:5px;">private to owner</span>
+        </div>
+        <div id="kept-card" style="padding:16px;"></div>
+      </div>
+      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:12px;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid #E4DECF;background:#F4F1EA;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;font-weight:500;">audit_history</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">append-only</span>
+          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A39B8C;letter-spacing:0.08em;">IMMUTABLE</span>
+        </div>
+        <div id="kept-audit" style="padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+    </div>
+    <p style="font-size:12.5px;color:#837C6E;margin:18px 0 0;">A faithful, in-browser replica of the real Block Kit cards. Run <code style="font-family:'IBM Plex Mono',monospace;background:#ECE8DE;padding:1px 6px;border-radius:4px;">npm run demo</code> for the live engine, or <a href="slack-cards.png" target="_blank" rel="noopener" style="color:#0F6E5C;">see all three cards as one image &#8599;</a>.</p>
   </div>
 </section>
 
@@ -490,11 +517,11 @@
       </div>
       <div style="display:flex;gap:13px;flex-wrap:wrap;">
         <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;" style-hover="background:#2E2B25;"><span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> GitHub repo ↗</a>
-        <a href="#demo" style="display:inline-flex;align-items:center;gap:9px;background:transparent;color:#0F6E5C;padding:13px 20px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;" style-hover="background:#DCEDE8;"><span style="width:16px;height:16px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:7px;">▶</span> Demo video</a>
+        <a href="#try-it" style="display:inline-flex;align-items:center;gap:9px;background:transparent;color:#0F6E5C;padding:13px 20px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;"><span style="width:16px;height:16px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:7px;">▶</span> Try the walkthrough</a>
       </div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;margin-top:48px;padding-top:24px;border-top:1px solid #E4DECF;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A39B8C;">
-      <span>github.com/kaviyakumar23/kept &middot; demo: <span style="color:#837C6E;">&lt;your-demo-url&gt;</span></span>
+      <span>github.com/kaviyakumar23/kept &middot; <a href="#try-it" style="color:#0F6E5C;text-decoration:none;">try the live walkthrough &#8593;</a></span>
       <span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:1px;background:#0F6E5C;"></span>Built for the New Slack Agent track</span>
     </div>
   </div>
@@ -509,5 +536,76 @@
   </div>
 </div>
 
+<script>
+/* Kept interactive walkthrough — a self-contained, dependency-free replica of the
+   real Block Kit cards. Steps mirror src/demo/storyboard.ts so it stays honest. */
+(function () {
+  var card = document.getElementById('kept-card'), audit = document.getElementById('kept-audit');
+  var g1 = document.getElementById('kept-g1'), g2 = document.getElementById('kept-g2'), tag = document.getElementById('kept-surface-tag');
+  if (!card || !audit) return;
+  var T = ['9:14', '9:15', '11:02', '14:02', '14:06', '14:07', '15:30'];
+  var AMBER = ['#F6EFD9', '#E8D9B0', '#8A6A12'], BLUE = ['#DCE8F5', '#BFD3EC', '#1F5FA6'], PURPLE = ['#ECE4F3', '#D5C5E6', '#6B4E9E'], GREEN = ['#DCEDE8', '#B7D7CE', '#0B5346'], RED = ['#F7E4DC', '#E3C8BC', '#A8431F'];
+  function chip(t, c) { return '<span style="font-size:11px;padding:2px 7px;border-radius:5px;background:' + c[0] + ';border:1px solid ' + c[1] + ';color:' + c[2] + ';">' + t + '</span>'; }
+  function box(border, inner) { return '<div style="background:#FBF9F3;border:1px solid #E4DECF;border-left:3px solid ' + border + ';border-radius:8px;padding:12px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;color:#1B1A17;line-height:1.55;">' + inner + '</div>'; }
+  var STEPS = [
+    { tag: 'private to owner', gates: 0, audit: ['CANDIDATE', AMBER, 'detected in #northwind&harr;acme'], title: 'New obligation detected',
+      body: '<div style="background:#F8F1DF;border:1px solid #E8D9B0;border-radius:8px;padding:12px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;color:#1B1A17;line-height:1.6;"><div style="color:#8A6A12;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:8px;">candidate &middot; not yet a commitment</div><div>owes&nbsp;&nbsp; SSO login fix for Acme</div><div>due&nbsp;&nbsp;&nbsp; Fri 2026-06-19</div><div>owner&nbsp; you</div><div style="margin-top:8px;color:#8A6A12;">&#9888; Roadmap conflict — Fri is earlier than the roadmap target (06-30).</div></div>',
+      action: 'Approve commitment', kind: 'primary', note: 'Gate 1 — only the owner can make this real. Nothing is recorded until you confirm.' },
+    { tag: 'private to owner', gates: 1, audit: ['OPEN', BLUE, 'Gate 1 &middot; confirmed &rarr; PROJ-119 created over MCP'], title: 'Commitment confirmed',
+      body: box('#1F5FA6', '<div style="color:#1F5FA6;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">open &middot; tracked</div><div>SSO login fix — Acme</div><div style="margin-top:6px;color:#0B5346;">&#10003; PROJ-119 created over MCP</div>'),
+      action: 'Simulate webhook: PR merged', kind: 'primary', note: 'A merged PR is evidence — but Kept will not open Gate 2 on it alone.' },
+    { tag: 'private to owner', gates: 1, audit: ['IN_PROGRESS', PURPLE, 'PR #449 merged (evidence, not truth)'], title: 'Pull request merged',
+      body: box('#6B4E9E', '<div style="color:#6B4E9E;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">in_progress &middot; evidence in</div><div>&bull; github — PR #449 merged</div><div style="margin-top:4px;color:#A8431F;">Not enough yet — needs production availability.</div>'),
+      action: 'Simulate webhook: production deploy', kind: 'primary', note: 'Merge + production deploy = available → Gate 2 opens.' },
+    { tag: 'private to owner', gates: 1, audit: ['POSSIBLE_FULFILLMENT', PURPLE, 'merge + production deploy reconciled'], title: 'Possible fulfillment — verify?',
+      body: box('#0F6E5C', '<div style="color:#0B5346;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">reconciled evidence</div><div>&bull; github — PR #449 merged</div><div>&bull; deploy — production &middot; 2026.06.19</div>'),
+      action: 'Verify it is available', kind: 'primary', note: 'Evidence opens the gate; a human walks through it.' },
+    { tag: 'private to owner', gates: 2, audit: ['VERIFIED', GREEN, 'Gate 2 &middot; human verified'], title: 'Ready to close the loop',
+      body: box('#0F6E5C', '<div style="margin-bottom:6px;">Draft reply for the original thread:</div><div style="border-left:3px solid #CFC8B8;padding-left:10px;color:#1B1A17;">Quick update on the SSO login issue — it is fixed and live for your team. Thanks for flagging it.</div><div style="margin-top:8px;color:#0B5346;">1 internal item redacted (linear) &middot; Leak-safe &#9989;</div>'),
+      action: 'Approve &amp; send', kind: 'primary', note: 'Internal ticket numbers and roadmap dates are stripped before anything is sent.' },
+    { tag: '#acme-collab (customer)', gates: 2, audit: ['CUSTOMER_NOTIFIED', GREEN, 'sanitized reply posted in the customer thread'], title: 'Customer notified',
+      body: '<div style="background:#F1F7F4;border:1px solid #CDE5DC;border-radius:8px;padding:12px;"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#0B5346;">&#8618; posted in #acme-collab (original thread)</div><div style="font-size:13.5px;color:#1B1A17;margin-top:6px;line-height:1.5;">Quick update on the SSO login issue — it is fixed and live for your team. Thanks for flagging it.</div></div>',
+      action: 'Customer replies: it still fails', kind: 'danger', note: 'The customer finally hears it — sanitized, human-approved.' },
+    { tag: '#acme-collab (customer)', gates: 2, audit: ['REOPENED', RED, 'customer disputes — ticket still Done'], title: 'Reopened',
+      body: box('#A8431F', '<div style="color:#A8431F;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">reopened &middot; disputed</div><div>SSO login fix — Acme</div><div style="margin-top:6px;color:#837C6E;">Linear PROJ-119 still says <strong style="color:#1B1A17;">Done</strong> — the obligation outlives the ticket.</div>'),
+      action: 'Replay &#8635;', kind: 'reset', note: 'A customer dispute reopens it even though the tracker says Done.' }
+  ];
+  var i = 0;
+  function actBtn(s) {
+    var base = 'id="kept-action" class="kept-action" style="border-radius:7px;padding:9px 15px;font-family:\'IBM Plex Sans\',sans-serif;font-weight:600;font-size:13.5px;';
+    if (s.kind === 'danger') return '<button ' + base + 'background:#A8431F;color:#fff;">' + s.action + '</button>';
+    if (s.kind === 'reset') return '<button ' + base + 'background:transparent;color:#0F6E5C;border:1px solid #0F6E5C;">' + s.action + '</button>';
+    return '<button ' + base + 'background:#0F6E5C;color:#fff;">' + s.action + '</button>';
+  }
+  function setGate(el, lit) {
+    if (!el) return;
+    el.style.background = lit ? '#DCEDE8' : 'transparent';
+    el.style.border = '1px solid ' + (lit ? '#B7D7CE' : '#D2CAB6');
+    el.style.color = lit ? '#0B5346' : '#A39B8C';
+    el.style.opacity = lit ? '1' : '.75';
+  }
+  function render() {
+    var s = STEPS[i];
+    card.innerHTML =
+      '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">'
+      + '<span style="flex:none;width:30px;height:30px;border-radius:7px;background:#0F6E5C;color:#F4F1EA;display:flex;align-items:center;justify-content:center;font-family:\'IBM Plex Mono\',monospace;font-weight:600;font-size:14px;">K</span>'
+      + '<div><div style="font-size:13px;"><strong style="font-weight:600;">Kept</strong> <span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#837C6E;">APP &middot; ' + T[i] + '</span></div><div style="font-weight:600;font-size:14.5px;color:#1B1A17;">' + s.title + '</div></div>'
+      + '</div>'
+      + s.body
+      + '<div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' + actBtn(s) + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#A39B8C;">' + (s.kind === 'reset' ? 'start over' : 'click to continue &rarr;') + '</span></div>'
+      + (s.note ? '<div style="margin-top:10px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#837C6E;line-height:1.5;">' + s.note + '</div>' : '');
+    if (tag) tag.innerHTML = s.tag;
+    setGate(g1, s.gates >= 1);
+    setGate(g2, s.gates >= 2);
+    var rows = '';
+    for (var k = 0; k <= i; k++) { var a = STEPS[k].audit; rows += '<div style="display:flex;gap:11px;"><span style="color:#A39B8C;flex:none;">' + T[k] + '</span><div style="min-width:0;">' + chip(a[0], a[1]) + ' <span style="color:#1B1A17;">' + a[2] + '</span></div></div>'; }
+    rows += '<span style="color:#0F6E5C;display:inline-block;width:8px;height:15px;background:#0F6E5C;"></span>';
+    audit.innerHTML = rows;
+    var act = document.getElementById('kept-action');
+    if (act) act.addEventListener('click', function () { i = STEPS[i].kind === 'reset' ? 0 : Math.min(i + 1, STEPS.length - 1); render(); });
+  }
+  render();
+})();
+</script>
 </body>
 </html>
