@@ -136,7 +136,7 @@ duplicate-suppression rate ..... 100%
 false-closure rate ............. 0   (across 12 adversarial closure checks, incl. forged evidence + customer denials)
 customer-facing leakage rate ... 0%  (incl. command-path leak rejection)
 unauthorized-action count ...... 0   (across gate checks)
-signal-classification .......... 90% · macro-F1 0.90  (offline heuristic baseline — see docs/eval-report.md)
+signal-classification .......... 69% · macro-F1 0.69  (offline heuristic baseline on 52 labeled msgs; live model higher — see docs/eval-report.md)
 ```
 
 ### Adversarial verification
