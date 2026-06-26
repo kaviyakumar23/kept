@@ -8,6 +8,7 @@ import type { Direction, ObligationSignal } from "../domain/signals.js";
 import { project } from "../domain/projection.js";
 import { decide } from "./commandHandler.js";
 import { resolve } from "./entityGraph.js";
+import { ConcurrencyError } from "../store/errors.js";
 
 export interface DetectInput {
   direction: Direction;
@@ -34,12 +35,15 @@ export type DetectResult =
   | { status: "rejected"; code: string; reason: string };
 
 export interface DispatchResult {
-  status: "applied" | "suppressed" | "rejected";
+  status: "applied" | "suppressed" | "rejected" | "conflict";
   obligation?: Obligation;
   events?: ObligationEvent[];
   reason?: string;
   code?: string;
 }
+
+/** Max optimistic-concurrency retries before surfacing a conflict. */
+const MAX_DISPATCH_ATTEMPTS = 4;
 
 /**
  * The seam every adapter (Slack events, Linear/GitHub/deploy webhooks, the eval
@@ -128,7 +132,12 @@ export class ObligationService {
     return { status: "created", obligation, events: persisted };
   }
 
-  /** Apply a proposed command: idempotency → guard → append → re-project. */
+  /**
+   * Apply a proposed command: idempotency → guard → compare-and-append → re-project.
+   * Optimistic concurrency: the append is version-checked; if a *different* command
+   * advanced the obligation between our read and our write, we re-read, re-decide, and
+   * retry (so concurrent writers serialize by causality instead of clobbering state).
+   */
   async dispatch(command: Command, ctx: CommandContext): Promise<DispatchResult> {
     const now = ctx.now ?? this.clock();
 
@@ -136,17 +145,25 @@ export class ObligationService {
       return { status: "suppressed", reason: `idempotency key already applied: ${ctx.idempotencyKey}` };
     }
 
-    const events = await this.store.getEvents(ctx.obligationId);
-    const decision = decide(events, command, { ...ctx, now });
+    for (let attempt = 1; attempt <= MAX_DISPATCH_ATTEMPTS; attempt++) {
+      const events = await this.store.getEvents(ctx.obligationId);
+      const decision = decide(events, command, { ...ctx, now });
 
-    if (decision.outcome === "suppressed") return { status: "suppressed", reason: decision.reason };
-    if (decision.outcome === "rejected") return { status: "rejected", code: decision.code, reason: decision.reason };
+      if (decision.outcome === "suppressed") return { status: "suppressed", reason: decision.reason };
+      if (decision.outcome === "rejected") return { status: "rejected", code: decision.code, reason: decision.reason };
 
-    const persisted = await this.store.append(decision.events);
-    // A concurrent caller with the same key won the race → the store deduped ours.
-    // Surfacing 'suppressed' (not 'applied') prevents adapters from double-firing side effects.
-    if (persisted.length === 0) return { status: "suppressed", reason: "idempotent: event already applied" };
-    const obligation = project(await this.store.getEvents(ctx.obligationId), { now });
-    return { status: "applied", obligation, events: persisted };
+      try {
+        const persisted = await this.store.append(decision.events, { expectedVersion: events.length });
+        // A concurrent caller with the same key won the race → the store deduped ours.
+        // Surfacing 'suppressed' (not 'applied') prevents adapters from double-firing side effects.
+        if (persisted.length === 0) return { status: "suppressed", reason: "idempotent: event already applied" };
+        const obligation = project(await this.store.getEvents(ctx.obligationId), { now });
+        return { status: "applied", obligation, events: persisted };
+      } catch (err) {
+        if (err instanceof ConcurrencyError) continue; // a different writer advanced us → re-read + re-decide
+        throw err;
+      }
+    }
+    return { status: "conflict", reason: `concurrent modification of ${ctx.obligationId} (after ${MAX_DISPATCH_ATTEMPTS} attempts)` };
   }
 }

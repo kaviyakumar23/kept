@@ -1,7 +1,8 @@
-import type { EventStore } from "./eventStore.js";
+import type { EventStore, AppendOpts } from "./eventStore.js";
 import type { ObligationEvent } from "../domain/events.js";
 import type { ObligationId } from "../domain/ids.js";
 import { assertNoRawContent } from "../domain/zeroCopy.js";
+import { ConcurrencyError } from "./errors.js";
 
 /**
  * In-memory event store — hermetic, deterministic, used by the test suite and the
@@ -12,7 +13,14 @@ export class InMemoryEventStore implements EventStore {
   private readonly byObligation = new Map<ObligationId, ObligationEvent[]>();
   private readonly keys = new Set<string>();
 
-  async append(events: ObligationEvent[]): Promise<ObligationEvent[]> {
+  async append(events: ObligationEvent[], opts?: AppendOpts): Promise<ObligationEvent[]> {
+    if (events.length === 0) return [];
+    // Optimistic concurrency: compare-and-append (synchronous → atomic on the JS loop).
+    if (opts?.expectedVersion !== undefined) {
+      const id = events[0].obligation_id;
+      const current = (this.byObligation.get(id) ?? []).length;
+      if (current !== opts.expectedVersion) throw new ConcurrencyError(opts.expectedVersion, current, id);
+    }
     const persisted: ObligationEvent[] = [];
     for (const event of events) {
       assertNoRawContent(event); // safety net (also enforced in decide)

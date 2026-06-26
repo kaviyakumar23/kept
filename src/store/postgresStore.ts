@@ -2,10 +2,11 @@ import pg from "pg";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import type { EventStore } from "./eventStore.js";
+import type { EventStore, AppendOpts } from "./eventStore.js";
 import type { ObligationEvent } from "../domain/events.js";
 import type { ObligationId } from "../domain/ids.js";
 import { assertNoRawContent } from "../domain/zeroCopy.js";
+import { ConcurrencyError } from "./errors.js";
 
 const { Pool } = pg;
 
@@ -29,12 +30,26 @@ export class PostgresEventStore implements EventStore {
     await this.pool.query(sql);
   }
 
-  async append(events: ObligationEvent[]): Promise<ObligationEvent[]> {
+  async append(events: ObligationEvent[], opts?: AppendOpts): Promise<ObligationEvent[]> {
     if (events.length === 0) return [];
     const client = await this.pool.connect();
     const persisted: ObligationEvent[] = [];
     try {
       await client.query("BEGIN");
+      // Optimistic concurrency: a per-obligation advisory xact-lock serializes appends
+      // for this obligation, so the count check + insert are race-safe (held to COMMIT).
+      if (opts?.expectedVersion !== undefined) {
+        const id = events[0].obligation_id;
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [id]);
+        const cnt = await client.query<{ n: number }>(
+          "SELECT count(*)::int AS n FROM obligation_events WHERE obligation_id = $1",
+          [id],
+        );
+        const current = cnt.rows[0]?.n ?? 0;
+        if (current !== opts.expectedVersion) {
+          throw new ConcurrencyError(opts.expectedVersion, current, id); // catch → ROLLBACK
+        }
+      }
       for (const event of events) {
         assertNoRawContent(event);
         const res = await client.query(
