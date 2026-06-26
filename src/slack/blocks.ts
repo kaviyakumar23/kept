@@ -4,6 +4,7 @@ import type { Classification } from "../llm/schemas.js";
 import type { FulfillmentAssessment } from "../engine/reconciliation.js";
 import type { ClosureDraft } from "../policy/audience.js";
 import type { RtsContext } from "./rts.js";
+import { analytics } from "../app/analytics.js";
 
 /** A Block Kit block / surface — valid Slack JSON. Kept dependency-light (plain objects). */
 export type SlackBlock = Record<string, unknown>;
@@ -192,7 +193,7 @@ export function reminderMessage(o: Obligation, kind: "AT_RISK" | "OVERDUE"): { t
 
 // --- App Home (live ledger dashboard) --------------------------------------
 /** The App Home tab — every customer's request-and-commitment ledger, with drill-in. */
-export function appHomeView(obligations: Obligation[]): SlackView {
+export function appHomeView(obligations: Obligation[], now: number = Date.now()): SlackView {
   const blocks: SlackBlock[] = [
     header("Kept · the obligation ledger"),
     context("Everything your team committed to — and everything customers asked for."),
@@ -201,6 +202,17 @@ export function appHomeView(obligations: Obligation[]): SlackView {
     blocks.push(section("_No obligations yet. Kept will surface them as they're made._"));
     return { type: "home", blocks };
   }
+  // Insight band (flag/state-derived → deterministic): what needs attention right now.
+  const a = analytics(obligations, now);
+  blocks.push({
+    type: "section",
+    fields: [
+      { type: "mrkdwn", text: `*Open:* ${a.counts.open}` },
+      { type: "mrkdwn", text: `:red_circle: *Overdue:* ${a.overdue.length}` },
+      { type: "mrkdwn", text: `:large_yellow_circle: *At risk:* ${a.atRisk.length}` },
+      { type: "mrkdwn", text: `:eyes: *Awaiting verify:* ${a.awaitingVerify.length}` },
+    ],
+  });
   const byCustomer = new Map<string, Obligation[]>();
   for (const o of obligations) {
     const list = byCustomer.get(o.customer) ?? [];
