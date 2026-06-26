@@ -192,5 +192,5 @@
   <text x="64" y="1429" class="s" font-size="13" fill="#1B1A17"><tspan font-weight="600">Work items over MCP:</tspan> Linear and Jira behind one WorkItemAdapter — in-process MCP server in the demo; hosted Linear/Atlassian MCP servers plug in.</text>
 
   <text x="40" y="1466" class="m" font-size="11" fill="#837C6E">The LLM only classifies, extracts and drafts and proposes a Command — the deterministic engine decides every transition. The model never emits an event, mutates state, or chooses an MCP tool.</text>
-  <text x="40" y="1486" class="m" font-size="11" fill="#837C6E">136 hermetic tests + 5 live integration tests · 7 adversarial hardening rounds · the model interprets language, code controls state and actions.</text>
+  <text x="40" y="1486" class="m" font-size="11" fill="#837C6E">140 hermetic tests + 5 live integration tests · 7 adversarial hardening rounds · the model interprets language, code controls state and actions.</text>
 </svg>

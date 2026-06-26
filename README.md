@@ -4,6 +4,8 @@
 
 > Kept remembers what your company owes every customer — and makes sure the customer hears when it's done.
 
+![Kept runs the full obligation loop end to end — abridged output of `npm run demo` (no Slack, DB, or network).](docs/demo.png)
+
 Kept is a Slack-native agent for shared customer channels. It maintains a **human-verified, event-sourced obligation ledger**: every request a customer makes and every promise your team makes is captured the moment it's said, tracked through its real lifecycle, reconciled against systems of record, and closed back in the original thread only after a human approves.
 
 **North star:** Kept never treats a single message, ticket status, or merged PR as truth. It builds an auditable obligation state from multiple evidence signals over time, and requires human confirmation before any consequential transition.
@@ -18,7 +20,7 @@ No accounts, tokens, or services required:
 
 ```bash
 npm install
-npm test            # 136 hermetic tests (engine + adapters + MCP + Assistant + adversarial regressions)
+npm test            # 140 hermetic tests (engine + adapters + MCP + Assistant + concurrency + adversarial regressions)
 npm run demo        # the full obligation lifecycle, end to end, in your terminal
 ```
 
@@ -100,7 +102,7 @@ The two mandatory human gates:
 ```bash
 npm install
 npm run typecheck     # tsc --noEmit
-npm test              # vitest — 136 tests (engine + adapters + MCP + Assistant + adversarial-regression), fully hermetic
+npm test              # vitest — 140 tests (engine + adapters + MCP + Assistant + concurrency + adversarial-regression), fully hermetic
 npm run demo          # the full E3 storyboard, end to end, no external services
 npm run eval          # the evaluation harness (metrics)
 npm start             # run the live app (Slack Events + webhook server) — needs tokens
@@ -176,5 +178,5 @@ Kept satisfies the "MCP server integration" requirement *without* handing the mo
 
 ### Known hardening items (deferred, documented)
 
-- **Optimistic concurrency on append.** `dispatch()` is read→decide→append; two *different* commands racing on one obligation could both apply (single-process demo is unaffected, and deterministic notify/transition idempotency keys mitigate the consequential cases). Production fix: an `expectedVersion` compare-and-append on `EventStore`.
+- **Optimistic concurrency on append** — *done.* `EventStore.append` takes an `expectedVersion`; `dispatch()` compare-and-appends and retries on a `ConcurrencyError` (re-read → re-decide), so two *different* commands racing on one obligation serialize by causality. Postgres uses a per-obligation advisory xact-lock + count check (race-safe inside the txn); verified by a live-Postgres concurrency test.
 - **Homoglyph-resistant leak detection.** `detectLeaks` normalizes zero-width/Unicode and is case/hyphen-insensitive; full homoglyph (e.g. Cyrillic look-alikes) coverage would need a confusables map.
