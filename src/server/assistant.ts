@@ -29,11 +29,16 @@ export function buildKeptAssistant(deps: { orch: KeptOrchestrator; llm: LlmProvi
     userMessage: async ({ message, say, setStatus }: any) => {
       const text: string = message?.text ?? "";
       const viewerId: string | undefined = message?.user;
-      await setStatus("Reading the ledger…");
-      const intent = await classifyLedgerQuery(deps.llm, text);
-      const obligations = await deps.orch.allObligations();
-      const answer = answerLedgerQuery(intent, obligations, now(), viewerId);
-      await say({ text: answer.text, blocks: answer.blocks as any });
+      try {
+        await setStatus("Reading the ledger…");
+        const intent = await classifyLedgerQuery(deps.llm, text);
+        const obligations = await deps.orch.allObligations();
+        const answer = answerLedgerQuery(intent, obligations, now(), viewerId);
+        await say({ text: answer.text, blocks: answer.blocks as any });
+      } catch (err) {
+        console.error("[kept] assistant query failed:", err);
+        await say("Sorry — I couldn't read the ledger just now. Try a narrower question (e.g. a specific customer), or open the App Home tab.");
+      }
     },
   });
 }

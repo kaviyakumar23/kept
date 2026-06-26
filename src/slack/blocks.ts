@@ -50,7 +50,9 @@ const button = (text: string, action: string, obligationId: string, style?: "pri
   ...(style ? { style } : {}),
 });
 
-const dueLabel = (due: string | null): string => (due ? `*Due:* ${due}` : "*Due:* —");
+/** Neutralize Slack mrkdwn control chars so an LLM/adapter-supplied value can't inject a mention/link. */
+const escapeMrkdwn = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const dueLabel = (due: string | null): string => (due ? `*Due:* ${escapeMrkdwn(due)}` : "*Due:* —");
 const SIGNAL_LABEL: Record<string, string> = {
   CUSTOMER_REQUEST: "Customer request — not yet a commitment",
   TENTATIVE_COMMITMENT: "Tentative commitment",
@@ -142,9 +144,6 @@ const STATE_EMOJI: Record<string, string> = {
   VERIFIED: "🟢", CUSTOMER_NOTIFIED: "🟢", CLOSED: "✅", REOPENED: "🔁", DISMISSED: "⚪", CANCELLED: "⚪",
 };
 
-/** Neutralize Slack mrkdwn control chars so an adapter-supplied value can't inject a mention/link. */
-const escapeMrkdwn = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
 function ledgerLine(o: Obligation): string {
   const flags: string[] = [];
   if (o.flags.is_overdue) flags.push("overdue");
@@ -153,7 +152,7 @@ function ledgerLine(o: Obligation): string {
   if (o.flags.has_scope_change) flags.push("scope changed");
   const tail = flags.length ? `  _(${flags.join(", ")})_` : "";
   const ref = o.work_item ? `  ·  ${escapeMrkdwn(o.work_item.ref)}` : "";
-  return `${STATE_EMOJI[o.state] ?? "•"} *${escapeMrkdwn(o.outcome)}* — ${o.state}${o.due ? `, due ${o.due}` : ""}${ref}${tail}`;
+  return `${STATE_EMOJI[o.state] ?? "•"} *${escapeMrkdwn(o.outcome)}* — ${o.state}${o.due ? `, due ${escapeMrkdwn(o.due)}` : ""}${ref}${tail}`;
 }
 
 /** The "what we owe Acme" view — request-and-commitment ledger for one customer. */
@@ -162,9 +161,14 @@ export function ledgerView(customer: string, obligations: Obligation[]): SlackBl
   const closed = obligations.filter((o) => o.state === "CLOSED");
   const blocks: SlackBlock[] = [header(`What we owe ${customer}`)];
   if (open.length === 0) blocks.push(section("_No open obligations._"));
-  else blocks.push(section(open.map(ledgerLine).join("\n")));
+  else {
+    const MAX = 25; // keep one section under Slack's 3000-char limit
+    const shown = open.slice(0, MAX);
+    const more = open.length - shown.length;
+    blocks.push(section(shown.map(ledgerLine).join("\n") + (more > 0 ? `\n_…and ${more} more._` : "")));
+  }
   if (closed.length > 0) {
-    blocks.push(divider, context(`Recently closed: ${closed.map((o) => o.outcome).join(" · ")}`));
+    blocks.push(divider, context(`Recently closed: ${closed.map((o) => escapeMrkdwn(o.outcome)).join(" · ")}`));
   }
   return blocks;
 }
@@ -188,7 +192,7 @@ export function auditHistoryView(o: Obligation, events: ObligationEvent[]): Slac
 export function reminderMessage(o: Obligation, kind: "AT_RISK" | "OVERDUE"): { text: string; blocks: SlackBlock[] } {
   const label = kind === "OVERDUE" ? "⏰ Overdue" : "⚠️ At risk";
   const text = `${label}: ${o.customer} — ${o.outcome}${o.due ? ` (due ${o.due})` : ""}`;
-  return { text, blocks: [section(`${label}\n*${o.customer}* — ${o.outcome}\n${dueLabel(o.due)}  ·  state ${o.state}`)] };
+  return { text, blocks: [section(`${label}\n*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}\n${dueLabel(o.due)}  ·  state ${o.state}`)] };
 }
 
 // --- App Home (live ledger dashboard) --------------------------------------

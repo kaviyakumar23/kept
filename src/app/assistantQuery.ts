@@ -48,8 +48,15 @@ const header = (text: string): SlackBlock => ({ type: "header", text: { type: "p
 const context = (text: string): SlackBlock => ({ type: "context", elements: [{ type: "mrkdwn", text }] });
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const line = (o: Obligation): string =>
-  `• *${esc(o.outcome)}* — ${esc(o.customer)} · ${o.state}${o.due ? `, due ${o.due}` : ""}${o.work_item ? ` · ${esc(o.work_item.ref)}` : ""}`;
-const listOr = (obls: Obligation[], empty: string): string => (obls.length ? obls.map(line).join("\n") : `_${empty}_`);
+  `• *${esc(o.outcome)}* — ${esc(o.customer)} · ${o.state}${o.due ? `, due ${esc(o.due)}` : ""}${o.work_item ? ` · ${esc(o.work_item.ref)}` : ""}`;
+/** Cap rendered rows so one big result set can't blow Slack's 3000-char / 50-block limits. */
+const MAX_ROWS = 25;
+const listOr = (obls: Obligation[], empty: string): string => {
+  if (!obls.length) return `_${empty}_`;
+  const shown = obls.slice(0, MAX_ROWS);
+  const more = obls.length - shown.length;
+  return shown.map(line).join("\n") + (more > 0 ? `\n_…and ${more} more._` : "");
+};
 
 const footer = (): SlackBlock =>
   context("Answered from the event-sourced ledger — the model only routed your question; the engine ran the read.");

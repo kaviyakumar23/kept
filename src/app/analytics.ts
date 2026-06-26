@@ -106,7 +106,8 @@ export function analytics(obligations: Obligation[], now: number): LedgerAnalyti
     promisedThisWeek,
     byOwner,
     byCustomer,
-    aging: { oldestOpenDays: ages.length ? Math.max(...ages) : 0, buckets },
+    // reduce (not Math.max(...spread)) — a 125k+ open ledger would blow the arg limit.
+    aging: { oldestOpenDays: ages.reduce((m, d) => (d > m ? d : m), 0), buckets },
   };
 }
 
