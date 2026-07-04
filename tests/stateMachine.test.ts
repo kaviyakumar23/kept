@@ -4,7 +4,7 @@ import { evt, mkObl } from "./helpers.js";
 
 describe("guarded state machine (C7)", () => {
   it("creation: REQUEST_DETECTED only from no obligation", () => {
-    const create = evt({ type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] });
+    const create = evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] });
     expect(canApply(null, create).ok).toBe(true);
     expect(canApply(mkObl("CANDIDATE"), create)).toMatchObject({ ok: false, code: "ILLEGAL_TRANSITION" });
   });

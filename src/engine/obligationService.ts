@@ -11,6 +11,8 @@ import { resolve } from "./entityGraph.js";
 import { ConcurrencyError } from "../store/errors.js";
 
 export interface DetectInput {
+  /** W1 — the owning Slack workspace (team id); persisted on REQUEST_DETECTED and used to scope every read. */
+  team: string;
   direction: Direction;
   signal: ObligationSignal;
   customer: string;
@@ -67,9 +69,10 @@ export class ObligationService {
     return this.store.getEvents(id);
   }
 
-  async listObligations(now?: number): Promise<Obligation[]> {
+  /** W1 — tenant-scoped ledger read. `teamId` is mandatory; there is no unscoped listing. */
+  async listObligations(teamId: string, now?: number): Promise<Obligation[]> {
     const ref = now ?? this.clock();
-    const ids = await this.store.getAllObligationIds();
+    const ids = await this.store.getAllObligationIds(teamId);
     const out: Obligation[] = [];
     for (const id of ids) {
       const events = await this.store.getEvents(id);
@@ -88,7 +91,8 @@ export class ObligationService {
     }
 
     // Semantic dedupe: attach to an existing obligation instead of creating one.
-    const existing = await this.listObligations(now);
+    // Scoped to the same team — dedupe must never resolve across tenants.
+    const existing = await this.listObligations(input.team, now);
     const match = resolve(
       { customer: input.customer, subject_canonical: input.subject_canonical, direction: input.direction, refs: input.refs },
       existing,
@@ -108,6 +112,7 @@ export class ObligationService {
     };
     const command: Command = {
       kind: "DETECT_REQUEST",
+      team: input.team,
       direction: input.direction,
       signal: input.signal,
       customer: input.customer,

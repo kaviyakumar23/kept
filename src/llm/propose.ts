@@ -22,7 +22,9 @@ export interface ProposalMeta {
 }
 
 export type Proposal =
-  | { actionable: true; classification: Classification; extraction: Extraction; detectInput: DetectInput }
+  // `team` is intentionally omitted here — the LLM proposer doesn't know the acting
+  // workspace; the orchestrator stamps it (from msg.team) before detectRequest. (W1)
+  | { actionable: true; classification: Classification; extraction: Extraction; detectInput: Omit<DetectInput, "team"> }
   | { actionable: false; classification: Classification; reason: string };
 
 /**
@@ -53,7 +55,7 @@ export async function proposeFromMessage(
     currentDate: meta.currentDate,
   });
 
-  const detectInput: DetectInput = {
+  const detectInput: Omit<DetectInput, "team"> = {
     direction: classification.direction,
     signal: classification.signal,
     customer: extraction.customer,

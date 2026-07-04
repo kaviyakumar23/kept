@@ -14,7 +14,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 function obl(o: Partial<Obligation> & { id: string }): Obligation {
   return {
-    state: "OPEN", direction: "TEAM_OWES_CUSTOMER", signal: "CONFIRMED_COMMITMENT",
+    team: "T_ACME", state: "OPEN", direction: "TEAM_OWES_CUSTOMER", signal: "CONFIRMED_COMMITMENT",
     customer: "Acme", subject_canonical: "X", outcome: "do x", due: null, owner: "U1",
     work_item: null, entity_refs: { customer: "Acme", subject_canonical: "X" },
     flags: emptyFlags(), evidence: [], conditions: [], history_count: 1, state_version: 1,

@@ -49,6 +49,8 @@ export type WorkSystem = "linear" | "jira";
 export type EventBody =
   | {
       type: "REQUEST_DETECTED";
+      /** W1 — the owning Slack workspace (team id). Tenant partition key; every read is scoped by it. */
+      team: string;
       direction: Direction;
       /** The originating typed signal (C1) — preserves request vs tentative vs confirmed. */
       signal: ObligationSignal;

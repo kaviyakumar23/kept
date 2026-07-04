@@ -34,6 +34,7 @@ import {
   customerConfirmed,
   NOW,
   ISO_NOW,
+  T_ACME,
   type Env,
 } from "./scenarios.js";
 
@@ -49,6 +50,7 @@ const ok = (name: string, pass: boolean, category: Category, detail?: string): C
 /** Drive a fresh obligation up to a chosen point. Returns env + obligation id. */
 async function detectAndOpen(env: Env, key: string): Promise<string> {
   const det = await env.service.detectRequest({
+    team: T_ACME,
     direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST",
     customer: "Acme",
     subject_canonical: "SSO_LOGIN_BUG",
@@ -108,11 +110,11 @@ async function duplicateSuppression(): Promise<Check[]> {
   const env = buildEnv();
   const key = "slack:T:C:42:request_detected";
   const first = await env.service.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
     due: "2026-06-19", owner: null, conditions: [], actor: AM_USER, source: slackSource("p"), idempotencyKey: key, at: new Date(NOW).toISOString(), now: NOW,
   });
   const dup = await env.service.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
     due: "2026-06-19", owner: null, conditions: [], actor: AM_USER, source: slackSource("p"), idempotencyKey: key, at: new Date(NOW).toISOString(), now: NOW,
   });
   c.push(ok("duplicate Slack event suppressed", first.status === "created" && dup.status === "suppressed", "dedupe"));
@@ -131,16 +133,16 @@ async function semanticDedupe(): Promise<Check[]> {
   const c: Check[] = [];
   const env = buildEnv();
   const a = await env.service.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
     due: "2026-06-19", owner: null, conditions: [], actor: AM_USER, source: slackSource("p1"), idempotencyKey: "slack:T:C:1:request_detected", at: new Date(NOW).toISOString(), now: NOW,
   });
   // "any update on that login issue?" → same canonical subject, different ts → attach.
   const b = await env.service.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login status",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login status",
     due: null, owner: null, conditions: [], actor: AM_USER, source: slackSource("p2"), idempotencyKey: "slack:T:C:2:request_detected", at: new Date(NOW).toISOString(), now: NOW,
   });
   c.push(ok("semantic dedupe attaches to existing obligation", a.status === "created" && b.status === "deduped" && b.obligation?.id === a.obligation?.id, "dedupe"));
-  const ids = await env.store.getAllObligationIds();
+  const ids = await env.store.getAllObligationIds(T_ACME);
   c.push(ok("no duplicate obligation created", ids.length === 1, "dedupe"));
   return c;
 }
@@ -238,7 +240,7 @@ async function unauthorizedActionFamily(): Promise<Check[]> {
   {
     const env = buildEnv();
     const det = await env.service.detectRequest({
-      direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
+      team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix",
       due: "2026-06-19", owner: null, conditions: [], actor: AM_USER, source: slackSource("p"), idempotencyKey: "ua:1", at: new Date(NOW).toISOString(), now: NOW,
     });
     if (det.status !== "created") throw new Error("expected created obligation");

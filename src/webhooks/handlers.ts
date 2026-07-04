@@ -137,14 +137,18 @@ export function mapDeployWebhook(p: DeployWebhook): WebhookAction {
   return { kind: "fulfillment", refs: { ...p.relatesTo, release: p.release }, evidence, idempotencyKey: deployKey(p.release, p.environment) };
 }
 
-/** Drive the orchestrator from a mapped action. Returns a short status string. */
-export async function applyWebhookAction(orch: KeptOrchestrator, action: WebhookAction): Promise<string> {
+/**
+ * Drive the orchestrator from a mapped action, within a single tenant. `teamId`
+ * scopes the entity-graph resolution so a webhook can only touch that workspace's
+ * obligations (W1). Returns a short status string.
+ */
+export async function applyWebhookAction(orch: KeptOrchestrator, action: WebhookAction, teamId: string): Promise<string> {
   if (action.kind === "ignore") return `ignored: ${action.reason}`;
   if (action.kind === "start_work") {
-    const o = await orch.startWork(action.refs, action.idempotencyKey);
+    const o = await orch.startWork(teamId, action.refs, action.idempotencyKey);
     return o ? `start_work → ${o.state}` : "start_work → no matching obligation";
   }
-  const r = await orch.recordFulfillmentSignal({ refs: action.refs, evidence: action.evidence, idempotencyKey: action.idempotencyKey });
+  const r = await orch.recordFulfillmentSignal({ teamId, refs: action.refs, evidence: action.evidence, idempotencyKey: action.idempotencyKey });
   if (r.kind === "no_match") return "fulfillment → no matching obligation";
   return `fulfillment → ${r.obligation.state}${r.verifyCardSent ? " (verify card sent)" : ""}`;
 }

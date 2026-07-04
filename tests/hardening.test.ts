@@ -22,6 +22,7 @@ import {
   customerConfirmed,
   NOW,
   ISO_NOW,
+  T_ACME,
   type Env,
 } from "../src/eval/scenarios.js";
 import { findRawContent } from "../src/domain/zeroCopy.js";
@@ -29,7 +30,7 @@ import { mkObl, evt } from "./helpers.js";
 
 async function openInProgress(env: Env, key: string): Promise<string> {
   const det = await env.service.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
     outcome: "SSO login fix", due: "2026-06-19", owner: "U_ENG", conditions: [], actor: AM, source: slackSource("p"),
     idempotencyKey: key, at: ISO_NOW, now: NOW,
   });
@@ -109,7 +110,7 @@ describe("G4 — leak safety is enforced on the command path", () => {
 
 describe("G5 — auditable envelope is required", () => {
   it("rejects an event with a blank actor/idempotency key", () => {
-    const d = decide([], { kind: "DETECT_REQUEST", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }, {
+    const d = decide([], { kind: "DETECT_REQUEST", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }, {
       obligationId: "o1", actor: "" as never, source: { system: "system", ref: null, accessible_to_user: true }, idempotencyKey: "", at: ISO_NOW, now: NOW,
     });
     expect(d.outcome).toBe("rejected");
@@ -139,12 +140,12 @@ describe("G3 — refs persisted at detection enable ref-based dedupe", () => {
   it("attaches a later message to an existing obligation via a shared ticket ref", async () => {
     const env = buildEnv();
     const a = await env.service.detectRequest({
-      direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
+      team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
       outcome: "SSO login fix", due: null, owner: null, conditions: [], refs: { linear: "PROJ-9" }, actor: AM, source: slackSource("p1"), idempotencyKey: "k1", at: ISO_NOW, now: NOW,
     });
     expect(a.status).toBe("created");
     const b = await env.service.detectRequest({
-      direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Globex", subject_canonical: "DIFFERENT_SUBJECT",
+      team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Globex", subject_canonical: "DIFFERENT_SUBJECT",
       outcome: "x", due: null, owner: null, conditions: [], refs: { linear: "PROJ-9" }, actor: AM, source: slackSource("p2"), idempotencyKey: "k2", at: ISO_NOW, now: NOW,
     });
     expect(b.status).toBe("deduped");
@@ -217,7 +218,7 @@ describe("G4 — Unicode-dash and dotted/spaced reference obfuscation is caught"
 
 describe("G5 — zero-copy value channel is uniform", () => {
   it("flags a newline in any persisted string field (conditions[])", () => {
-    const ev = evt({ type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: ["line one\nline two — pasted body"] });
+    const ev = evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: ["line one\nline two — pasted body"] });
     expect(findRawContent(ev).length).toBeGreaterThan(0);
   });
   it("flags an oversized reason value", () => {
@@ -225,7 +226,7 @@ describe("G5 — zero-copy value channel is uniform", () => {
     expect(findRawContent(ev).length).toBeGreaterThan(0);
   });
   it("rejects a whitespace-only envelope", () => {
-    const d = decide([], { kind: "DETECT_REQUEST", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }, {
+    const d = decide([], { kind: "DETECT_REQUEST", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }, {
       obligationId: "o1", actor: "   " as never, source: { system: "system", ref: null, accessible_to_user: true }, idempotencyKey: "k", at: ISO_NOW, now: NOW,
     });
     expect(d.outcome).toBe("rejected");
@@ -241,7 +242,7 @@ describe("G5 — zero-copy value channel is uniform", () => {
   it("throws on a raw-content event at decide() (U+2029 paragraph separator)", () => {
     const body = "line one" + String.fromCharCode(0x2029) + "line two";
     expect(() =>
-      decide([], { kind: "DETECT_REQUEST", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: body, due: null, owner: null, conditions: [] }, {
+      decide([], { kind: "DETECT_REQUEST", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: body, due: null, owner: null, conditions: [] }, {
         obligationId: "o1", actor: "user:U", source: { system: "slack", ref: null, accessible_to_user: true }, idempotencyKey: "k", at: ISO_NOW, now: NOW,
       }),
     ).toThrow();

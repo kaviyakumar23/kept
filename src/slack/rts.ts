@@ -6,6 +6,8 @@
  * persisted to the event log (zero-copy, correction #3).
  */
 export interface RtsQuery {
+  /** W1 — the acting workspace; ledger-backed retrieval is scoped to this team's obligations. */
+  team: string;
   customer: string;
   subject_canonical: string;
   channel: string;
@@ -49,8 +51,8 @@ export class MockRtsRetriever implements RtsRetriever {
 export class LedgerRtsRetriever implements RtsRetriever {
   constructor(
     private readonly opts: {
-      /** The obligation ledger (e.g. () => service.listObligations()). */
-      listObligations: () => Promise<import("../domain/obligation.js").Obligation[]>;
+      /** The team-scoped obligation ledger (e.g. (teamId) => service.listObligations(teamId)). */
+      listObligations: (teamId: string) => Promise<import("../domain/obligation.js").Obligation[]>;
       /** subject_canonical → area owner (Slack user id). */
       areaOwners?: Record<string, string>;
       maxPrior?: number;
@@ -59,7 +61,7 @@ export class LedgerRtsRetriever implements RtsRetriever {
 
   async retrieve(query: RtsQuery): Promise<RtsContext> {
     const norm = (s: string) => s.trim().toUpperCase();
-    const all = await this.opts.listObligations();
+    const all = await this.opts.listObligations(query.team); // W1 — same-tenant priors only
     const priorCommitments = all
       .filter((o) => norm(o.customer) === norm(query.customer) && norm(o.subject_canonical) !== norm(query.subject_canonical))
       .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at))

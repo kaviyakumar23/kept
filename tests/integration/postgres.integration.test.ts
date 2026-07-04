@@ -24,7 +24,7 @@ describe.skipIf(!DB)("PostgresEventStore — live database", () => {
     const service = new ObligationService(store, () => NOW);
 
     const det = await service.detectRequest({
-      direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-${tag}`, subject_canonical: "SSO_LOGIN_BUG",
+      team: `T-${tag}`, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-${tag}`, subject_canonical: "SSO_LOGIN_BUG",
       outcome: "SSO login fix", due: "2026-06-19", owner: "U_ENG", conditions: [],
       actor: AM, source: { system: "slack", ref: "p", accessible_to_user: true }, idempotencyKey: K("req"), at: ISO_NOW, now: NOW,
     });
@@ -60,7 +60,7 @@ describe.skipIf(!DB)("PostgresEventStore — live database", () => {
     // A real, zero-copy-clean event to clone for a fresh obligation id.
     const seedSvc = new ObligationService(store, () => NOW);
     const det = await seedSvc.detectRequest({
-      direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-ct-${Date.now()}`, subject_canonical: "X",
+      team: `T-ct-${Date.now()}`, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-ct-${Date.now()}`, subject_canonical: "X",
       outcome: "ct seed", due: null, owner: null, conditions: [], actor: AM, source: { system: "slack", ref: "p", accessible_to_user: true },
       idempotencyKey: `ct-seed-${Date.now()}`, at: ISO_NOW, now: NOW,
     });
@@ -84,7 +84,7 @@ describe.skipIf(!DB)("PostgresEventStore — live database", () => {
     const service = new ObligationService(store, () => NOW);
     await expect(
       service.detectRequest({
-        direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-raw-${Date.now()}`,
+        team: `T-raw-${Date.now()}`, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: `Acme-raw-${Date.now()}`,
         subject_canonical: "X", outcome: "line one\nline two — pasted raw body", due: null, owner: null, conditions: [],
         actor: AM, source: { system: "slack", ref: "p", accessible_to_user: true }, idempotencyKey: `raw-${Date.now()}`, at: ISO_NOW, now: NOW,
       }),

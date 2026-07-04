@@ -18,7 +18,7 @@ const baseCtx = (over: Partial<CommandContext> = {}): CommandContext => ({
 });
 
 const candidate = (): ObligationEvent[] => [
-  evt({ type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix", due: "2026-06-19", owner: null, conditions: [] }, { idempotency_key: "req" }),
+  evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix", due: "2026-06-19", owner: null, conditions: [] }, { idempotency_key: "req" }),
 ];
 
 describe("decide() — the LLM-proposes / engine-decides core", () => {

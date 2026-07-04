@@ -9,11 +9,13 @@ import {
   ticketDone,
   NOW,
   ISO_NOW,
+  T_ACME,
 } from "../src/eval/scenarios.js";
 import { buildClosureDraft } from "../src/policy/audience.js";
 
 const detect = (env: ReturnType<typeof buildEnv>, key: string, over: Record<string, unknown> = {}) =>
   env.service.detectRequest({
+    team: T_ACME,
     direction: "TEAM_OWES_CUSTOMER",
     signal: "CUSTOMER_REQUEST",
     customer: "Acme",
@@ -67,7 +69,7 @@ describe("end-to-end obligation lifecycle (P0)", () => {
     const b = await detect(env, "dupkey");
     expect(a.status).toBe("created");
     expect(b.status).toBe("suppressed");
-    expect((await env.store.getAllObligationIds()).length).toBe(1);
+    expect((await env.store.getAllObligationIds(T_ACME)).length).toBe(1);
   });
 
   it("attaches a follow-up message to the same obligation (semantic dedupe)", async () => {
@@ -80,7 +82,7 @@ describe("end-to-end obligation lifecycle (P0)", () => {
 
   it("never closes on a ticket-Done signal alone (no false closure)", async () => {
     const env = buildEnv();
-    const id = (await detect(env, "k")).status === "created" ? (await env.store.getAllObligationIds())[0] : "";
+    const id = (await detect(env, "k")).status === "created" ? (await env.store.getAllObligationIds(T_ACME))[0] : "";
     await env.service.dispatch({ kind: "CONFIRM_COMMITMENT", outcome: "o", due: "2026-06-19", owner: "U_ENG" }, ctx(id, "c", { approvedBy: "U_ACCOUNT_MANAGER" }));
     await env.service.dispatch({ kind: "START_WORK" }, ctx(id, "s"));
     await env.service.dispatch({ kind: "RECORD_FULFILLMENT_SIGNAL", evidence: ticketDone("t", "PROJ-118") }, ctx(id, "f"));

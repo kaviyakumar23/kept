@@ -29,5 +29,10 @@ export interface EventStore {
   /** Ordered event log for one obligation. */
   getEvents(obligationId: ObligationId): Promise<ObligationEvent[]>;
 
-  getAllObligationIds(): Promise<ObligationId[]>;
+  /**
+   * W1 — tenant-scoped choke point. Returns ONLY the obligations owned by `teamId`
+   * (the team captured on each REQUEST_DETECTED). There is no unscoped variant: a
+   * caller MUST supply the acting workspace, so a cross-tenant read is a type error.
+   */
+  getAllObligationIds(teamId: string): Promise<ObligationId[]>;
 }

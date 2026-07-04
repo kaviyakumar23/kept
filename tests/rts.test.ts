@@ -15,19 +15,19 @@ describe("LedgerRtsRetriever — real RTS sourced from the obligation ledger", (
   const rts = new LedgerRtsRetriever({ listObligations: async () => ledger, areaOwners: { SSO_LOGIN_BUG: "U_ENG" } });
 
   it("returns prior commitments for the same customer, excluding the current subject", async () => {
-    const ctx = await rts.retrieve({ customer: "acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
+    const ctx = await rts.retrieve({ team: "T_ACME", customer: "acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
     expect(ctx.priorCommitments.map((p) => p.outcome)).toEqual(["CSV export"]); // SSO excluded (same subject); Globex excluded (other customer)
     expect(ctx.suggestedOwner).toBe("U_ENG");
   });
 
   it("returns no priors for a customer with no history", async () => {
-    const ctx = await rts.retrieve({ customer: "Initech", subject_canonical: "X", channel: "C", userId: "U" });
+    const ctx = await rts.retrieve({ team: "T_ACME", customer: "Initech", subject_canonical: "X", channel: "C", userId: "U" });
     expect(ctx.priorCommitments).toEqual([]);
     expect(ctx.suggestedOwner).toBeNull();
   });
 
   it("never carries content destined for the event log (notes stay empty)", async () => {
-    const ctx = await rts.retrieve({ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
+    const ctx = await rts.retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
     expect(ctx.notes).toEqual([]); // ephemeral context only; nothing to persist
   });
 });
@@ -35,7 +35,7 @@ describe("LedgerRtsRetriever — real RTS sourced from the obligation ledger", (
 describe("SlackRtsRetriever — cross-channel search (permission-safe, ephemeral)", () => {
   it("returns nothing without a user token (permission parity)", async () => {
     const r = new SlackRtsRetriever({ clientFor: () => fakeSearch([{ channel: { name: "acme-collab" } }]) });
-    const ctx = await r.retrieve({ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
+    const ctx = await r.retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U" });
     expect(ctx.notes).toEqual([]);
   });
 
@@ -55,7 +55,7 @@ describe("SlackRtsRetriever — cross-channel search (permission-safe, ephemeral
         };
       },
     });
-    const ctx = await r.retrieve({ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U", userToken: "xoxp-user" });
+    const ctx = await r.retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U", userToken: "xoxp-user" });
     expect(usedToken).toBe("xoxp-user");
     expect(usedQuery).toContain("sso login bug");
     expect(ctx.notes.length).toBe(1);
@@ -65,7 +65,7 @@ describe("SlackRtsRetriever — cross-channel search (permission-safe, ephemeral
 
   it("a search failure never blocks the pipeline", async () => {
     const r = new SlackRtsRetriever({ clientFor: () => ({ search: { messages: async () => { throw new Error("rate limited"); } } }) });
-    const ctx = await r.retrieve({ customer: "Acme", subject_canonical: "X", channel: "C", userId: "U", userToken: "t" });
+    const ctx = await r.retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "X", channel: "C", userId: "U", userToken: "t" });
     expect(ctx.notes).toEqual([]);
   });
 });
@@ -77,7 +77,7 @@ describe("CompositeRtsRetriever", () => {
       areaOwners: { SSO_LOGIN_BUG: "U_ENG" },
     });
     const slack = new SlackRtsRetriever({ clientFor: () => fakeSearch([{ channel: { name: "acme-collab" } }]) });
-    const ctx = await new CompositeRtsRetriever([ledger, slack]).retrieve({ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U", userToken: "t" });
+    const ctx = await new CompositeRtsRetriever([ledger, slack]).retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", channel: "C", userId: "U", userToken: "t" });
     expect(ctx.priorCommitments.map((p) => p.outcome)).toEqual(["CSV export"]);
     expect(ctx.suggestedOwner).toBe("U_ENG");
     expect(ctx.notes.length).toBe(1);
@@ -86,7 +86,7 @@ describe("CompositeRtsRetriever", () => {
   it("is fault-isolated: a throwing retriever contributes nothing", async () => {
     const bad: RtsRetriever = { retrieve: async () => { throw new Error("boom"); } };
     const ledger = new LedgerRtsRetriever({ listObligations: async () => [mkObl("OPEN", { customer: "Acme", subject_canonical: "EXPORT_FEATURE", outcome: "x" })] });
-    const ctx = await new CompositeRtsRetriever([bad, ledger]).retrieve({ customer: "Acme", subject_canonical: "Y", channel: "C", userId: "U" });
+    const ctx = await new CompositeRtsRetriever([bad, ledger]).retrieve({ team: "T_ACME", customer: "Acme", subject_canonical: "Y", channel: "C", userId: "U" });
     expect(ctx.priorCommitments.length).toBe(1);
   });
 });

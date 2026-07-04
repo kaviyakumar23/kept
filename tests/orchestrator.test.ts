@@ -44,8 +44,8 @@ async function toVerified(orch: KeptOrchestrator): Promise<string> {
   const ing = await orch.ingestMessage(msg("Can you get the SSO bug fixed by Friday?"));
   const id = ing.kind === "confirm_card_sent" ? ing.obligationId : "";
   await orch.confirmCommitment(id, "U_AM");
-  await applyWebhookAction(orch, merge);
-  await applyWebhookAction(orch, deploy);
+  await applyWebhookAction(orch, merge, "T");
+  await applyWebhookAction(orch, deploy, "T");
   await orch.verify(id, "U_AM");
   return id;
 }
@@ -63,11 +63,11 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     expect(work?.ref).toBe("PROJ-118");
     expect((await service.getObligation(id))!.state).toBe("OPEN");
 
-    await applyWebhookAction(orch, mapLinearWebhook({ type: "Issue", action: "update", data: { identifier: "PROJ-118", state: { name: "In Progress" }, updatedAt: "2026-06-17T00:00:00Z" } }));
+    await applyWebhookAction(orch, mapLinearWebhook({ type: "Issue", action: "update", data: { identifier: "PROJ-118", state: { name: "In Progress" }, updatedAt: "2026-06-17T00:00:00Z" } }), "T");
     expect((await service.getObligation(id))!.state).toBe("IN_PROGRESS");
 
-    await applyWebhookAction(orch, merge); // not enough alone
-    await applyWebhookAction(orch, deploy); // merge + prod deploy = available
+    await applyWebhookAction(orch, merge, "T"); // not enough alone
+    await applyWebhookAction(orch, deploy, "T"); // merge + prod deploy = available
     expect((await service.getObligation(id))!.state).toBe("POSSIBLE_FULFILLMENT");
     expect(notifier.calls.some((c) => c.kind === "private" && c.text.includes("Possible fulfillment"))).toBe(true);
 
@@ -97,8 +97,8 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     const ing = await orch.ingestMessage(msg("Can you get the SSO bug fixed by Friday?"));
     const id = ing.kind === "confirm_card_sent" ? ing.obligationId : "";
     await orch.confirmCommitment(id, "U_AM", { outcome: "Fix PROJ-118 login" }); // leaky outcome
-    await applyWebhookAction(orch, merge);
-    await applyWebhookAction(orch, deploy);
+    await applyWebhookAction(orch, merge, "T");
+    await applyWebhookAction(orch, deploy, "T");
     await orch.verify(id, "U_AM");
     const sent = await orch.approveSend(id, "U_AM");
     expect(sent.kind).toBe("rejected");
@@ -111,7 +111,7 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     const b = await orch.ingestMessage(msg("any update on that login issue?", "200"));
     expect(a.kind).toBe("confirm_card_sent");
     expect(b.kind).toBe("deduped");
-    expect((await store.getAllObligationIds()).length).toBe(1);
+    expect((await store.getAllObligationIds("T")).length).toBe(1);
   });
 
   it("warns on the confirm card when the committed date contradicts the roadmap", async () => {
@@ -139,12 +139,12 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     expect(opened?.work_item?.system).toBe("jira");
     expect(opened?.entity_refs.jira).toBe("ACME-1001");
 
-    await applyWebhookAction(orch, mapJiraWebhook({ issue: { key: "ACME-1001", fields: { status: { name: "In Progress" }, updated: "2026-06-17T00:00:00Z" } } }));
+    await applyWebhookAction(orch, mapJiraWebhook({ issue: { key: "ACME-1001", fields: { status: { name: "In Progress" }, updated: "2026-06-17T00:00:00Z" } } }), "T");
     expect((await service.getObligation(id))?.state).toBe("IN_PROGRESS");
 
     // GitHub + deploy resolve the obligation via the Jira ref.
-    await applyWebhookAction(orch, mapGithubWebhook({ action: "closed", pull_request: { number: 7, merged: true, merged_at: "2026-06-18T00:00:00Z", html_url: "u" }, relatesTo: { jira: "ACME-1001" } }));
-    await applyWebhookAction(orch, mapDeployWebhook({ release: "2026.06.18", environment: "production", customer_scoped: true, relatesTo: { jira: "ACME-1001" } }));
+    await applyWebhookAction(orch, mapGithubWebhook({ action: "closed", pull_request: { number: 7, merged: true, merged_at: "2026-06-18T00:00:00Z", html_url: "u" }, relatesTo: { jira: "ACME-1001" } }), "T");
+    await applyWebhookAction(orch, mapDeployWebhook({ release: "2026.06.18", environment: "production", customer_scoped: true, relatesTo: { jira: "ACME-1001" } }), "T");
     expect((await service.getObligation(id))?.state).toBe("POSSIBLE_FULFILLMENT");
 
     await orch.verify(id, "U_AM");
@@ -177,8 +177,8 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     const ing = await orch.ingestMessage(msg("Can you get the SSO bug fixed by Friday?"));
     const id = ing.kind === "confirm_card_sent" ? ing.obligationId : "";
     await orch.confirmCommitment(id, "U_AM");
-    await applyWebhookAction(orch, merge);
-    await applyWebhookAction(orch, deploy);
+    await applyWebhookAction(orch, merge, "T");
+    await applyWebhookAction(orch, deploy, "T");
     await orch.verify(id, "U_AM");
     const [s1, s2] = await Promise.all([orch.approveSend(id, "U_AM"), orch.approveSend(id, "U_AM")]);
     expect(notifier.customerFacingText().length).toBe(1); // exactly one customer post
@@ -209,8 +209,8 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     const ing = await orch.ingestMessage(msg("Can you get the SSO bug fixed by Friday?"));
     const id = ing.kind === "confirm_card_sent" ? ing.obligationId : "";
     await orch.confirmCommitment(id, "U_AM");
-    await applyWebhookAction(orch, merge);
-    await applyWebhookAction(orch, deploy);
+    await applyWebhookAction(orch, merge, "T");
+    await applyWebhookAction(orch, deploy, "T");
     await orch.verify(id, "U_AM");
     expect(notifier.customerFacingText()).toEqual([]);
     expect(notifier.calls.every((c) => c.kind === "private")).toBe(true);

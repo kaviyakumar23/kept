@@ -103,7 +103,7 @@ async function main() {
 
       // Ledger-backed RTS (prior commitments + owner); optionally add cross-channel
       // Slack search with per-user tokens for permission-safe context.
-      const ledgerRts = new LedgerRtsRetriever({ listObligations: () => service.listObligations() });
+      const ledgerRts = new LedgerRtsRetriever({ listObligations: (teamId) => service.listObligations(teamId) });
       const rts =
         process.env.KEPT_SLACK_USER_SEARCH === "1"
           ? new CompositeRtsRetriever([
@@ -116,7 +116,9 @@ async function main() {
   });
 
   const webhookPort = Number(process.env.KEPT_WEBHOOK_PORT ?? 3001);
-  const webhooks = createWebhookServer(orch, { secret: process.env.KEPT_WEBHOOK_SECRET });
+  // W1 — webhooks name their tenant via `x-kept-team`, else this configured default.
+  // TODO(W2): route each webhook to its team via the InstallationStore instead of one env default.
+  const webhooks = createWebhookServer(orch, { secret: process.env.KEPT_WEBHOOK_SECRET, teamId: process.env.KEPT_TEAM_ID });
   webhooks.listen(webhookPort, () => console.log(`[kept] webhook server on :${webhookPort} (/webhooks/{linear,jira,github,deploy})`));
 
   const slackPort = Number(process.env.PORT ?? 3000);

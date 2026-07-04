@@ -13,6 +13,7 @@ export class PostgresRoadmapSource implements RoadmapSource {
   }
 
   async list(): Promise<RoadmapEntry[]> {
+    // TODO(W2): per-tenant — scope this read by team_id (the roadmap table now carries it).
     const res = await this.pool.query<{ customer: string; subject_canonical: string; target_date: string }>(
       "SELECT customer, subject_canonical, to_char(target_date, 'YYYY-MM-DD') AS target_date FROM roadmap",
     );

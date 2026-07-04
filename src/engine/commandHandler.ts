@@ -30,6 +30,7 @@ function bodyFor(command: Command, current: Obligation | null): EventBody {
     case "DETECT_REQUEST":
       return {
         type: "REQUEST_DETECTED",
+        team: command.team,
         direction: command.direction,
         signal: command.signal,
         customer: command.customer,

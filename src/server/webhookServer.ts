@@ -10,6 +10,12 @@ import { mapLinearWebhook, mapJiraWebhook, mapGithubWebhook, mapDeployWebhook, a
 export interface WebhookServerOpts {
   /** Shared-secret guard via the `x-kept-secret` header (stand-in for per-source HMAC). */
   secret?: string;
+  /**
+   * W1 — the tenant a webhook belongs to. A request may override per-delivery via the
+   * `x-kept-team` header; otherwise this default applies. TODO(W2): derive the team
+   * from the installation / per-source routing rather than one configured default.
+   */
+  teamId?: string;
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -31,20 +37,29 @@ async function handle(req: IncomingMessage, res: ServerResponse, orch: KeptOrche
     return;
   }
 
+  // W1 — the webhook must name its tenant (header override, else the configured default).
+  const headerTeam = req.headers["x-kept-team"];
+  const teamId = (Array.isArray(headerTeam) ? headerTeam[0] : headerTeam) ?? opts.teamId;
+  if (!teamId) {
+    res.statusCode = 400;
+    res.end("missing team (set x-kept-team or configure a default)");
+    return;
+  }
+
   const body = await readJson(req);
   let status: string;
   switch (req.url) {
     case "/webhooks/linear":
-      status = await applyWebhookAction(orch, mapLinearWebhook(body as never));
+      status = await applyWebhookAction(orch, mapLinearWebhook(body as never), teamId);
       break;
     case "/webhooks/jira":
-      status = await applyWebhookAction(orch, mapJiraWebhook(body as never));
+      status = await applyWebhookAction(orch, mapJiraWebhook(body as never), teamId);
       break;
     case "/webhooks/github":
-      status = await applyWebhookAction(orch, mapGithubWebhook(body as never));
+      status = await applyWebhookAction(orch, mapGithubWebhook(body as never), teamId);
       break;
     case "/webhooks/deploy":
-      status = await applyWebhookAction(orch, mapDeployWebhook(body as never));
+      status = await applyWebhookAction(orch, mapDeployWebhook(body as never), teamId);
       break;
     default:
       res.statusCode = 404;

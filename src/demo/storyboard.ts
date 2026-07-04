@@ -23,7 +23,7 @@ import {
   mapDeployWebhook,
   applyWebhookAction,
 } from "../webhooks/handlers.js";
-import { NOW, heuristicResponder } from "../eval/scenarios.js";
+import { NOW, T_ACME, heuristicResponder } from "../eval/scenarios.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function renderBlocks(blocks: SlackBlock[]): string {
@@ -67,7 +67,7 @@ async function main() {
     // Real, ledger-backed RTS: prior commitments come from the obligation ledger; the
     // area owner from a configurable map. Results are ephemeral (never persisted).
     rts: new LedgerRtsRetriever({
-      listObligations: () => service.listObligations(NOW),
+      listObligations: (teamId) => service.listObligations(teamId, NOW),
       areaOwners: { SSO_LOGIN_BUG: "U_ENG" },
     }),
     // Approved roadmap — Friday (06-19) is earlier than the SSO target (06-30) → conflict.
@@ -87,7 +87,7 @@ async function main() {
   };
 
   // Seed a prior Acme commitment so the ledger-backed RTS has real context to surface.
-  const seed = await orch.ingestMessage({ team: "T_ACME", channel, threadTs: "1700.0001", ts: "1700.0001", userId: "U_ACME_PM", text: "Can you add the CSV export feature?", permalink: "p0" });
+  const seed = await orch.ingestMessage({ team: T_ACME, channel, threadTs: "1700.0001", ts: "1700.0001", userId: "U_ACME_PM", text: "Can you add the CSV export feature?", permalink: "p0" });
   if (seed.kind === "confirm_card_sent") await orch.confirmCommitment(seed.obligationId, "U_AM");
   log(`  (seeded a prior Acme commitment — "CSV export feature" — so RTS has real ledger context)`);
 
@@ -96,7 +96,7 @@ async function main() {
 
   beat("0:15  Kept classifies + extracts → private confirm card (Gate 1)");
   const ingest = await orch.ingestMessage({
-    team: "T_ACME", channel, threadTs: thread, ts: "1718.0001", userId: "U_ACME_PM",
+    team: T_ACME, channel, threadTs: thread, ts: "1718.0001", userId: "U_ACME_PM",
     text: "Can you get the SSO bug fixed by Friday?", permalink: "https://acme.slack.com/archives/C/p1718",
   });
   if (ingest.kind !== "confirm_card_sent") throw new Error(`expected confirm card, got ${ingest.kind}`);
@@ -109,25 +109,25 @@ async function main() {
   if (!work) throw new Error("confirm was not applied");
   log(`  → created ${work.ref} (${work.url}) — via an MCP create_issue tool call (code chose the tool, not the model)`);
   log(`  → reminders scheduled: ${scheduler.pending().map((j) => j.kind).join(", ")}`);
-  log(renderBlocks(ledgerView("Acme", await orch.ledgerFor("Acme"))));
+  log(renderBlocks(ledgerView("Acme", await orch.ledgerFor(T_ACME, "Acme"))));
 
   beat("0:35  Linear says In Progress → ledger advances; duplicate webhook suppressed");
   const inProgress = { type: "Issue", action: "update", data: { identifier: work.ref, state: { name: "In Progress" }, updatedAt: "2026-06-17T09:00:00Z" } };
-  log(`  webhook#1 ${await applyWebhookAction(orch, mapLinearWebhook(inProgress))}`);
-  log(`  webhook#2 (duplicate) ${await applyWebhookAction(orch, mapLinearWebhook(inProgress))}  ← idempotent`);
+  log(`  webhook#1 ${await applyWebhookAction(orch, mapLinearWebhook(inProgress), T_ACME)}`);
+  log(`  webhook#2 (duplicate) ${await applyWebhookAction(orch, mapLinearWebhook(inProgress), T_ACME)}  ← idempotent`);
 
   beat("0:45  'any update on that login issue?' → attaches to the same obligation");
   const dedupe = await orch.ingestMessage({
-    team: "T_ACME", channel, threadTs: thread, ts: "1718.0099", userId: "U_ACME_PM",
+    team: T_ACME, channel, threadTs: thread, ts: "1718.0099", userId: "U_ACME_PM",
     text: "any update on that login issue?", permalink: "https://acme.slack.com/archives/C/p1718b",
   });
-  log(`  → ${dedupe.kind}${dedupe.kind === "deduped" ? ` (same obligation ${dedupe.obligationId === id ? "✓" : "✗"})` : ""}; obligations on file: ${(await store.getAllObligationIds()).length}`);
+  log(`  → ${dedupe.kind}${dedupe.kind === "deduped" ? ` (same obligation ${dedupe.obligationId === id ? "✓" : "✗"})` : ""}; obligations on file: ${(await store.getAllObligationIds(T_ACME)).length}`);
 
   beat("0:55  Engineering ships — reconciliation: merge + prod deploy = available");
   const ghMerged = { action: "closed", pull_request: { number: 449, merged: true, merged_at: "2026-06-18T14:00:00Z", html_url: "https://github.com/acme/app/pull/449" }, relatesTo: { linear: work.ref } };
-  log(`  PR merged:  ${await applyWebhookAction(orch, mapGithubWebhook(ghMerged))}  ← merge alone is NOT enough`);
+  log(`  PR merged:  ${await applyWebhookAction(orch, mapGithubWebhook(ghMerged), T_ACME)}  ← merge alone is NOT enough`);
   const deploy = { release: "2026.06.18", environment: "production", customer_scoped: true, relatesTo: { linear: work.ref } };
-  log(`  deployed:   ${await applyWebhookAction(orch, mapDeployWebhook(deploy))}`);
+  log(`  deployed:   ${await applyWebhookAction(orch, mapDeployWebhook(deploy), T_ACME)}`);
   log(`  → Gate-2 verify card sent privately to the owner.`);
   log(lastPrivateCard());
 
@@ -149,14 +149,14 @@ async function main() {
   log(`  state: ${reopened!.state} · ticket still ${reopened!.work_item?.ref} (Done) · disputed=${reopened!.flags.is_disputed}`);
 
   beat("2:00  Two-sided view — what we owe Acme");
-  log(renderBlocks(ledgerView("Acme", await orch.ledgerFor("Acme"))));
+  log(renderBlocks(ledgerView("Acme", await orch.ledgerFor(T_ACME, "Acme"))));
 
   beat("2:10  Full audit history (event-sourced, explainable)");
   const audit = await orch.auditFor(id);
   if (audit) log(renderBlocks(auditHistoryView(audit.obligation, audit.events)));
 
   beat("2:20  App Home — the live obligation-ledger dashboard");
-  log(renderBlocks((appHomeView(await orch.allObligations()) as { blocks: SlackBlock[] }).blocks));
+  log(renderBlocks((appHomeView(await orch.allObligations(T_ACME)) as { blocks: SlackBlock[] }).blocks));
 
   beat("(polish)  Edit modals — edit-and-confirm at Gate 1, edit-the-reply at closure");
   const sample = await orch.obligation(id);

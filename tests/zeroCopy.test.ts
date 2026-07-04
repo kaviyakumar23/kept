@@ -7,6 +7,7 @@ describe("zero-copy guard (correction #3)", () => {
   it("accepts events with only derived structured fields", () => {
     const e = evt({
       type: "REQUEST_DETECTED",
+      team: "T_ACME",
       direction: "TEAM_OWES_CUSTOMER",
       signal: "CUSTOMER_REQUEST",
       customer: "Acme",
@@ -23,6 +24,7 @@ describe("zero-copy guard (correction #3)", () => {
   it("rejects an event carrying a raw message body", () => {
     const e = evt({
       type: "REQUEST_DETECTED",
+      team: "T_ACME",
       direction: "TEAM_OWES_CUSTOMER",
       signal: "CUSTOMER_REQUEST",
       customer: "Acme",

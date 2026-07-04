@@ -10,6 +10,11 @@ import { ConcurrencyError } from "./errors.js";
 
 const { Pool } = pg;
 
+/** W1 — the team lives on the head REQUEST_DETECTED event; later events inherit it via lookup. */
+function payloadTeam(event: ObligationEvent): string | null {
+  return event.type === "REQUEST_DETECTED" ? event.team : null;
+}
+
 /**
  * Production event store on Postgres. Same contract as InMemoryEventStore:
  * append-only, idempotent (unique idempotency_key), zero-copy enforced. The
@@ -52,12 +57,26 @@ export class PostgresEventStore implements EventStore {
       }
       for (const event of events) {
         assertNoRawContent(event);
+        // W1 — every row carries team_id (NOT NULL). The head REQUEST_DETECTED supplies
+        // it; a later event inherits the team from its obligation's head row (visible
+        // within this transaction even if inserted in the same batch).
+        let teamId = payloadTeam(event);
+        if (teamId === null) {
+          const look = await client.query<{ team_id: string }>(
+            "SELECT team_id FROM obligation_events WHERE obligation_id = $1 ORDER BY seq ASC LIMIT 1",
+            [event.obligation_id],
+          );
+          teamId = look.rows[0]?.team_id ?? null;
+        }
+        if (teamId === null) {
+          throw new Error(`cannot determine team_id for ${event.type} on ${event.obligation_id} (no REQUEST_DETECTED head)`);
+        }
         const res = await client.query(
-          `INSERT INTO obligation_events (obligation_id, event_type, idempotency_key, payload)
-           VALUES ($1, $2, $3, $4)
+          `INSERT INTO obligation_events (obligation_id, team_id, event_type, idempotency_key, payload)
+           VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (idempotency_key) DO NOTHING
            RETURNING seq`,
-          [event.obligation_id, event.type, event.idempotency_key, JSON.stringify(event)],
+          [event.obligation_id, teamId, event.type, event.idempotency_key, JSON.stringify(event)],
         );
         if ((res.rowCount ?? 0) > 0) persisted.push(event);
       }
@@ -87,9 +106,11 @@ export class PostgresEventStore implements EventStore {
     return res.rows.map((r) => r.payload);
   }
 
-  async getAllObligationIds(): Promise<ObligationId[]> {
+  async getAllObligationIds(teamId: string): Promise<ObligationId[]> {
+    // W1 — tenant partition: only this workspace's obligations.
     const res = await this.pool.query<{ obligation_id: string }>(
-      "SELECT DISTINCT obligation_id FROM obligation_events",
+      "SELECT DISTINCT obligation_id FROM obligation_events WHERE team_id = $1",
+      [teamId],
     );
     return res.rows.map((r) => r.obligation_id);
   }

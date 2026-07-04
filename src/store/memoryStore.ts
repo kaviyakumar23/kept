@@ -42,7 +42,13 @@ export class InMemoryEventStore implements EventStore {
     return [...(this.byObligation.get(obligationId) ?? [])];
   }
 
-  async getAllObligationIds(): Promise<ObligationId[]> {
-    return [...this.byObligation.keys()];
+  async getAllObligationIds(teamId: string): Promise<ObligationId[]> {
+    // W1 — scope by the team captured on the head REQUEST_DETECTED event.
+    const out: ObligationId[] = [];
+    for (const [id, events] of this.byObligation) {
+      const head = events[0];
+      if (head?.type === "REQUEST_DETECTED" && head.team === teamId) out.push(id);
+    }
+    return out;
   }
 }

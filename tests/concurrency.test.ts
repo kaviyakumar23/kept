@@ -5,13 +5,13 @@ import { ConcurrencyError } from "../src/store/errors.js";
 import type { EventStore, AppendOpts } from "../src/store/eventStore.js";
 import type { ObligationEvent } from "../src/domain/events.js";
 import type { ObligationId } from "../src/domain/ids.js";
-import { AM, NOW, ISO_NOW, slackSource } from "../src/eval/scenarios.js";
+import { AM, NOW, ISO_NOW, slackSource, T_ACME } from "../src/eval/scenarios.js";
 
 /** Optimistic concurrency (expectedVersion compare-and-append) — hermetic. */
 
 async function seedCandidate(svc: ObligationService): Promise<string> {
   const det = await svc.detectRequest({
-    direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
+    team: T_ACME, direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG",
     outcome: "SSO login fix", due: "2026-06-19", owner: "U_ENG", conditions: [],
     actor: AM, source: slackSource("p"), idempotencyKey: "seed:req", at: ISO_NOW, now: NOW,
   });
@@ -53,7 +53,7 @@ describe("optimistic concurrency", () => {
       }
       hasIdempotencyKey(k: string) { return this.i.hasIdempotencyKey(k); }
       getEvents(o: ObligationId) { return this.i.getEvents(o); }
-      getAllObligationIds() { return this.i.getAllObligationIds(); }
+      getAllObligationIds(teamId: string) { return this.i.getAllObligationIds(teamId); }
     }
     const svc = new ObligationService(new ConflictOnce(inner), () => NOW);
     const r = await svc.dispatch(confirm, confirmCtx(id, "c"));
@@ -71,7 +71,7 @@ describe("optimistic concurrency", () => {
       }
       hasIdempotencyKey(k: string) { return this.i.hasIdempotencyKey(k); }
       getEvents(o: ObligationId) { return this.i.getEvents(o); }
-      getAllObligationIds() { return this.i.getAllObligationIds(); }
+      getAllObligationIds(teamId: string) { return this.i.getAllObligationIds(teamId); }
     }
     const svc = new ObligationService(new AlwaysConflict(inner), () => NOW);
     const r = await svc.dispatch(confirm, confirmCtx(id, "c"));

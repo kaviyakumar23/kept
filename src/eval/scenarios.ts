@@ -15,6 +15,9 @@ export const ISO_NOW = new Date(NOW).toISOString();
 
 export const AM = userActor("U_ACCOUNT_MANAGER");
 
+/** W1 — the demo/eval workspace (single-tenant runs stamp obligations with this team id). */
+export const T_ACME = "T_ACME";
+
 export const slackSource = (ref: string): EventSource => ({ system: "slack", ref, accessible_to_user: true });
 export const systemSource: EventSource = { system: "system", ref: null, accessible_to_user: true };
 

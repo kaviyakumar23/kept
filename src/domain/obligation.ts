@@ -12,6 +12,8 @@ import type { WorkSystem } from "./events.js";
  * an existing obligation via these refs (engine/entityGraph.ts).
  */
 export interface EntityRefs {
+  /** W1 — the owning workspace (team id). Carried for defense-in-depth; the canonical filter key is Obligation.team. */
+  team?: string;
   customer: string;
   /** Canonical subject, e.g. "SSO_LOGIN_BUG" — the join key for semantic dedupe. */
   subject_canonical: string;
@@ -33,6 +35,8 @@ export interface WorkItemRef {
  */
 export interface Obligation {
   id: ObligationId;
+  /** W1 — the owning Slack workspace (team id). Every read surface is scoped by this. */
+  team: string;
   state: ObligationState;
   direction: Direction;
   /** The originating typed signal (C1), retained for audit/explanation. */

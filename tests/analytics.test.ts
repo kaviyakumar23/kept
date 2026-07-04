@@ -9,6 +9,7 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 function obl(o: Partial<Obligation> & { id: string }): Obligation {
   return {
+    team: "T_ACME",
     state: "OPEN",
     direction: "TEAM_OWES_CUSTOMER",
     signal: "CONFIRMED_COMMITMENT",

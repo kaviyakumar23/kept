@@ -69,7 +69,7 @@ describe("Block Kit builders", () => {
 
   it("audit history renders one line per event", () => {
     const events = [
-      evt({ type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }),
+      evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] }),
       evt({ type: "COMMITMENT_CONFIRMED", outcome: "o", due: null, owner: "U_ENG" }, { approved_by: "U_AM" }),
     ];
     const json = JSON.stringify(auditHistoryView(mkObl("OPEN"), events));
@@ -114,7 +114,7 @@ describe("Block Kit builders", () => {
   });
 
   it("audit modal wraps the history view", () => {
-    const view = auditModal(mkObl("OPEN"), [evt({ type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] })]) as { type: string };
+    const view = auditModal(mkObl("OPEN"), [evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] })]) as { type: string };
     expect(view.type).toBe("modal");
     expect(JSON.stringify(view)).toContain("REQUEST_DETECTED");
   });

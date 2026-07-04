@@ -11,11 +11,11 @@ describe.skipIf(!DB)("PostgresRoadmapSource — live database", () => {
     const customer = `Acme-${Date.now()}`;
     try {
       await pool.query(
-        "CREATE TABLE IF NOT EXISTS roadmap (customer TEXT NOT NULL, subject_canonical TEXT NOT NULL, target_date DATE NOT NULL, PRIMARY KEY (customer, subject_canonical))",
+        "CREATE TABLE IF NOT EXISTS roadmap (team_id TEXT NOT NULL, customer TEXT NOT NULL, subject_canonical TEXT NOT NULL, target_date DATE NOT NULL, PRIMARY KEY (team_id, customer, subject_canonical))",
       );
       await pool.query(
-        "INSERT INTO roadmap (customer, subject_canonical, target_date) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-        [customer, "SSO_LOGIN_BUG", "2026-06-30"],
+        "INSERT INTO roadmap (team_id, customer, subject_canonical, target_date) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+        ["T_ACME", customer, "SSO_LOGIN_BUG", "2026-06-30"],
       );
 
       const entries = await new PostgresRoadmapSource({ pool }).list();

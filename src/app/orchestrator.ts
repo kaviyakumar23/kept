@@ -88,6 +88,7 @@ export class KeptOrchestrator {
 
   private owner(o: Obligation, rts: RtsContext): string {
     if (this.d.ownerResolver) return this.d.ownerResolver(o, rts);
+    // TODO(W2): per-tenant fallbackOwner (from the install config) instead of one global default.
     return o.owner ?? rts.suggestedOwner ?? this.d.fallbackOwner ?? "U_ACCOUNT_MANAGER";
   }
 
@@ -109,8 +110,9 @@ export class KeptOrchestrator {
     );
     if (!proposal.actionable) return { kind: "skipped", signal: proposal.classification.signal };
 
-    // RTS context — permission-safe, EPHEMERAL (never persisted).
+    // RTS context — permission-safe, EPHEMERAL (never persisted). Scoped to the team.
     const rts = await this.d.rts.retrieve({
+      team: msg.team,
       customer: proposal.detectInput.customer,
       subject_canonical: proposal.detectInput.subject_canonical,
       channel: msg.channel,
@@ -118,8 +120,10 @@ export class KeptOrchestrator {
       userToken: msg.userToken,
     });
 
+    // W1 — stamp the acting workspace onto the obligation (the proposer omits it).
     const result = await this.d.service.detectRequest({
       ...proposal.detectInput,
+      team: msg.team,
       owner: proposal.detectInput.owner ?? rts.suggestedOwner,
       slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
     });
@@ -205,15 +209,19 @@ export class KeptOrchestrator {
   }
 
   // --- inbound webhooks: evidence ------------------------------------------
-  /** Resolve the obligation a webhook refers to via the entity graph. */
-  private async findByRefs(refs: ResolutionCandidate["refs"]): Promise<Obligation | null> {
-    const all = await this.d.service.listObligations(this.now());
+  /**
+   * Resolve the obligation a webhook refers to via the entity graph — WITHIN the
+   * given team. Scoping the candidate set by team means a webhook (which arrives
+   * out-of-band, without Slack auth) can never resolve to another tenant's obligation. (W1)
+   */
+  private async findByRefs(teamId: string, refs: ResolutionCandidate["refs"]): Promise<Obligation | null> {
+    const all = await this.d.service.listObligations(teamId, this.now());
     return resolve({ customer: "", subject_canonical: "", refs }, all);
   }
 
   /** A work item moved to "in progress" (e.g. Linear status webhook). */
-  async startWork(refs: ResolutionCandidate["refs"], idempotencyKey: string): Promise<Obligation | null> {
-    const o = await this.findByRefs(refs);
+  async startWork(teamId: string, refs: ResolutionCandidate["refs"], idempotencyKey: string): Promise<Obligation | null> {
+    const o = await this.findByRefs(teamId, refs);
     if (!o) return null;
     const r = await this.d.service.dispatch({ kind: "START_WORK" }, this.ctx(o.id, idempotencyKey));
     return r.obligation ?? null;
@@ -225,11 +233,12 @@ export class KeptOrchestrator {
    * Gate-2 verify card to the owner.
    */
   async recordFulfillmentSignal(input: {
+    teamId: string;
     refs: ResolutionCandidate["refs"];
     evidence: Evidence;
     idempotencyKey: string;
   }): Promise<{ kind: "no_match" } | { kind: "recorded"; obligation: Obligation; verifyCardSent: boolean }> {
-    const o = await this.findByRefs(input.refs);
+    const o = await this.findByRefs(input.teamId, input.refs);
     if (!o) return { kind: "no_match" };
     const r = await this.d.service.dispatch(
       { kind: "RECORD_FULFILLMENT_SIGNAL", evidence: input.evidence },
@@ -319,7 +328,7 @@ export class KeptOrchestrator {
    * recordCustomerConfirmation / reopen directly for determinism.)
    */
   async ingestCustomerReply(msg: SlackMessage, subject_canonical: string, customer: string): Promise<Obligation | null> {
-    const all = await this.d.service.listObligations(this.now());
+    const all = await this.d.service.listObligations(msg.team, this.now()); // W1 — same-tenant only
     const o = resolve({ customer, subject_canonical }, all.filter((x) => ["CUSTOMER_NOTIFIED", "CLOSED"].includes(x.state)));
     if (!o) return null;
     if (/\b(still|again)\b.*(fail|broken|not working|doesn'?t work)/i.test(msg.text)) {
@@ -332,14 +341,15 @@ export class KeptOrchestrator {
   }
 
   // --- read surfaces (ledger / audit / home / modals) ----------------------
-  async ledgerFor(customer: string): Promise<Obligation[]> {
-    const all = await this.d.service.listObligations(this.now());
+  // W1 — every read surface is scoped by the acting workspace's team id.
+  async ledgerFor(teamId: string, customer: string): Promise<Obligation[]> {
+    const all = await this.d.service.listObligations(teamId, this.now());
     return all.filter((o) => o.customer.toUpperCase() === customer.toUpperCase());
   }
 
-  /** All obligations, for the App Home dashboard. */
-  async allObligations(): Promise<Obligation[]> {
-    return this.d.service.listObligations(this.now());
+  /** All obligations for one workspace, for the App Home dashboard. */
+  async allObligations(teamId: string): Promise<Obligation[]> {
+    return this.d.service.listObligations(teamId, this.now());
   }
 
   /** A single obligation projection (for opening a modal). */

@@ -7,7 +7,7 @@ const NOW = Date.parse("2026-06-16T12:00:00Z");
 
 const request = (over = {}): ObligationEvent =>
   evt(
-    { type: "REQUEST_DETECTED", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix", due: "2026-06-19", owner: null, conditions: [] },
+    { type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "SSO login fix", due: "2026-06-19", owner: null, conditions: [] },
     over,
   );
 

@@ -13,7 +13,7 @@ import type { Evidence } from "./evidence.js";
  *   "The model interprets language; code controls state and actions."
  */
 export type Command =
-  | { kind: "DETECT_REQUEST"; direction: Direction; signal: ObligationSignal; customer: string; subject_canonical: string; outcome: string; due: string | null; owner: UserId | null; conditions: string[]; refs?: DetectedRefs; slack?: { channel: string; thread_ts: string; permalink?: string } }
+  | { kind: "DETECT_REQUEST"; team: string; direction: Direction; signal: ObligationSignal; customer: string; subject_canonical: string; outcome: string; due: string | null; owner: UserId | null; conditions: string[]; refs?: DetectedRefs; slack?: { channel: string; thread_ts: string; permalink?: string } }
   | { kind: "CONFIRM_COMMITMENT"; outcome: string; due: string | null; owner: UserId } // Gate 1
   | { kind: "DISMISS" }
   | { kind: "FLAG_CLARIFICATION" }

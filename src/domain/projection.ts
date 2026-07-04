@@ -33,6 +33,7 @@ export function project(events: ObligationEvent[], opts: ProjectionOptions = {})
   }
 
   const entity_refs: EntityRefs = {
+    team: head.team,
     customer: head.customer,
     subject_canonical: head.subject_canonical,
   };
@@ -51,6 +52,7 @@ export function project(events: ObligationEvent[], opts: ProjectionOptions = {})
 
   const obligation: Obligation = {
     id: head.obligation_id,
+    team: head.team,
     state: "CANDIDATE",
     direction: head.direction,
     signal: head.signal,

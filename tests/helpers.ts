@@ -35,6 +35,7 @@ export function evt(
 export function mkObl(state: ObligationState, over: Partial<Obligation> = {}): Obligation {
   return {
     id: "o",
+    team: "T_ACME",
     state,
     direction: "TEAM_OWES_CUSTOMER",
     signal: "CUSTOMER_REQUEST",

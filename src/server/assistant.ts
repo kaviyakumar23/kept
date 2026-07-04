@@ -26,13 +26,15 @@ export function buildKeptAssistant(deps: { orch: KeptOrchestrator; llm: LlmProvi
         ],
       });
     },
-    userMessage: async ({ message, say, setStatus }: any) => {
+    userMessage: async ({ message, say, setStatus, context }: any) => {
       const text: string = message?.text ?? "";
       const viewerId: string | undefined = message?.user;
+      // W1 — the Assistant answers ONLY over the acting workspace's ledger.
+      const teamId: string = context?.teamId ?? message?.team;
       try {
         await setStatus("Reading the ledger…");
         const intent = await classifyLedgerQuery(deps.llm, text);
-        const obligations = await deps.orch.allObligations();
+        const obligations = await deps.orch.allObligations(teamId);
         const answer = answerLedgerQuery(intent, obligations, now(), viewerId);
         await say({ text: answer.text, blocks: answer.blocks as any });
       } catch (err) {

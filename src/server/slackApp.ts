@@ -61,9 +61,12 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
 
   const obligationOf = (action: any): string => parseActionId(action.action_id).obligationId;
-  const republishHome = async (client: any, userId: string) => {
+  /** The acting workspace for a block-action/view payload (org installs fall back to the user's team). */
+  const teamOf = (body: any): string => body?.team?.id ?? body?.user?.team_id;
+  const republishHome = async (client: any, userId: string, teamId: string) => {
     try {
-      await client.views.publish({ user_id: userId, view: appHomeView(await orch.allObligations()) });
+      // W1 — App Home shows ONLY the acting workspace's obligations.
+      await client.views.publish({ user_id: userId, view: appHomeView(await orch.allObligations(teamId)) });
     } catch {
       /* App Home publish is best-effort */
     }
@@ -82,10 +85,10 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     console.error("[kept] slack listener error:", error);
   });
 
-  // App Home — the live obligation-ledger dashboard.
-  app.event("app_home_opened", async ({ event, client }: any) => {
+  // App Home — the live obligation-ledger dashboard (scoped to the opener's workspace).
+  app.event("app_home_opened", async ({ event, body, client }: any) => {
     if (event.tab && event.tab !== "home") return;
-    await client.views.publish({ user_id: event.user, view: appHomeView(await orch.allObligations()) });
+    await client.views.publish({ user_id: event.user, view: appHomeView(await orch.allObligations(body.team_id)) });
   });
 
   // --- gate actions ---
@@ -93,7 +96,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     await ack();
     try {
       await orch.confirmCommitment(obligationOf(action), body.user.id);
-      await republishHome(client, body.user.id);
+      await republishHome(client, body.user.id, teamOf(body));
     } catch (err) {
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
     }
@@ -101,7 +104,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.action(new RegExp(`^${ACTIONS.dismiss}:`), async ({ ack, body, action, client }: any) => {
     await ack();
     await orch.dismiss(obligationOf(action), body.user.id);
-    await republishHome(client, body.user.id);
+    await republishHome(client, body.user.id, teamOf(body));
   });
   app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action }: any) => {
     await ack();
@@ -110,7 +113,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.action(new RegExp(`^${ACTIONS.approveSend}:`), async ({ ack, body, action, client }: any) => {
     await ack();
     await orch.approveSend(obligationOf(action), body.user.id);
-    await republishHome(client, body.user.id);
+    await republishHome(client, body.user.id, teamOf(body));
   });
 
   // --- modal openers ---
@@ -144,7 +147,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
         due: v[FIELDS.due.block]?.[FIELDS.due.action]?.value || null,
         owner: v[FIELDS.owner.block]?.[FIELDS.owner.action]?.value || undefined,
       });
-      await republishHome(client, body.user.id);
+      await republishHome(client, body.user.id, teamOf(body));
     } catch (err) {
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
     }
@@ -160,11 +163,11 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     }
   });
 
-  // /kept <customer> → the two-sided ledger.
+  // /kept <customer> → the two-sided ledger (scoped to the invoking workspace).
   app.command("/kept", async ({ ack, respond, command }: any) => {
     await ack();
     const customer = (command.text || "").trim() || "Acme";
-    const obligations = await orch.ledgerFor(customer);
+    const obligations = await orch.ledgerFor(command.team_id, customer);
     await respond({ blocks: ledgerView(customer, obligations) as any });
   });
 
