@@ -1,8 +1,11 @@
-import { App } from "@slack/bolt";
-import { KeptOrchestrator } from "../app/orchestrator.js";
+import { App, type CustomRoute } from "@slack/bolt";
+import type { InstallationStore } from "@slack/oauth";
+import { WebClient } from "@slack/web-api";
+import { KeptOrchestrator, CrossTenantWriteError } from "../app/orchestrator.js";
 import type { Notifier } from "../slack/notifier.js";
 import type { LlmProvider } from "../llm/provider.js";
-import { SlackNotifier } from "./slackNotifier.js";
+import { SlackNotifier, type ClientForTeam } from "./slackNotifier.js";
+import type { SlackClientLike } from "./slackNotifier.js";
 import { buildKeptAssistant } from "./assistant.js";
 import {
   ACTIONS,
@@ -18,11 +21,29 @@ import {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/** W2 — OAuth HTTP mode configuration (multi-workspace install + per-tenant tokens). */
+export interface SlackOAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  stateSecret: string;
+  scopes: string[];
+  installationStore: InstallationStore;
+}
+
 export interface SlackAppDeps {
-  botToken: string;
   signingSecret: string;
+  /** Single-token / Socket Mode path (demo, dev). Ignored when `oauth` is set. */
+  botToken?: string;
   appToken?: string; // for Socket Mode
-  /** Build the orchestrator given the live notifier (which wraps app.client). */
+  /**
+   * W2 — when set, boot in OAuth HTTP mode: no static token, Bolt auto-authorizes each
+   * event to the right workspace via `installationStore.fetchInstallation`, and out-of-band
+   * sends resolve the per-tenant bot token.
+   */
+  oauth?: SlackOAuthConfig;
+  /** Extra HTTP routes (webhooks, /healthz, /trust/:token) — served in OAuth HTTP mode. */
+  customRoutes?: CustomRoute[];
+  /** Build the orchestrator given the live notifier (which wraps the Slack client(s)). */
   makeOrchestrator: (notifier: Notifier) => KeptOrchestrator;
   /** LLM provider for the Assistant's NL query router (the engine still runs the read). */
   llm: LlmProvider;
@@ -34,14 +55,40 @@ export interface SlackAppDeps {
  * orchestrator; this layer only translates the wire.
  */
 export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchestrator } {
-  const app = new App({
-    token: deps.botToken,
-    signingSecret: deps.signingSecret,
-    socketMode: Boolean(deps.appToken),
-    appToken: deps.appToken,
-  });
+  const app = deps.oauth
+    ? new App({
+        signingSecret: deps.signingSecret,
+        clientId: deps.oauth.clientId,
+        clientSecret: deps.oauth.clientSecret,
+        stateSecret: deps.oauth.stateSecret,
+        scopes: deps.oauth.scopes,
+        installationStore: deps.oauth.installationStore,
+        customRoutes: deps.customRoutes,
+      })
+    : new App({
+        token: deps.botToken,
+        signingSecret: deps.signingSecret,
+        socketMode: Boolean(deps.appToken),
+        appToken: deps.appToken,
+      });
 
-  const notifier = new SlackNotifier(app.client as any);
+  // W2 — in OAuth mode, out-of-band sends (reminders, webhook-driven closures) have no
+  // event context, so resolve the workspace's bot token from the install. In single-token
+  // mode `app.client` carries the static token and `clientForTeam` stays undefined.
+  const clientForTeam: ClientForTeam | undefined = deps.oauth
+    ? async (teamId: string): Promise<SlackClientLike> => {
+        const install = await deps.oauth!.installationStore.fetchInstallation({
+          teamId,
+          enterpriseId: undefined,
+          isEnterpriseInstall: false,
+        });
+        const token = install.bot?.token;
+        if (!token) throw new Error(`no bot token stored for team ${teamId}`);
+        return new WebClient(token) as unknown as SlackClientLike;
+      }
+    : undefined;
+
+  const notifier = new SlackNotifier(app.client as unknown as SlackClientLike, clientForTeam);
   const orch = deps.makeOrchestrator(notifier);
 
   // Slack AI Assistant pane — conversational ledger queries (lights "Slack AI capabilities").
@@ -79,6 +126,18 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       /* notice is best-effort */
     }
   };
+  /**
+   * W2 (invariant #4) — if a listener error is a blocked cross-tenant write, DM the
+   * user and report it handled. The orchestrator enforces `body.team.id` == the target
+   * obligation's team on confirm/verify/dismiss/approveSend before any side effect.
+   */
+  const handledCrossTenant = async (client: any, body: any, err: unknown): Promise<boolean> => {
+    if (err instanceof CrossTenantWriteError) {
+      await dmUser(client, body.user.id, ":lock: That obligation belongs to another workspace — action blocked.");
+      return true;
+    }
+    return false;
+  };
 
   // Global safety net so a listener exception never goes unsurfaced.
   app.error(async (error: any) => {
@@ -91,29 +150,42 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     await client.views.publish({ user_id: event.user, view: appHomeView(await orch.allObligations(body.team_id)) });
   });
 
-  // --- gate actions ---
+  // --- gate actions (each enforces acting team == obligation team) ---
   app.action(new RegExp(`^${ACTIONS.confirm}:`), async ({ ack, body, action, client }: any) => {
     await ack();
     try {
-      await orch.confirmCommitment(obligationOf(action), body.user.id);
+      await orch.confirmCommitment(obligationOf(action), body.user.id, undefined, teamOf(body));
       await republishHome(client, body.user.id, teamOf(body));
     } catch (err) {
+      if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
     }
   });
   app.action(new RegExp(`^${ACTIONS.dismiss}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    await orch.dismiss(obligationOf(action), body.user.id);
-    await republishHome(client, body.user.id, teamOf(body));
+    try {
+      await orch.dismiss(obligationOf(action), body.user.id, teamOf(body));
+      await republishHome(client, body.user.id, teamOf(body));
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
-  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action }: any) => {
+  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    await orch.verify(obligationOf(action), body.user.id);
+    try {
+      await orch.verify(obligationOf(action), body.user.id, teamOf(body));
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
   app.action(new RegExp(`^${ACTIONS.approveSend}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    await orch.approveSend(obligationOf(action), body.user.id);
-    await republishHome(client, body.user.id, teamOf(body));
+    try {
+      await orch.approveSend(obligationOf(action), body.user.id, teamOf(body));
+      await republishHome(client, body.user.id, teamOf(body));
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
 
   // --- modal openers ---
@@ -146,15 +218,16 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
         outcome: v[FIELDS.outcome.block]?.[FIELDS.outcome.action]?.value || undefined,
         due: v[FIELDS.due.block]?.[FIELDS.due.action]?.value || null,
         owner: v[FIELDS.owner.block]?.[FIELDS.owner.action]?.value || undefined,
-      });
+      }, teamOf(body));
       await republishHome(client, body.user.id, teamOf(body));
     } catch (err) {
+      if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
     }
   });
   app.view(CALLBACKS.editDraft, async ({ ack, body, view }: any) => {
     const text = view.state.values[FIELDS.draft.block]?.[FIELDS.draft.action]?.value ?? "";
-    const res = await orch.approveSendWithText(view.private_metadata, body.user.id, text);
+    const res = await orch.approveSendWithText(view.private_metadata, body.user.id, text, teamOf(body));
     if (res.kind === "rejected") {
       // Keep the modal open with an inline error — the edited reply still leaks.
       await ack({ response_action: "errors", errors: { [FIELDS.draft.block]: "Remove internal references (ticket keys, PRs, deploys, etc.) before sending." } });

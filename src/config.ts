@@ -11,7 +11,16 @@ export interface KeptConfig {
     botToken: string | undefined;
     signingSecret: string | undefined;
     appToken: string | undefined;
+    // W2 — OAuth (multi-workspace HTTP mode). When clientId+clientSecret+stateSecret are
+    // all set, the app boots in OAuth HTTP mode (no static bot token, no Socket Mode) and
+    // resolves each workspace's bot token from the InstallationStore. Otherwise it keeps the
+    // existing single-token / Socket Mode path so `npm run demo` and the tests keep working.
+    clientId: string | undefined;
+    clientSecret: string | undefined;
+    stateSecret: string | undefined;
   };
+  /** Public HTTPS origin the deployed app is reachable at (for docs/manifest wiring). */
+  publicUrl: string | undefined;
   riskWindowMs: number;
 }
 
@@ -25,7 +34,36 @@ export function loadConfig(): KeptConfig {
       botToken: process.env.SLACK_BOT_TOKEN,
       signingSecret: process.env.SLACK_SIGNING_SECRET,
       appToken: process.env.SLACK_APP_TOKEN,
+      clientId: process.env.SLACK_CLIENT_ID,
+      clientSecret: process.env.SLACK_CLIENT_SECRET,
+      stateSecret: process.env.SLACK_STATE_SECRET,
     },
+    publicUrl: process.env.KEPT_PUBLIC_URL,
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
   };
 }
+
+/**
+ * W2 — is the OAuth HTTP path fully configured? Requires the three OAuth secrets.
+ * When false, the app runs the existing single-token / Socket Mode path.
+ */
+export function isOAuthMode(cfg: KeptConfig): boolean {
+  return Boolean(cfg.slack.clientId && cfg.slack.clientSecret && cfg.slack.stateSecret);
+}
+
+/**
+ * The minimal bot scopes Kept requests at install (must match slack-manifest.yaml).
+ * Marketplace constraint (invariant #6): granular scopes only — no blanket
+ * `search:read` / `read` / `post` / `client`.
+ */
+export const SLACK_BOT_SCOPES: string[] = [
+  "chat:write",
+  "im:write",
+  "im:history",
+  "assistant:write",
+  "commands",
+  "channels:history",
+  "groups:history",
+  "channels:read",
+  "groups:read",
+];

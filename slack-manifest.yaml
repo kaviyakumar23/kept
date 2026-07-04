@@ -1,14 +1,16 @@
 # Slack app manifest for Kept — paste at api.slack.com/apps → Create New App → From a manifest.
 # Configures exactly what the code uses (src/server/slackApp.ts): message + app_home events,
 # interactivity (confirm/verify/closure cards + edit modals + view_submission), the /kept
-# command, the App Home ledger, and Socket Mode (no public URL needed for Slack).
+# command, the App Home ledger, and OAuth HTTP mode (the Marketplace deploy shape, W2).
 #
-# After creating: Basic Information → App-Level Tokens → generate a token with `connections:write`
-# (that is SLACK_APP_TOKEN). Then Install to Workspace and copy the Bot Token + Signing Secret.
+# W2 / invariant #6 (Marketplace): production runs HTTP mode (Socket Mode OFF) with
+# multi-workspace OAuth. Replace `kept.example.com` below with your App Runner host, then
+# import the manifest. Bolt serves events, actions AND commands at ONE url: /slack/events;
+# the install page is /slack/install and the OAuth callback is /slack/oauth_redirect.
 #
-# To run over HTTP instead of Socket Mode: set socket_mode_enabled: false and add a request_url of
-# https://<your-host>/slack/events under BOTH event_subscriptions and interactivity (Bolt serves all
-# three — events, actions, commands — at /slack/events).
+# LOCAL DEV over Socket Mode instead: set socket_mode_enabled: true, generate an App-Level
+# Token with `connections:write` (SLACK_APP_TOKEN), and leave SLACK_CLIENT_ID unset so the
+# app boots the single-token path.
 display_information:
   name: Kept
   description: Human-verified, event-sourced obligation ledger for shared customer channels.
@@ -37,6 +39,9 @@ features:
       should_escape: false
 
 oauth_config:
+  # W2 — OAuth callback for multi-workspace install (Bolt's default redirect path).
+  redirect_urls:
+    - https://kept.example.com/slack/oauth_redirect
   scopes:
     bot:
       - chat:write # post confirm/verify/closure cards, owner DMs, in-thread closure
@@ -54,6 +59,8 @@ oauth_config:
 
 settings:
   event_subscriptions:
+    # W2 — HTTP mode: Slack POSTs events here (Bolt serves events/actions/commands at /slack/events).
+    request_url: https://kept.example.com/slack/events
     bot_events:
       - message.channels # new message in a public channel → detect an obligation
       - message.groups # new message in a private / Slack Connect shared channel
@@ -63,6 +70,7 @@ settings:
       - assistant_thread_context_changed # AI Assistant thread context updates
   interactivity:
     is_enabled: true # buttons, modals, and view_submission (edit-and-confirm / edit-the-reply)
-  socket_mode_enabled: true
-  org_deploy_enabled: false
+    request_url: https://kept.example.com/slack/events # same single endpoint as events
+  socket_mode_enabled: false # W2 / invariant #6 — Marketplace runs HTTP mode
+  org_deploy_enabled: false # workspace-level installs only
   token_rotation_enabled: false

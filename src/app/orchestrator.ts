@@ -58,6 +58,22 @@ export type NotifyResult =
   | { kind: "rejected"; reason: string };
 
 /**
+ * W2 (invariant #4 — tenant isolation): raised when the acting workspace tries to
+ * write to an obligation owned by a DIFFERENT workspace. The transport layer passes
+ * `body.team.id` as `actingTeam`; a mismatch is blocked before any event is appended.
+ */
+export class CrossTenantWriteError extends Error {
+  constructor(
+    readonly actingTeam: string,
+    readonly obligationTeam: string,
+    readonly obligationId: ObligationId,
+  ) {
+    super(`cross-tenant write blocked: team ${actingTeam} may not act on ${obligationId} (owned by ${obligationTeam})`);
+    this.name = "CrossTenantWriteError";
+  }
+}
+
+/**
  * KeptOrchestrator — the transport-agnostic application layer. The Bolt app, the
  * webhook server, and the demo all drive THESE methods. It enforces, end to end,
  * that: a human approves each gate; customer-facing text passes the sanitizer;
@@ -88,8 +104,19 @@ export class KeptOrchestrator {
 
   private owner(o: Obligation, rts: RtsContext): string {
     if (this.d.ownerResolver) return this.d.ownerResolver(o, rts);
-    // TODO(W2): per-tenant fallbackOwner (from the install config) instead of one global default.
     return o.owner ?? rts.suggestedOwner ?? this.d.fallbackOwner ?? "U_ACCOUNT_MANAGER";
+  }
+
+  /**
+   * Load an obligation for a WRITE, enforcing tenant isolation (W2/invariant #4): if
+   * an `actingTeam` is supplied (the workspace of the clicking user) it must equal the
+   * obligation's owning team, else the write is blocked before any side effect. When
+   * `actingTeam` is omitted (demo/eval/internal callers) no cross-tenant check applies.
+   */
+  private async loadForWrite(id: ObligationId, actingTeam?: string): Promise<Obligation | null> {
+    const o = await this.d.service.getObligation(id);
+    if (o && actingTeam && o.team !== actingTeam) throw new CrossTenantWriteError(actingTeam, o.team, id);
+    return o;
   }
 
   // --- inbound: a new customer-channel message -----------------------------
@@ -139,7 +166,7 @@ export class KeptOrchestrator {
     const sent = await this.d.notifier.sendPrivate(owner, {
       text: `New obligation: ${result.obligation.customer} — ${result.obligation.outcome}`,
       blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined),
-    });
+    }, result.obligation.team);
     return { kind: "confirm_card_sent", obligationId: result.obligation.id, owner, sent };
   }
 
@@ -148,8 +175,9 @@ export class KeptOrchestrator {
     obligationId: ObligationId,
     approverId: string,
     edits?: { outcome?: string; due?: string | null; owner?: string },
+    actingTeam?: string,
   ): Promise<{ obligation: Obligation | null; work: CreatedWorkItem | null }> {
-    const o = await this.d.service.getObligation(obligationId);
+    const o = await this.loadForWrite(obligationId, actingTeam);
     if (!o) throw new Error(`unknown obligation ${obligationId}`);
 
     // Gate 1 FIRST — no side effects until the human approval is validated AND
@@ -203,9 +231,23 @@ export class KeptOrchestrator {
     return run;
   }
 
-  async dismiss(obligationId: ObligationId, approverId: string): Promise<Obligation | null> {
+  async dismiss(obligationId: ObligationId, approverId: string, actingTeam?: string): Promise<Obligation | null> {
+    await this.loadForWrite(obligationId, actingTeam); // W2 — block cross-tenant dismiss
     const r = await this.d.service.dispatch({ kind: "DISMISS" }, this.ctx(obligationId, `${obligationId}:dismiss`, approverId, approverId));
     return r.obligation ?? null;
+  }
+
+  /**
+   * W2 — resolve which installed tenant a webhook's refs belong to. A webhook arrives
+   * out-of-band (no Slack auth), so its team is found by trying each installed
+   * workspace's (team-scoped) ledger; the first that resolves the refs wins. Returns
+   * null when none match → the caller no-ops safely (never touches a wrong tenant).
+   */
+  async teamForRefs(candidateTeamIds: string[], refs: ResolutionCandidate["refs"]): Promise<string | null> {
+    for (const team of candidateTeamIds) {
+      if (await this.findByRefs(team, refs)) return team;
+    }
+    return null;
   }
 
   // --- inbound webhooks: evidence ------------------------------------------
@@ -253,7 +295,7 @@ export class KeptOrchestrator {
         await this.d.notifier.sendPrivate(this.owner(updated, EMPTY_RTS), {
           text: `Possible fulfillment — verify ${updated.customer} / ${updated.outcome}?`,
           blocks: possibleFulfillmentCard(updated, assessment),
-        });
+        }, updated.team);
         verifyCardSent = true;
       }
     }
@@ -261,8 +303,8 @@ export class KeptOrchestrator {
   }
 
   // --- Gate 2: verify, then draft + approve the customer-facing closure -----
-  async verify(obligationId: ObligationId, approverId: string): Promise<{ obligation: Obligation | null; draftSent: boolean }> {
-    const before = await this.d.service.getObligation(obligationId);
+  async verify(obligationId: ObligationId, approverId: string, actingTeam?: string): Promise<{ obligation: Obligation | null; draftSent: boolean }> {
+    const before = await this.loadForWrite(obligationId, actingTeam);
     if (!before) throw new Error(`unknown obligation ${obligationId}`);
     const assessment = assessFulfillment(before.evidence);
     const r = await this.d.service.dispatch(
@@ -275,20 +317,20 @@ export class KeptOrchestrator {
     await this.d.notifier.sendPrivate(this.owner(r.obligation, EMPTY_RTS), {
       text: `Ready to close the loop with ${r.obligation.customer}`,
       blocks: closureDraftCard(r.obligation, draft),
-    });
+    }, r.obligation.team);
     return { obligation: r.obligation, draftSent: true };
   }
 
   /** Approve & send the auto-generated sanitized closure into the ORIGINAL thread. */
-  async approveSend(obligationId: ObligationId, approverId: string): Promise<NotifyResult> {
-    const o = await this.d.service.getObligation(obligationId);
+  async approveSend(obligationId: ObligationId, approverId: string, actingTeam?: string): Promise<NotifyResult> {
+    const o = await this.loadForWrite(obligationId, actingTeam);
     if (!o) throw new Error(`unknown obligation ${obligationId}`);
     return this.notifyWithText(o, approverId, buildClosureDraft(o).text);
   }
 
   /** Approve & send a HUMAN-EDITED reply — still leak-checked by the engine before it goes out. */
-  async approveSendWithText(obligationId: ObligationId, approverId: string, text: string): Promise<NotifyResult> {
-    const o = await this.d.service.getObligation(obligationId);
+  async approveSendWithText(obligationId: ObligationId, approverId: string, text: string, actingTeam?: string): Promise<NotifyResult> {
+    const o = await this.loadForWrite(obligationId, actingTeam);
     if (!o) throw new Error(`unknown obligation ${obligationId}`);
     return this.notifyWithText(o, approverId, text);
   }
@@ -304,7 +346,7 @@ export class KeptOrchestrator {
     let posted: SentMessage | null = null;
     const s = res.obligation.entity_refs.slack;
     if (s?.channel && s.thread_ts) {
-      posted = await this.d.notifier.postInThread({ channel: s.channel, threadTs: s.thread_ts, text });
+      posted = await this.d.notifier.postInThread({ channel: s.channel, threadTs: s.thread_ts, text }, res.obligation.team);
     }
     return { kind: "notified", obligation: res.obligation, posted };
   }

@@ -1,11 +1,14 @@
-import { loadConfig } from "../config.js";
+import { loadConfig, isOAuthMode, SLACK_BOT_SCOPES } from "../config.js";
 import { InMemoryEventStore } from "../store/memoryStore.js";
 import { PostgresEventStore } from "../store/postgresStore.js";
 import type { EventStore } from "../store/eventStore.js";
+import { PostgresInstallationStore, InMemoryInstallationStore, type KeptInstallationStore } from "../store/installationStore.js";
 import { ObligationService } from "../engine/obligationService.js";
 import { InMemoryScheduler } from "../scheduler/inMemoryScheduler.js";
 import { BullmqScheduler } from "../scheduler/bullmqScheduler.js";
-import type { Scheduler } from "../scheduler/scheduler.js";
+import { PostgresScheduler } from "../scheduler/postgresScheduler.js";
+import type { Scheduler, ReminderHandler } from "../scheduler/scheduler.js";
+import type { Notifier } from "../slack/notifier.js";
 import { AnthropicProvider } from "../llm/anthropic.js";
 import { MockLlmProvider } from "../llm/mock.js";
 import type { LlmProvider } from "../llm/provider.js";
@@ -20,7 +23,7 @@ import { KeptOrchestrator } from "../app/orchestrator.js";
 import { reminderMessage } from "../slack/blocks.js";
 import { heuristicResponder } from "../eval/scenarios.js";
 import { buildSlackApp } from "./slackApp.js";
-import { createWebhookServer } from "./webhookServer.js";
+import { createWebhookServer, keptCustomRoutes } from "./webhookServer.js";
 
 /**
  * Production boot. Hybrid substrate: REAL Slack surface (Events API + Block Kit)
@@ -29,8 +32,12 @@ import { createWebhookServer } from "./webhookServer.js";
  */
 async function main() {
   const cfg = loadConfig();
-  if (!cfg.slack.botToken || !cfg.slack.signingSecret) {
-    throw new Error("SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET are required (see .env.example)");
+  const oauth = isOAuthMode(cfg);
+  if (!cfg.slack.signingSecret) {
+    throw new Error("SLACK_SIGNING_SECRET is required (see .env.example)");
+  }
+  if (!oauth && !cfg.slack.botToken) {
+    throw new Error("SLACK_BOT_TOKEN is required (or set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET / SLACK_STATE_SECRET for OAuth HTTP mode)");
   }
 
   const store: EventStore = cfg.databaseUrl
@@ -78,29 +85,68 @@ async function main() {
       ? new PostgresRoadmapSource({ connectionString: cfg.databaseUrl })
       : undefined;
 
+  // W2 — multi-workspace OAuth needs an InstallationStore (Postgres if a DB is set,
+  // else in-memory). Also the source of truth for webhook → tenant routing.
+  let installationStore: KeptInstallationStore | undefined;
+  if (oauth) {
+    if (cfg.databaseUrl) {
+      const pgStore = new PostgresInstallationStore({ connectionString: cfg.databaseUrl });
+      await pgStore.init();
+      installationStore = pgStore;
+    } else {
+      installationStore = new InMemoryInstallationStore();
+    }
+  }
+
+  // Reminders/nudges go to the obligation owner — never the customer channel (D3).
+  // The notifier is created inside buildSlackApp; the handler reads it via this holder
+  // so out-of-band reminders resolve the owning tenant's bot token (W2).
+  const notifierRef: { n?: Notifier } = {};
+  const reminderHandler: ReminderHandler = async (job) => {
+    const o = await service.getObligation(job.obligationId);
+    if (!o || ["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state) || !notifierRef.n) return;
+    const { text, blocks } = reminderMessage(o, job.kind);
+    await notifierRef.n.sendPrivate(o.owner ?? fallbackOwner, { text, blocks }, o.team);
+  };
+
+  // Scheduler precedence: Redis/BullMQ if configured → Postgres (single-datastore, no
+  // Redis; the hosted path) → in-memory. Keep the existing Redis behavior unchanged.
+  const pgScheduler = !cfg.redisUrl && cfg.databaseUrl ? new PostgresScheduler({ connectionString: cfg.databaseUrl }, reminderHandler) : null;
+  const scheduler: Scheduler = cfg.redisUrl
+    ? new BullmqScheduler({ host: new URL(cfg.redisUrl).hostname, port: Number(new URL(cfg.redisUrl).port || 6379) }, reminderHandler)
+    : (pgScheduler ?? new InMemoryScheduler(reminderHandler));
+  if (pgScheduler) {
+    await pgScheduler.init();
+    pgScheduler.start();
+  }
+
+  // Lazy orchestrator holder so the OAuth customRoutes (built before the orchestrator
+  // exists) can reach it at request time.
+  const orchHolder: { orch?: KeptOrchestrator } = {};
+  const webhookOpts = {
+    secret: process.env.KEPT_WEBHOOK_SECRET,
+    teamId: process.env.KEPT_TEAM_ID,
+    ...(installationStore ? { listTeamIds: () => installationStore!.listTeamIds() } : {}),
+  };
+  const customRoutes = oauth ? keptCustomRoutes(() => orchHolder.orch!, webhookOpts) : undefined;
+
   const { app, orch } = buildSlackApp({
-    botToken: cfg.slack.botToken,
     signingSecret: cfg.slack.signingSecret,
-    appToken: cfg.slack.appToken,
+    botToken: oauth ? undefined : cfg.slack.botToken,
+    appToken: oauth ? undefined : cfg.slack.appToken,
+    oauth: oauth
+      ? {
+          clientId: cfg.slack.clientId!,
+          clientSecret: cfg.slack.clientSecret!,
+          stateSecret: cfg.slack.stateSecret!,
+          scopes: SLACK_BOT_SCOPES,
+          installationStore: installationStore!,
+        }
+      : undefined,
+    customRoutes,
     llm,
     makeOrchestrator: (notifier) => {
-      // Reminders/nudges go to the obligation owner — never the customer channel (D3).
-      const scheduler: Scheduler = cfg.redisUrl
-        ? new BullmqScheduler({ host: new URL(cfg.redisUrl).hostname, port: Number(new URL(cfg.redisUrl).port || 6379) }, async (job) => {
-            const o = await service.getObligation(job.obligationId);
-            if (o && !["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state)) {
-              const { text, blocks } = reminderMessage(o, job.kind);
-              await notifier.sendPrivate(o.owner ?? fallbackOwner, { text, blocks });
-            }
-          })
-        : new InMemoryScheduler(async (job) => {
-            const o = await service.getObligation(job.obligationId);
-            if (o) {
-              const { text, blocks } = reminderMessage(o, job.kind);
-              await notifier.sendPrivate(o.owner ?? fallbackOwner, { text, blocks });
-            }
-          });
-
+      notifierRef.n = notifier;
       // Ledger-backed RTS (prior commitments + owner); optionally add cross-channel
       // Slack search with per-user tokens for permission-safe context.
       const ledgerRts = new LedgerRtsRetriever({ listObligations: (teamId) => service.listObligations(teamId) });
@@ -114,19 +160,28 @@ async function main() {
       return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource });
     },
   });
+  orchHolder.orch = orch;
 
-  const webhookPort = Number(process.env.KEPT_WEBHOOK_PORT ?? 3001);
-  // W1 — webhooks name their tenant via `x-kept-team`, else this configured default.
-  // TODO(W2): route each webhook to its team via the InstallationStore instead of one env default.
-  const webhooks = createWebhookServer(orch, { secret: process.env.KEPT_WEBHOOK_SECRET, teamId: process.env.KEPT_TEAM_ID });
-  webhooks.listen(webhookPort, () => console.log(`[kept] webhook server on :${webhookPort} (/webhooks/{linear,jira,github,deploy})`));
+  const port = Number(process.env.PORT ?? 3000);
 
-  const slackPort = Number(process.env.PORT ?? 3000);
-  await app.start(slackPort);
-  console.log(`[kept] Slack app on :${slackPort}`);
+  if (oauth) {
+    // One listener: /slack/events + /slack/install + /slack/oauth_redirect + customRoutes
+    // (/webhooks/*, /healthz, /trust/:token) all on a single PORT.
+    await app.start(port);
+    console.log(`[kept] OAuth HTTP app on :${port} — install at /slack/install · events /slack/events · webhooks /webhooks/*`);
+  } else {
+    // Single-token / Socket Mode dev path: a standalone webhook server on its own port.
+    const webhookPort = Number(process.env.KEPT_WEBHOOK_PORT ?? 3001);
+    const webhooks = createWebhookServer(orch, { secret: process.env.KEPT_WEBHOOK_SECRET, teamId: process.env.KEPT_TEAM_ID });
+    webhooks.listen(webhookPort, () => console.log(`[kept] webhook server on :${webhookPort} (/webhooks/{linear,jira,github,deploy})`));
+    await app.start(port);
+    console.log(`[kept] Slack app on :${port}`);
+  }
+
   const roadmapMode = process.env.KEPT_ROADMAP_FILE ? "file" : cfg.databaseUrl ? "postgres" : "none";
   const rtsMode = process.env.KEPT_SLACK_USER_SEARCH === "1" ? "ledger+slack-search" : "ledger";
-  console.log(`[kept] store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${cfg.redisUrl ? "bullmq" : "in-memory"} · roadmap=${roadmapMode} · rts=${rtsMode}`);
+  const remindersMode = cfg.redisUrl ? "bullmq" : pgScheduler ? "postgres" : "in-memory";
+  console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode}`);
 }
 
 main().catch((err) => {

@@ -1,21 +1,38 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
+import type { CustomRoute } from "@slack/bolt";
 import type { KeptOrchestrator } from "../app/orchestrator.js";
-import { mapLinearWebhook, mapJiraWebhook, mapGithubWebhook, mapDeployWebhook, applyWebhookAction } from "../webhooks/handlers.js";
+import {
+  mapLinearWebhook,
+  mapJiraWebhook,
+  mapGithubWebhook,
+  mapDeployWebhook,
+  applyWebhookAction,
+  type WebhookAction,
+} from "../webhooks/handlers.js";
 
 /**
- * Webhook ingestion server (Linear / GitHub / deploy). Dependency-light (node:http).
- * In the hybrid substrate these are driven by replayable fixtures; in production
- * the same routes receive real provider webhooks (add HMAC verification per source).
+ * Webhook ingestion (Linear / Jira / GitHub / deploy). In the hybrid substrate these
+ * are driven by replayable fixtures; in production the same routes receive real
+ * provider webhooks (add HMAC verification per source).
+ *
+ * W2 — two hosts for the SAME logic:
+ *   • Socket Mode / single-token dev: a standalone `node:http` server (createWebhookServer).
+ *   • OAuth HTTP mode: folded into Bolt `customRoutes` so everything is served on one PORT.
  */
 export interface WebhookServerOpts {
   /** Shared-secret guard via the `x-kept-secret` header (stand-in for per-source HMAC). */
   secret?: string;
   /**
-   * W1 — the tenant a webhook belongs to. A request may override per-delivery via the
-   * `x-kept-team` header; otherwise this default applies. TODO(W2): derive the team
-   * from the installation / per-source routing rather than one configured default.
+   * Default tenant when a delivery does not name one (single-tenant dev / the demo
+   * driver). A request may still override per-delivery via the `x-kept-team` header.
    */
   teamId?: string;
+  /**
+   * W2 — OAuth multi-tenant routing: enumerate installed workspace ids so a webhook
+   * with neither header nor default is routed to whichever tenant's ledger resolves
+   * its refs. Unknown → no-op (never touches a wrong tenant).
+   */
+  listTeamIds?: () => Promise<string[]>;
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -25,7 +42,59 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return raw ? JSON.parse(raw) : {};
 }
 
-async function handle(req: IncomingMessage, res: ServerResponse, orch: KeptOrchestrator, opts: WebhookServerOpts): Promise<void> {
+function pathnameOf(req: IncomingMessage): string {
+  return new URL(req.url ?? "/", "http://localhost").pathname;
+}
+
+/** Map a webhook path + body onto a provider-agnostic action (null → unknown path). */
+function mapByPath(pathname: string, body: unknown): WebhookAction | null {
+  switch (pathname) {
+    case "/webhooks/linear":
+      return mapLinearWebhook(body as never);
+    case "/webhooks/jira":
+      return mapJiraWebhook(body as never);
+    case "/webhooks/github":
+      return mapGithubWebhook(body as never);
+    case "/webhooks/deploy":
+      return mapDeployWebhook(body as never);
+    default:
+      return null;
+  }
+}
+
+/**
+ * Resolve the tenant a delivery belongs to: explicit `x-kept-team` header → configured
+ * default → (OAuth mode) payload-based routing across installed tenants. Returns null
+ * when it cannot be determined, so the caller no-ops safely.
+ */
+async function resolveTeam(
+  orch: KeptOrchestrator,
+  action: WebhookAction,
+  headerTeam: string | undefined,
+  opts: WebhookServerOpts,
+): Promise<string | null> {
+  const explicit = headerTeam ?? opts.teamId;
+  if (explicit) return explicit;
+  if (opts.listTeamIds && action.kind !== "ignore") {
+    const teams = await opts.listTeamIds();
+    return orch.teamForRefs(teams, action.refs);
+  }
+  return null;
+}
+
+function endJson(res: ServerResponse, status: number, body: unknown): void {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify(body));
+}
+
+/** The shared request handler — identical for the standalone server and Bolt customRoutes. */
+async function handleWebhook(
+  orch: KeptOrchestrator,
+  req: IncomingMessage,
+  res: ServerResponse,
+  opts: WebhookServerOpts,
+): Promise<void> {
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("method not allowed");
@@ -37,46 +106,70 @@ async function handle(req: IncomingMessage, res: ServerResponse, orch: KeptOrche
     return;
   }
 
-  // W1 — the webhook must name its tenant (header override, else the configured default).
-  const headerTeam = req.headers["x-kept-team"];
-  const teamId = (Array.isArray(headerTeam) ? headerTeam[0] : headerTeam) ?? opts.teamId;
-  if (!teamId) {
-    res.statusCode = 400;
-    res.end("missing team (set x-kept-team or configure a default)");
+  const action = mapByPath(pathnameOf(req), await readJson(req));
+  if (action === null) {
+    res.statusCode = 404;
+    res.end("not found");
     return;
   }
 
-  const body = await readJson(req);
-  let status: string;
-  switch (req.url) {
-    case "/webhooks/linear":
-      status = await applyWebhookAction(orch, mapLinearWebhook(body as never), teamId);
-      break;
-    case "/webhooks/jira":
-      status = await applyWebhookAction(orch, mapJiraWebhook(body as never), teamId);
-      break;
-    case "/webhooks/github":
-      status = await applyWebhookAction(orch, mapGithubWebhook(body as never), teamId);
-      break;
-    case "/webhooks/deploy":
-      status = await applyWebhookAction(orch, mapDeployWebhook(body as never), teamId);
-      break;
-    default:
-      res.statusCode = 404;
-      res.end("not found");
-      return;
+  const headerTeam = req.headers["x-kept-team"];
+  const team = await resolveTeam(orch, action, Array.isArray(headerTeam) ? headerTeam[0] : headerTeam, opts);
+  if (!team) {
+    // Safe failure mode (W1/W2): a delivery we cannot attribute to a tenant is a no-op.
+    endJson(res, 200, { status: "no-op: unknown team" });
+    return;
   }
 
-  res.statusCode = 200;
-  res.setHeader("content-type", "application/json");
-  res.end(JSON.stringify({ status }));
+  const status = await applyWebhookAction(orch, action, team);
+  endJson(res, 200, { status });
 }
 
+/** Standalone webhook server (Socket Mode / single-token dev path). */
 export function createWebhookServer(orch: KeptOrchestrator, opts: WebhookServerOpts = {}): Server {
   return createServer((req, res) => {
-    handle(req, res, orch, opts).catch((err) => {
+    handleWebhook(orch, req, res, opts).catch((err) => {
       res.statusCode = 500;
       res.end(String(err instanceof Error ? err.message : err));
     });
   });
+}
+
+/**
+ * W2 — the same webhook routes as Bolt `customRoutes`, served on the single OAuth
+ * HTTP PORT alongside `/slack/events`. Also adds `GET /healthz` and reserves
+ * `GET /trust/:token` for W6 (the customer trust page). `getOrch` is a getter so the
+ * routes can be built (at App construction) before the orchestrator exists.
+ */
+export function keptCustomRoutes(getOrch: () => KeptOrchestrator, opts: WebhookServerOpts = {}): CustomRoute[] {
+  const webhook = (req: IncomingMessage, res: ServerResponse): void => {
+    handleWebhook(getOrch(), req, res, opts).catch((err) => {
+      res.statusCode = 500;
+      res.end(String(err instanceof Error ? err.message : err));
+    });
+  };
+  const webhookRoute = (path: string): CustomRoute => ({ path, method: "POST", handler: webhook });
+
+  return [
+    webhookRoute("/webhooks/linear"),
+    webhookRoute("/webhooks/jira"),
+    webhookRoute("/webhooks/github"),
+    webhookRoute("/webhooks/deploy"),
+    {
+      path: "/healthz",
+      method: "GET",
+      handler: (_req, res) => endJson(res, 200, { status: "ok" }),
+    },
+    {
+      // W6 owns the customer trust page; reserve the route shape now (uses req.params.token).
+      path: "/trust/:token",
+      method: "GET",
+      handler: (req, res) => {
+        const token = req.params?.token;
+        res.statusCode = 200;
+        res.setHeader("content-type", "text/plain");
+        res.end(`Kept trust page (coming soon)${token ? ` — ${token}` : ""}`);
+      },
+    },
+  ];
 }

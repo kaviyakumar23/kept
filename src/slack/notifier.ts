@@ -14,10 +14,16 @@ export interface SentMessage {
   permalink?: string;
 }
 
+/**
+ * The output surface. In multi-workspace OAuth mode (W2) an out-of-band send (a
+ * reminder, or a webhook-driven closure) has no Slack event context, so the acting
+ * workspace's `team` id is threaded through and the notifier resolves that tenant's
+ * bot token. In single-token / Socket Mode `team` is ignored (one captured client).
+ */
 export interface Notifier {
-  sendPrivate(userId: string, msg: { text: string; blocks?: SlackBlock[] }): Promise<SentMessage>;
-  postInThread(msg: { channel: string; threadTs: string; text: string }): Promise<SentMessage>;
-  update(ref: SentMessage, msg: { text: string; blocks?: SlackBlock[] }): Promise<void>;
+  sendPrivate(userId: string, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<SentMessage>;
+  postInThread(msg: { channel: string; threadTs: string; text: string }, team?: string): Promise<SentMessage>;
+  update(ref: SentMessage, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<void>;
 }
 
 export interface RecordedCall {

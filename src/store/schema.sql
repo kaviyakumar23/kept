@@ -36,3 +36,32 @@ CREATE TABLE IF NOT EXISTS roadmap (
   target_date       DATE NOT NULL,
   PRIMARY KEY (team_id, customer, subject_canonical)
 );
+
+-- W2 (invariant #6): multi-workspace OAuth installs. One row per installed workspace
+-- (id = team.id) or org (id = enterprise.id), holding the normalized installation JSON
+-- returned by Slack — including the per-tenant bot token used to authorize each event.
+-- This is NOT an obligation event log; it legitimately stores OAuth secrets and is not
+-- subject to the zero-copy guard.
+CREATE TABLE IF NOT EXISTS slack_installations (
+  id            TEXT PRIMARY KEY,
+  team_id       TEXT,
+  enterprise_id TEXT,
+  installation  JSONB NOT NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_slack_installations_team ON slack_installations (team_id);
+
+-- W2: reminder queue for the PostgresScheduler (so the hosted path needs no Redis).
+-- Pending AT_RISK / OVERDUE jobs; the poll loop claims due rows atomically
+-- (UPDATE ... RETURNING) so multiple instances never double-fire. Deterministic id
+-- (`${obligation_id}:${kind}`) makes re-scheduling replace rather than duplicate.
+CREATE TABLE IF NOT EXISTS reminders (
+  id            TEXT PRIMARY KEY,
+  obligation_id TEXT NOT NULL,
+  kind          TEXT NOT NULL,
+  fire_at       TIMESTAMPTZ NOT NULL,
+  fired_at      TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders (fire_at) WHERE fired_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_reminders_obligation ON reminders (obligation_id);
