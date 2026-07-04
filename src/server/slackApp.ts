@@ -238,11 +238,44 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     }
   });
 
-  // /kept <customer> → the two-sided ledger (scoped to the invoking workspace).
+  // /kept <customer>            → the two-sided ledger (scoped to the invoking workspace)
+  // /kept trust <customer>       → mint (or reuse) the customer's audience-safe trust page URL
+  // /kept untrust <customer>     → revoke that customer's trust link (old URLs then 404)
   app.command("/kept", async ({ ack, respond, command }: any) => {
     await ack();
-    const customer = (command.text || "").trim() || "Acme";
-    const obligations = await orch.ledgerFor(command.team_id, customer);
+    const text = (command.text || "").trim();
+    const team = command.team_id;
+
+    const mint = /^trust\s+(.+)$/i.exec(text);
+    if (mint) {
+      const customer = mint[1].trim();
+      try {
+        const link = await orch.mintTrustLink(team, customer);
+        const base = process.env.KEPT_PUBLIC_URL?.replace(/\/+$/, "");
+        const url = base ? `${base}/trust/${link.token}` : `/trust/${link.token}  (set KEPT_PUBLIC_URL for the full link)`;
+        await respond({
+          response_type: "ephemeral",
+          text: `:link: *Trust page for ${customer}* — a private, audience-safe view of what you owe them.\n<${url}>\nRevoke anytime with \`/kept untrust ${customer}\`.`,
+        });
+      } catch (err) {
+        await respond({ response_type: "ephemeral", text: `:warning: Couldn't mint a trust link (${err instanceof Error ? err.message : "error"}).` });
+      }
+      return;
+    }
+
+    const drop = /^(?:untrust|revoke)\s+(.+)$/i.exec(text);
+    if (drop) {
+      const customer = drop[1].trim();
+      const n = await orch.revokeTrustLink(team, customer);
+      await respond({
+        response_type: "ephemeral",
+        text: n > 0 ? `:lock: Revoked ${n} trust link${n === 1 ? "" : "s"} for *${customer}*. Existing URLs now return 404.` : `No active trust link for *${customer}*.`,
+      });
+      return;
+    }
+
+    const customer = text || "Acme";
+    const obligations = await orch.ledgerFor(team, customer);
     await respond({ blocks: ledgerView(customer, obligations) as any });
   });
 

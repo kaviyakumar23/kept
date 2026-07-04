@@ -9,6 +9,7 @@ import {
   applyWebhookAction,
   type WebhookAction,
 } from "../webhooks/handlers.js";
+import { handleTrustRequest, trustCustomRoute, TrustRateLimiter } from "./trustPage.js";
 
 /**
  * Webhook ingestion (Linear / Jira / GitHub / deploy). In the hybrid substrate these
@@ -125,9 +126,19 @@ async function handleWebhook(
   endJson(res, 200, { status });
 }
 
-/** Standalone webhook server (Socket Mode / single-token dev path). */
+/** Standalone webhook server (Socket Mode / single-token dev path). Also serves the W6 trust page. */
 export function createWebhookServer(orch: KeptOrchestrator, opts: WebhookServerOpts = {}): Server {
+  const trustLimiter = new TrustRateLimiter();
   return createServer((req, res) => {
+    // W6 — `GET /trust/:token` (params aren't populated by the bare node server, so the
+    // handler falls back to parsing the token out of the path).
+    if (req.method === "GET" && pathnameOf(req).startsWith("/trust/")) {
+      handleTrustRequest(() => orch, trustLimiter, req, res).catch((err) => {
+        res.statusCode = 500;
+        res.end(String(err instanceof Error ? err.message : err));
+      });
+      return;
+    }
     handleWebhook(orch, req, res, opts).catch((err) => {
       res.statusCode = 500;
       res.end(String(err instanceof Error ? err.message : err));
@@ -137,8 +148,8 @@ export function createWebhookServer(orch: KeptOrchestrator, opts: WebhookServerO
 
 /**
  * W2 — the same webhook routes as Bolt `customRoutes`, served on the single OAuth
- * HTTP PORT alongside `/slack/events`. Also adds `GET /healthz` and reserves
- * `GET /trust/:token` for W6 (the customer trust page). `getOrch` is a getter so the
+ * HTTP PORT alongside `/slack/events`. Also adds `GET /healthz` and W6's
+ * `GET /trust/:token` (the customer trust page). `getOrch` is a getter so the
  * routes can be built (at App construction) before the orchestrator exists.
  */
 export function keptCustomRoutes(getOrch: () => KeptOrchestrator, opts: WebhookServerOpts = {}): CustomRoute[] {
@@ -160,16 +171,8 @@ export function keptCustomRoutes(getOrch: () => KeptOrchestrator, opts: WebhookS
       method: "GET",
       handler: (_req, res) => endJson(res, 200, { status: "ok" }),
     },
-    {
-      // W6 owns the customer trust page; reserve the route shape now (uses req.params.token).
-      path: "/trust/:token",
-      method: "GET",
-      handler: (req, res) => {
-        const token = req.params?.token;
-        res.statusCode = 200;
-        res.setHeader("content-type", "text/plain");
-        res.end(`Kept trust page (coming soon)${token ? ` — ${token}` : ""}`);
-      },
-    },
+    // W6 — the customer trust page. Resolves the opaque token to a scoped, audience-safe
+    // view; unknown/revoked → 404 (no existence leak); noindex + no-store + rate-limited.
+    trustCustomRoute(getOrch),
   ];
 }

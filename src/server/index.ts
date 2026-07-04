@@ -3,6 +3,7 @@ import { InMemoryEventStore } from "../store/memoryStore.js";
 import { PostgresEventStore } from "../store/postgresStore.js";
 import type { EventStore } from "../store/eventStore.js";
 import { PostgresInstallationStore, InMemoryInstallationStore, type KeptInstallationStore } from "../store/installationStore.js";
+import { PostgresTrustLinkStore, InMemoryTrustLinkStore, type TrustLinkStore } from "../store/trustLinkStore.js";
 import { ObligationService } from "../engine/obligationService.js";
 import { InMemoryScheduler } from "../scheduler/inMemoryScheduler.js";
 import { BullmqScheduler } from "../scheduler/bullmqScheduler.js";
@@ -58,6 +59,16 @@ async function main() {
     : new InMemoryEventStore();
 
   const service = new ObligationService(store);
+
+  // W6 — trust-page capability store (Postgres if a DB is set, else in-memory). Backs the
+  // per-(team, customer) tokens that authorize `GET /trust/:token` and the /kept mint/revoke.
+  const trustLinks: TrustLinkStore = cfg.databaseUrl
+    ? await (async () => {
+        const t = new PostgresTrustLinkStore({ connectionString: cfg.databaseUrl });
+        await t.init();
+        return t;
+      })()
+    : new InMemoryTrustLinkStore();
 
   const llm: LlmProvider = cfg.anthropicApiKey
     ? new AnthropicProvider({ apiKey: cfg.anthropicApiKey, model: cfg.llmModel })
@@ -189,7 +200,7 @@ async function main() {
         retrievers.push(new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }));
       }
       const rts = retrievers.length === 1 ? retrievers[0] : new CompositeRtsRetriever(retrievers);
-      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource });
+      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks });
     },
   });
   orchHolder.orch = orch;
@@ -200,7 +211,7 @@ async function main() {
     // One listener: /slack/events + /slack/install + /slack/oauth_redirect + customRoutes
     // (/webhooks/*, /healthz, /trust/:token) all on a single PORT.
     await app.start(port);
-    console.log(`[kept] OAuth HTTP app on :${port} — install at /slack/install · events /slack/events · webhooks /webhooks/*`);
+    console.log(`[kept] OAuth HTTP app on :${port} — install at /slack/install · events /slack/events · webhooks /webhooks/* · trust /trust/:token`);
   } else {
     // Single-token / Socket Mode dev path: a standalone webhook server on its own port.
     const webhookPort = Number(process.env.KEPT_WEBHOOK_PORT ?? 3001);

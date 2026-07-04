@@ -51,6 +51,23 @@ CREATE TABLE IF NOT EXISTS slack_installations (
 );
 CREATE INDEX IF NOT EXISTS idx_slack_installations_team ON slack_installations (team_id);
 
+-- W6 — customer trust page capability tokens. An opaque, unguessable, revocable
+-- per-(team, customer) capability: the token IS the authorization (no login), and
+-- `GET /trust/:token` resolves it to exactly one (team_id, customer). Tenant isolation
+-- (invariant #4) holds by construction — the resolved team_id is the only team the
+-- page may read. Not an obligation event log: stores no message content, so it is not
+-- subject to the zero-copy guard. A revoked link resolves to nothing (404, no leak).
+CREATE TABLE IF NOT EXISTS trust_links (
+  token       TEXT PRIMARY KEY,
+  team_id     TEXT NOT NULL,
+  customer    TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at  TIMESTAMPTZ
+);
+-- Fast lookup of the active link for a (team, customer); mint is idempotent per pair.
+CREATE INDEX IF NOT EXISTS idx_trust_links_active
+  ON trust_links (team_id, upper(customer)) WHERE revoked_at IS NULL;
+
 -- W2: reminder queue for the PostgresScheduler (so the hosted path needs no Redis).
 -- Pending AT_RISK / OVERDUE jobs; the poll loop claims due rows atomically
 -- (UPDATE ... RETURNING) so multiple instances never double-fire. Deterministic id

@@ -9,6 +9,8 @@ import { resolve, type ResolutionCandidate } from "../engine/entityGraph.js";
 import { assessFulfillment } from "../engine/reconciliation.js";
 import { notifyKey } from "../engine/idempotency.js";
 import { buildClosureDraft } from "../policy/audience.js";
+import { buildTrustView, type TrustView } from "./trustView.js";
+import type { TrustLink, TrustLinkStore } from "../store/trustLinkStore.js";
 import { checkRoadmapConflict, type RoadmapEntry, type RoadmapSource } from "../policy/roadmap.js";
 import { computeReminders, type Scheduler } from "../scheduler/scheduler.js";
 import type { LlmProvider } from "../llm/provider.js";
@@ -42,6 +44,12 @@ export interface OrchestratorDeps {
    * so production stays deterministic and the demo/tests can drive a simulated proof server.
    */
   proofCollector?: ProofCollector;
+  /**
+   * W6 — capability store for the customer trust page. When set, the acting team can mint
+   * a per-(team, customer) trust link, and `GET /trust/:token` resolves it to a scoped,
+   * audience-safe view. When unset, trust-page methods are no-ops / rejections.
+   */
+  trustLinks?: TrustLinkStore;
 }
 
 export interface SlackMessage {
@@ -450,5 +458,34 @@ export class KeptOrchestrator {
     const events = await this.d.service.getEvents(obligationId);
     if (events.length === 0) return null;
     return { obligation: project(events, { now: this.now() }), events };
+  }
+
+  // --- W6: customer trust page (audience-safe, per-(team, customer) capability) ------
+  /** Mint (or reuse) a trust link scoped to the ACTING team. The token IS the authorization. */
+  async mintTrustLink(teamId: string, customer: string): Promise<TrustLink> {
+    if (!this.d.trustLinks) throw new Error("trust links are not configured");
+    return this.d.trustLinks.mint(teamId, customer, this.now());
+  }
+
+  /** Revoke every active trust link for (acting team, customer). Returns how many were revoked. */
+  async revokeTrustLink(teamId: string, customer: string): Promise<number> {
+    if (!this.d.trustLinks) throw new Error("trust links are not configured");
+    return this.d.trustLinks.revoke(teamId, customer, this.now());
+  }
+
+  /**
+   * Resolve an opaque trust token to its audience-safe view — the read method that feeds
+   * `GET /trust/:token`. Tenant isolation (invariant #4) is absolute: the team comes from
+   * the token record, and `listObligations` is team-scoped, so a token for (teamA, Acme)
+   * can never read another team or another of teamA's customers. Unknown/revoked → null
+   * (the route renders a 404 with no existence leak).
+   */
+  async trustPageForToken(token: string): Promise<TrustView | null> {
+    if (!this.d.trustLinks) return null;
+    const link = await this.d.trustLinks.resolve(token);
+    if (!link) return null;
+    const now = this.now();
+    const obligations = await this.d.service.listObligations(link.team_id, now); // W1 — scoped by token's team
+    return buildTrustView(obligations, link.customer, now);
   }
 }
