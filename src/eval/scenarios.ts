@@ -62,6 +62,23 @@ export const customerConfirmed = (id: string, ref: string): Evidence => ({
   id, source: "customer", kind: "customer_reply", ref, at: ISO_NOW, accessible_to_user: true,
   data: { confirmed: true }, proves: "customer confirmed it works",
 });
+// W4 — Proof-of-Done evidence (gathered via MCP). The toggle/check instant is encoded
+// in `ref` so OFF→ON→OFF are distinct facts (projection dedupes on source+kind+ref).
+export const featureFlag = (id: string, ref: string, enabled: boolean, at: string = ISO_NOW): Evidence => ({
+  id, source: "feature_flag", kind: "feature_flag", ref, at, accessible_to_user: true,
+  data: { enabled, environment: "production" },
+  proves: enabled ? "feature flag is ON in production" : "feature flag is OFF in production",
+});
+export const ciRun = (id: string, ref: string, conclusion: string, at: string = ISO_NOW): Evidence => ({
+  id, source: "ci", kind: "ci_run", ref, at, accessible_to_user: true,
+  data: { conclusion },
+  proves: conclusion === "success" ? "CI run concluded success" : "CI run did not pass",
+});
+export const statusPage = (id: string, ref: string, component_status: string, at: string = ISO_NOW): Evidence => ({
+  id, source: "status_page", kind: "status_page", ref, at, accessible_to_user: true,
+  data: { component_status },
+  proves: component_status === "operational" ? "status page component operational" : "status page component not operational",
+});
 
 export interface Env {
   store: InMemoryEventStore;

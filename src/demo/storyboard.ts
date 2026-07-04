@@ -12,11 +12,13 @@ import { InMemoryEventStore } from "../store/memoryStore.js";
 import { ObligationService } from "../engine/obligationService.js";
 import { InMemoryScheduler } from "../scheduler/inMemoryScheduler.js";
 import { MockLlmProvider } from "../llm/mock.js";
-import { createSimulatedMcpWorkItems } from "../integrations/mcp.js";
+import { createSimulatedMcpWorkItems, createSimulatedProofServer, type SimulatedProofState } from "../integrations/mcp.js";
+import { ProofCollector } from "../integrations/proofCollector.js";
 import { LedgerRtsRetriever } from "../slack/rts.js";
 import { RecordingNotifier } from "../slack/notifier.js";
 import { KeptOrchestrator } from "../app/orchestrator.js";
-import { ledgerView, auditHistoryView, appHomeView, editObligationModal, editDraftModal, type SlackBlock } from "../slack/blocks.js";
+import { ledgerView, auditHistoryView, appHomeView, editObligationModal, editDraftModal, possibleFulfillmentCard, type SlackBlock } from "../slack/blocks.js";
+import { assessFulfillment } from "../engine/reconciliation.js";
 import {
   mapLinearWebhook,
   mapGithubWebhook,
@@ -60,6 +62,26 @@ async function main() {
   // Work items are created through a REAL MCP client↔server round-trip (an
   // in-process simulated MCP server) — Kept's deterministic MCP client, no network.
   const workItems = await createSimulatedMcpWorkItems({ startAt: 118 });
+
+  // W4 — Proof-of-Done. LaunchDarkly + Statuspage are honestly SIMULATED over an
+  // in-process MCP server (GitHub Actions is the one genuine live source). The flag
+  // starts OFF in production, so "ticket Done" won't be enough to close the loop.
+  const proofState: SimulatedProofState = {
+    flags: { sso_login: { enabled: false, environment: "production" } },
+    statuses: {},
+  };
+  const proof = await createSimulatedProofServer(proofState);
+  // Proof-check instants advance independently of the fixed engine clock, so a genuine
+  // OFF→ON toggle lands as a new fact (a distinct ref) rather than being deduped.
+  let proofClock = NOW;
+  const advanceProofClock = (ms: number) => (proofClock += ms);
+  const proofCollector = new ProofCollector({
+    proof,
+    // CODE (not the model) decides which proof to read for an obligation.
+    targetsFor: (o) => (o.subject_canonical === "SSO_LOGIN_BUG" ? { flag: { key: "sso_login" } } : null),
+    now: () => proofClock,
+  });
+
   const orch = new KeptOrchestrator({
     service,
     llm: new MockLlmProvider(heuristicResponder),
@@ -74,6 +96,7 @@ async function main() {
     roadmap: [{ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", targetDate: "2026-06-30" }],
     notifier,
     scheduler,
+    proofCollector,
     clock: () => NOW,
     currentDate: () => "2026-06-16",
     fallbackOwner: "U_ACCOUNT_MANAGER",
@@ -123,16 +146,34 @@ async function main() {
   });
   log(`  → ${dedupe.kind}${dedupe.kind === "deduped" ? ` (same obligation ${dedupe.obligationId === id ? "✓" : "✗"})` : ""}; obligations on file: ${(await store.getAllObligationIds(T_ACME)).length}`);
 
-  beat("0:55  Engineering ships — reconciliation: merge + prod deploy = available");
+  beat("0:55  Engineering ships — Jira says Done, code merged + deployed to prod");
+  const done = { type: "Issue", action: "update", data: { identifier: work.ref, state: { name: "Done" }, updatedAt: "2026-06-18T13:00:00Z" } };
+  log(`  Linear → Done:  ${await applyWebhookAction(orch, mapLinearWebhook(done), T_ACME)}  ← "Done" ≠ actually available`);
   const ghMerged = { action: "closed", pull_request: { number: 449, merged: true, merged_at: "2026-06-18T14:00:00Z", html_url: "https://github.com/acme/app/pull/449" }, relatesTo: { linear: work.ref } };
-  log(`  PR merged:  ${await applyWebhookAction(orch, mapGithubWebhook(ghMerged), T_ACME)}  ← merge alone is NOT enough`);
+  log(`  PR merged:      ${await applyWebhookAction(orch, mapGithubWebhook(ghMerged), T_ACME)}  ← merge alone is NOT enough`);
   const deploy = { release: "2026.06.18", environment: "production", customer_scoped: true, relatesTo: { linear: work.ref } };
-  log(`  deployed:   ${await applyWebhookAction(orch, mapDeployWebhook(deploy), T_ACME)}`);
-  log(`  → Gate-2 verify card sent privately to the owner.`);
-  log(lastPrivateCard());
+  log(`  deployed:       ${await applyWebhookAction(orch, mapDeployWebhook(deploy), T_ACME)}`);
 
-  beat("1:10  Account manager verifies (Gate 2) → sanitized closure draft");
-  await orch.verify(id, "U_AM");
+  beat("1:00  Kept gathers Proof-of-Done via MCP — the LaunchDarkly flag is OFF → BLOCKED");
+  log(`  → Kept queried LaunchDarkly (get_flag_state) over MCP: "sso_login" is OFF in production.`);
+  log(`  → No verify card sent: ticket-Done + merge + deploy, but the capability isn't reachable.`);
+  const blockedObl = (await orch.obligation(id))!;
+  log("  ‹ Proof-of-Done evidence packet — the differentiator ›");
+  log(renderBlocks(possibleFulfillmentCard(blockedObl, assessFulfillment(blockedObl.evidence))));
+
+  beat("1:05  Account manager clicks Verify → the engine REFUSES (flag OFF)");
+  const blockedVerify = await orch.verify(id, "U_AM");
+  log(`  → verify applied? ${blockedVerify.draftSent ? "yes" : "NO — blocked (INSUFFICIENT_EVIDENCE)"} · state still ${(await orch.obligation(id))!.state}`);
+
+  beat("1:10  Flag flipped ON in production → Kept re-gathers proof → now available");
+  proofState.flags.sso_login.enabled = true; // someone toggled the LaunchDarkly flag on
+  advanceProofClock(60_000); // a later observation → a new, distinct proof fact
+  await orch.verify(id, "U_AM"); // verify() re-collects proof (flag ON) → available → applies
+  const greenObl = (await orch.obligation(id))!;
+  log("  ‹ Proof-of-Done evidence packet — now green (flag ON) ›");
+  log(renderBlocks(possibleFulfillmentCard(greenObl, assessFulfillment(greenObl.evidence))));
+
+  beat("1:20  Verified (Gate 2) → sanitized closure draft");
   log(lastPrivateCard());
 
   beat("1:25  Approve & send → posted in the ORIGINAL thread (sanitized)");

@@ -14,6 +14,7 @@ import { computeReminders, type Scheduler } from "../scheduler/scheduler.js";
 import type { LlmProvider } from "../llm/provider.js";
 import { proposeFromMessage } from "../llm/propose.js";
 import type { WorkItemAdapter, CreatedWorkItem } from "../integrations/linear.js";
+import type { ProofCollector } from "../integrations/proofCollector.js";
 import type { RtsRetriever } from "../slack/rts.js";
 import { EMPTY_RTS, type RtsContext } from "../slack/rts.js";
 import type { Notifier, SentMessage } from "../slack/notifier.js";
@@ -35,6 +36,12 @@ export interface OrchestratorDeps {
   roadmap?: RoadmapEntry[];
   /** A live roadmap source (takes precedence over the static `roadmap` array). */
   roadmapSource?: RoadmapSource;
+  /**
+   * W4 — the agent that gathers Proof-of-Done (flag / CI / status) via MCP and PROPOSES
+   * evidence. Optional and config-gated: when unset (default) proof collection is a no-op,
+   * so production stays deterministic and the demo/tests can drive a simulated proof server.
+   */
+  proofCollector?: ProofCollector;
 }
 
 export interface SlackMessage {
@@ -286,7 +293,10 @@ export class KeptOrchestrator {
       { kind: "RECORD_FULFILLMENT_SIGNAL", evidence: input.evidence },
       this.ctx(o.id, input.idempotencyKey),
     );
-    const updated = r.obligation ?? (await this.d.service.getObligation(o.id))!;
+    // Invariant #3 — assemble the Evidence Packet: gather flag/CI/status proof via MCP
+    // and PROPOSE each as evidence. assessFulfillment (below) + Gate 2 decide; the agent
+    // never verifies. A flag that is OFF here is what BLOCKS an otherwise "done" close.
+    const updated = await this.collectProof(r.obligation ?? (await this.d.service.getObligation(o.id))!);
 
     let verifyCardSent = false;
     if (updated.state === "POSSIBLE_FULFILLMENT") {
@@ -302,10 +312,38 @@ export class KeptOrchestrator {
     return { kind: "recorded", obligation: updated, verifyCardSent };
   }
 
+  /**
+   * W4 — run the agent proof-collector for an obligation, dispatching each PROPOSED
+   * evidence as RECORD_FULFILLMENT_SIGNAL, then return the freshly re-projected obligation.
+   * No-op unless a collector is configured and the obligation is in POSSIBLE_FULFILLMENT
+   * (the only window where extra fulfillment evidence is admissible). Best-effort: a
+   * collection error is swallowed so proof-gathering never blocks the pipeline. Each
+   * observation carries its check instant in `ref`, so an unchanged read is idempotent
+   * and a genuine toggle (later instant) lands as a new fact.
+   */
+  private async collectProof(o: Obligation): Promise<Obligation> {
+    if (!this.d.proofCollector || o.state !== "POSSIBLE_FULFILLMENT") return o;
+    let proposed: Evidence[];
+    try {
+      proposed = await this.d.proofCollector.collect(o);
+    } catch {
+      return o;
+    }
+    for (const ev of proposed) {
+      await this.d.service.dispatch(
+        { kind: "RECORD_FULFILLMENT_SIGNAL", evidence: ev },
+        this.ctx(o.id, `proof:${o.id}:${ev.source}:${ev.ref}`),
+      );
+    }
+    return (await this.d.service.getObligation(o.id)) ?? o;
+  }
+
   // --- Gate 2: verify, then draft + approve the customer-facing closure -----
   async verify(obligationId: ObligationId, approverId: string, actingTeam?: string): Promise<{ obligation: Obligation | null; draftSent: boolean }> {
-    const before = await this.loadForWrite(obligationId, actingTeam);
-    if (!before) throw new Error(`unknown obligation ${obligationId}`);
+    const loaded = await this.loadForWrite(obligationId, actingTeam);
+    if (!loaded) throw new Error(`unknown obligation ${obligationId}`);
+    // Re-gather proof at the moment of verification so a just-flipped flag (ON) is seen.
+    const before = await this.collectProof(loaded);
     const assessment = assessFulfillment(before.evidence);
     const r = await this.d.service.dispatch(
       { kind: "VERIFY_FULFILLMENT", rationale: assessment.rationale },

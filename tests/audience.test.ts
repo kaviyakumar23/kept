@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeForAudience, buildClosureDraft, detectLeaks } from "../src/policy/audience.js";
 import { mkObl } from "./helpers.js";
-import { ticketDone, prMerged, prodDeploy } from "../src/eval/scenarios.js";
+import { ticketDone, prMerged, prodDeploy, featureFlag, ciRun, statusPage } from "../src/eval/scenarios.js";
 
 describe("audience policy (D1)", () => {
   const evidence = [ticketDone("t", "PROJ-118"), prMerged("p", "PR-449"), prodDeploy("d", "2026.06.18")];
@@ -19,6 +19,18 @@ describe("audience policy (D1)", () => {
     expect(safe.redactedSources).toContain("linear");
     expect(safe.redactedSources).toContain("github");
     expect(safe.redactedCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("W4 — Proof-of-Done sources (feature_flag/ci/status_page) never leak to the customer", () => {
+    const proof = [
+      featureFlag("f", "sso_login@2026-06-18T12:00:00Z", true),
+      ciRun("c", "app#42@2026-06-18T12:00:00Z", "success"),
+      statusPage("s", "api@2026-06-18T12:00:00Z", "operational"),
+    ];
+    const safe = sanitizeForAudience(proof, "SHARED_CUSTOMER_CHANNEL");
+    expect(safe.redactedSources).toEqual(expect.arrayContaining(["feature_flag", "ci", "status_page"]));
+    expect(safe.redactedCount).toBe(3);
+    expect(safe.shareableFacts).toEqual([]); // nothing about a flag/CI/status reaches the channel
   });
 
   it("closure draft is built only from the shareable outcome and is leak-free", () => {

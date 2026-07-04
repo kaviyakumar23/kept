@@ -217,3 +217,117 @@ export async function createSimulatedMcpWorkItems(
   (adapter as unknown as { _server: McpServer })._server = server;
   return adapter;
 }
+
+// --- W4: generic proof-read MCP client -------------------------------------
+/** Structured result of an MCP tool call, or undefined when it returned no structuredContent. */
+export type McpStructured = Record<string, unknown> | undefined;
+
+/** A read-only MCP query surface. CODE picks the tool + args; the model is never in the loop. */
+export interface McpQueryClient {
+  query(name: string, args: Record<string, unknown>): Promise<McpStructured>;
+  close(): Promise<void>;
+}
+
+/**
+ * Generic read-only MCP client for Proof-of-Done reads (feature-flag state, status
+ * page). Connect once, then `query(tool, args)` → callTool → error-check →
+ * structuredContent. Same deterministic-client discipline as McpWorkItemAdapter: the
+ * engine decides WHICH proof to read; this just transports the call.
+ */
+export class McpProofClient implements McpQueryClient {
+  readonly label: string;
+  private client: Client | undefined;
+  private connecting: Promise<Client> | undefined;
+
+  constructor(private readonly opts: { transport: () => Transport; clientName?: string; label?: string }) {
+    this.label = opts.label ?? "mcp(proof)";
+  }
+
+  private async ensureClient(): Promise<Client> {
+    if (this.client) return this.client;
+    if (!this.connecting) {
+      this.connecting = (async () => {
+        const client = new Client({ name: this.opts.clientName ?? "kept", version: "0.1.0" });
+        await client.connect(this.opts.transport());
+        this.client = client;
+        return client;
+      })();
+    }
+    return this.connecting;
+  }
+
+  async query(name: string, args: Record<string, unknown>): Promise<McpStructured> {
+    const client = await this.ensureClient();
+    const result = (await client.callTool({ name, arguments: args })) as ToolResult;
+    if ((result as { isError?: boolean }).isError) {
+      throw new Error(`MCP tool "${name}" failed: ${resultText(result).slice(0, MAX_PARSE_TEXT).slice(0, 200)}`);
+    }
+    // Reuse the existing parse cap: only accept a shallow structured record.
+    return asRecord((result as { structuredContent?: unknown }).structuredContent);
+  }
+
+  async close(): Promise<void> {
+    if (this.client) await this.client.close();
+  }
+}
+
+/** Mutable state a simulated proof server reads at call time (mutate to model a toggle over time). */
+export interface SimulatedProofState {
+  /** flag key → its production state. Flip `enabled` to simulate an OFF→ON toggle. */
+  flags: Record<string, { enabled: boolean; environment?: string }>;
+  /** component name → its Statuspage health (defaults to "operational" when absent). */
+  statuses: Record<string, { component_status: string }>;
+}
+
+/**
+ * In-process simulated proof MCP server (LaunchDarkly `get_flag_state` + Atlassian
+ * Statuspage `get_status_page`) wired to a real MCP client over an in-memory transport.
+ * Mirrors createSimulatedMcpWorkItems: a REAL client↔server round-trip, no network/OAuth,
+ * so the demo and hermetic tests exercise the actual MCP query path (these two sources
+ * are honestly SIMULATED — GitHub Actions is the one genuine live proof source).
+ */
+export async function createSimulatedProofServer(
+  state: SimulatedProofState = { flags: {}, statuses: {} },
+): Promise<McpProofClient> {
+  const server = new McpServer({ name: "kept-sim-proof", version: "0.1.0" });
+  server.registerTool(
+    "get_flag_state",
+    {
+      title: "Get feature-flag state",
+      description: "Return whether a feature flag is enabled in an environment.",
+      inputSchema: { flag_key: z.string(), environment: z.string().optional() },
+      outputSchema: { enabled: z.boolean(), environment: z.string() },
+    },
+    async ({ flag_key, environment }) => {
+      const st = state.flags[flag_key];
+      const env = environment ?? st?.environment ?? "production";
+      const enabled = st?.enabled ?? false;
+      return {
+        content: [{ type: "text", text: `flag ${flag_key} @ ${env}: ${enabled ? "ON" : "OFF"}` }],
+        structuredContent: { enabled, environment: env },
+      };
+    },
+  );
+  server.registerTool(
+    "get_status_page",
+    {
+      title: "Get status-page component health",
+      description: "Return the operational status of a status-page component.",
+      inputSchema: { component: z.string() },
+      outputSchema: { component_status: z.string() },
+    },
+    async ({ component }) => {
+      const component_status = state.statuses[component]?.component_status ?? "operational";
+      return {
+        content: [{ type: "text", text: `component ${component}: ${component_status}` }],
+        structuredContent: { component_status },
+      };
+    },
+  );
+
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new McpProofClient({ transport: () => clientTransport, label: "mcp(proof-sim)" });
+  (client as unknown as { _server: McpServer })._server = server;
+  return client;
+}

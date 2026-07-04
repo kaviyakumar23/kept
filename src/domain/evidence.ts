@@ -15,7 +15,13 @@ export type EvidenceSource =
   | "github"
   | "deploy"
   | "customer"
-  | "crm";
+  | "crm"
+  // W4 — Proof-of-Done sources gathered via MCP. `feature_flag` = LaunchDarkly-style
+  // toggle state; `ci` = CI/GitHub-Actions run conclusion; `status_page` = Statuspage
+  // component health. All three are internal-only (never surfaced to a customer).
+  | "feature_flag"
+  | "ci"
+  | "status_page";
 
 export type EvidenceKind =
   | "customer_request" // slack: the ask
@@ -24,7 +30,20 @@ export type EvidenceKind =
   | "pr_merged" // github: a code change merged
   | "deploy" // deployment system: release to an environment
   | "customer_reply" // customer: real-world confirmation (strongest closure)
-  | "account_context"; // crm: commercial account context
+  | "account_context" // crm: commercial account context
+  // W4 — Proof-of-Done. A `feature_flag` proves whether the capability is actually
+  // reachable in production; `ci_run` proves the build/tests passed; `status_page`
+  // proves the component is operational.
+  //
+  // ZERO-COPY / DEDUPE INVARIANT: flag/CI/status evidence MUST encode the check /
+  // toggle instant in `ref` (e.g. `billing_v2@2026-06-18T14:00:00Z`). projection.ts
+  // dedupes evidence on source+kind+ref, so a STABLE flag ref (e.g. just `billing_v2`)
+  // would silently drop a later OFF→ON→OFF toggle — reconciliation would keep only the
+  // first-seen state. Encoding the instant makes each observed state a distinct fact,
+  // and `assessFulfillment` then honors the latest-by-`at`.
+  | "feature_flag"
+  | "ci_run"
+  | "status_page";
 
 export interface Evidence {
   id: string;
@@ -50,6 +69,9 @@ export const SOURCE_ROLES: Record<EvidenceSource, string> = {
   deploy: "release to an environment",
   customer: "real-world confirmation (strongest closure signal)",
   crm: "commercial account context",
+  feature_flag: "whether the capability is actually reachable in production",
+  ci: "the build / tests passed for the change",
+  status_page: "the component's operational health",
 };
 
 /** Sources that must never leak to a shared customer channel (see D1). */
@@ -58,6 +80,10 @@ export const INTERNAL_ONLY_SOURCES: ReadonlySet<EvidenceSource> = new Set([
   "jira",
   "github",
   "crm",
+  // Proof-of-Done sources are internal telemetry — a customer never sees flag/CI/status.
+  "feature_flag",
+  "ci",
+  "status_page",
 ]);
 
 /**
@@ -79,6 +105,11 @@ export const KIND_SOURCES: Record<EvidenceKind, readonly EvidenceSource[]> = {
   // fabricate a confirmation and drive a false closure.
   customer_reply: ["customer"],
   account_context: ["crm"],
+  // W4 — each proof kind may only be attested by its own proof source, so a proposer
+  // can't fabricate (say) a flag-ON on a `github` source to force a false closure.
+  feature_flag: ["feature_flag"],
+  ci_run: ["ci"],
+  status_page: ["status_page"],
 };
 
 /** True iff the evidence's source is allowed to attest to its claimed kind. */

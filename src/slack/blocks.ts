@@ -1,5 +1,6 @@
 import type { Obligation } from "../domain/obligation.js";
 import type { ObligationEvent } from "../domain/events.js";
+import type { Evidence } from "../domain/evidence.js";
 import type { Classification } from "../llm/schemas.js";
 import type { FulfillmentAssessment } from "../engine/reconciliation.js";
 import type { ClosureDraft } from "../policy/audience.js";
@@ -100,13 +101,47 @@ export function confirmCard(o: Obligation, classification: Classification, rts: 
   return blocks;
 }
 
-/** Gate 2 — possible-fulfillment verify card. Shows reconciled evidence. */
+/** Latest observation of a proof kind (evidence encodes the check instant in `ref`/`at`). */
+const latestEvidence = (evidence: Evidence[], kind: Evidence["kind"]): Evidence | undefined =>
+  evidence.filter((e) => e.kind === kind).sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).pop();
+
+const isProdEnv = (v: unknown): boolean => {
+  const s = String(v ?? "").toLowerCase();
+  return s === "production" || s === "prod";
+};
+
+/**
+ * The Proof-of-Done evidence packet: one row per gathered signal (✓ passed / ✗ failed),
+ * so a reviewer sees at a glance WHY the close is or isn't allowed — e.g. "Ticket Done ✓"
+ * next to "Feature flag OFF ✗" is the whole differentiator.
+ */
+function evidencePacketRows(evidence: Evidence[]): string[] {
+  const rows: string[] = [];
+  const flag = latestEvidence(evidence, "feature_flag");
+  if (flag) rows.push(flag.data.enabled === true ? "Feature flag ON ✓" : "Feature flag OFF ✗");
+  const ci = latestEvidence(evidence, "ci_run");
+  if (ci) rows.push(ci.data.conclusion === "success" ? "CI success ✓" : `CI ${escapeMrkdwn(String(ci.data.conclusion ?? "?"))} ✗`);
+  const status = latestEvidence(evidence, "status_page");
+  if (status) rows.push(status.data.component_status === "operational" ? "Status operational ✓" : `Status ${escapeMrkdwn(String(status.data.component_status ?? "?"))} ✗`);
+  if (evidence.some((e) => e.kind === "ticket_status" && String(e.data.status ?? "").toLowerCase() === "done")) rows.push("Ticket Done ✓");
+  if (evidence.some((e) => e.kind === "pr_merged" && e.data.merged === true)) rows.push("Code merged ✓");
+  if (evidence.some((e) => e.kind === "deploy" && isProdEnv(e.data.environment))) rows.push("Prod deploy ✓");
+  if (evidence.some((e) => e.kind === "customer_reply" && e.data.confirmed === true)) rows.push("Customer confirmed ✓");
+  if (rows.length === 0) rows.push("(no corroborating evidence yet)");
+  return rows.map((r) => `• ${r}`);
+}
+
+/** Gate 2 — the Proof-of-Done evidence packet + verdict. A human signs; the agent assembled it. */
 export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAssessment): SlackBlock[] {
-  const evidence = assessment.contributing.map((e) => `• _${e.source}_ — ${e.proves}`).join("\n") || "• (no corroborating evidence yet)";
   return [
-    header("Kept · possible fulfillment — verify?"),
+    header("Kept · Proof-of-Done evidence packet"),
     section(`*${o.customer}* — ${o.outcome}`),
-    section(`*Reconciled evidence:*\n${evidence}`),
+    section(`*Evidence packet:*\n${evidencePacketRows(o.evidence).join("\n")}`),
+    section(
+      assessment.available
+        ? "*Verdict: available* — proof reconciled ✅"
+        : "*Verdict: blocked* — not verifiably available ⛔",
+    ),
     context(assessment.rationale),
     {
       type: "actions",
@@ -115,7 +150,7 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
         button("Not yet", ACTIONS.notYet, o.id),
       ],
     },
-    context("Ticket-Done alone is never enough — Kept reconciles merge + deploy (or a customer confirmation)."),
+    context("Ticket-Done alone is never enough — Kept reconciles flag / CI / status / merge / deploy (or a customer confirmation)."),
   ];
 }
 
