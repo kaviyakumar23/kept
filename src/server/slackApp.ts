@@ -95,7 +95,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.assistant(buildKeptAssistant({ orch, llm: deps.llm }));
 
   // A new message in a (shared) channel → detect + Gate-1 card.
-  app.message(async ({ message }: any) => {
+  app.message(async ({ message, context }: any) => {
     if (message.subtype || !message.text) return; // ignore edits/bot/system messages
     await orch.ingestMessage({
       team: message.team ?? "T",
@@ -103,6 +103,8 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       threadTs: message.thread_ts ?? message.ts,
       ts: message.ts,
       userId: message.user,
+      // W3 — the Real-Time Search action_token rides on the event context/payload.
+      actionToken: message.action_token ?? context?.actionToken,
       text: message.text,
     });
   });

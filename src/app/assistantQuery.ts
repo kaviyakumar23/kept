@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Obligation } from "../domain/obligation.js";
 import type { LlmProvider } from "../llm/provider.js";
 import { analytics, awaitingVerifyFor, isOpen } from "./analytics.js";
+import { driftRadar, type DriftReading } from "./drift.js";
 import { ledgerView, type SlackBlock } from "../slack/blocks.js";
 
 /**
@@ -12,7 +13,7 @@ import { ledgerView, type SlackBlock } from "../slack/blocks.js";
  */
 
 export const QueryIntentSchema = z.object({
-  intent: z.enum(["overdue", "at_risk", "awaiting_verify", "by_customer", "mine", "promised_this_week", "summary", "help"]),
+  intent: z.enum(["overdue", "at_risk", "awaiting_verify", "by_customer", "mine", "promised_this_week", "slipping", "summary", "help"]),
   /** A named customer, when the question is about one. */
   customer: z.string().nullish(),
   /** True when the user asks about THEIR OWN items ("waiting on me", "mine", "for me"). */
@@ -22,7 +23,8 @@ export type QueryIntent = z.infer<typeof QueryIntentSchema>;
 
 const QUERY_SYSTEM = `You route a user's natural-language question about the Kept obligation ledger into ONE intent. You do NOT answer or invent data — deterministic code runs the read. Intents:
 - overdue: what's overdue / past due / late.
-- at_risk: what's at risk / slipping / due soon and not done.
+- at_risk: what's at risk / due soon and not done.
+- slipping: which commitments are DRIFTING — softening in certainty, dates slipping, or overdue and gone quiet ("what's slipping?", "what's drifting?", "which promises are going quiet / dying?").
 - awaiting_verify: obligations with evidence in, waiting for a human to verify (Gate 2). Set mine=true if the user asks about THEIR items ("waiting on me", "for me").
 - by_customer: status for a NAMED customer — put the name in "customer".
 - mine: the asker's own open obligations ("what's on my plate").
@@ -68,6 +70,17 @@ export interface QueryAnswer {
 
 const wrap = (title: string, body: string): QueryAnswer => ({ text: title, blocks: [header(title), section(body), footer()] });
 
+/** W5 — render one drift reading (ephemeral; the reasons are never persisted). */
+const DRIFT_MARK: Record<string, string> = { STALLED: ":red_circle:", SLIPPING: ":large_orange_circle:", SOFTENING: "〰️", FIRM: ":large_green_circle:" };
+const driftLine = (r: DriftReading): string =>
+  `${DRIFT_MARK[r.bucket] ?? "•"} *${esc(r.outcome)}* — ${esc(r.customer)} · _${r.bucket.toLowerCase()}_${r.reasons.length ? ` (${esc(r.reasons.join(", "))})` : ""}`;
+const driftListOr = (rs: DriftReading[], empty: string): string => {
+  if (!rs.length) return `_${empty}_`;
+  const shown = rs.slice(0, MAX_ROWS);
+  const more = rs.length - shown.length;
+  return shown.map(driftLine).join("\n") + (more > 0 ? `\n_…and ${more} more._` : "");
+};
+
 /** Run the routed query over the ledger projections. Pure: (intent, obligations, now, viewer) → answer. */
 export function answerLedgerQuery(intent: QueryIntent, obligations: Obligation[], now: number, viewerId?: string): QueryAnswer {
   const a = analytics(obligations, now);
@@ -82,6 +95,10 @@ export function answerLedgerQuery(intent: QueryIntent, obligations: Obligation[]
     }
     case "promised_this_week":
       return wrap("Promised this week", listOr(a.promisedThisWeek, "Nothing due in the next 7 days."));
+    case "slipping": {
+      const radar = driftRadar(obligations, now);
+      return wrap("What's slipping", driftListOr(radar.readings, "Nothing is drifting — every open commitment is firm."));
+    }
     case "mine": {
       const mine = obligations.filter((o) => isOpen(o) && viewerId != null && o.owner === viewerId);
       return wrap("On your plate", listOr(mine, "You have no open obligations."));
@@ -103,7 +120,7 @@ export function answerLedgerQuery(intent: QueryIntent, obligations: Obligation[]
         text: "What I can answer",
         blocks: [
           header("Ask the Kept ledger"),
-          section("I answer from the human-verified obligation ledger. Try:\n• *What's overdue?*\n• *What did we promise Acme this week?*\n• *Anything waiting on me to verify?*\n• *Give me a summary*"),
+          section("I answer from the human-verified obligation ledger. Try:\n• *What's overdue?*\n• *What's slipping?*\n• *What did we promise Acme this week?*\n• *Anything waiting on me to verify?*\n• *Give me a summary*"),
           footer(),
         ],
       };

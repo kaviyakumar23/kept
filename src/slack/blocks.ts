@@ -6,6 +6,7 @@ import type { FulfillmentAssessment } from "../engine/reconciliation.js";
 import type { ClosureDraft } from "../policy/audience.js";
 import type { RtsContext } from "./rts.js";
 import { analytics } from "../app/analytics.js";
+import { driftRadar, type DriftBucket } from "../app/drift.js";
 
 /** A Block Kit block / surface — valid Slack JSON. Kept dependency-light (plain objects). */
 export type SlackBlock = Record<string, unknown>;
@@ -179,6 +180,9 @@ const STATE_EMOJI: Record<string, string> = {
   VERIFIED: "🟢", CUSTOMER_NOTIFIED: "🟢", CLOSED: "✅", REOPENED: "🔁", DISMISSED: "⚪", CANCELLED: "⚪",
 };
 
+/** W5 — drift radar bucket → emoji, worst first. */
+const DRIFT_EMOJI: Record<DriftBucket, string> = { STALLED: "🔴", SLIPPING: "🟠", SOFTENING: "〰️", FIRM: "🟢" };
+
 function ledgerLine(o: Obligation): string {
   const flags: string[] = [];
   if (o.flags.is_overdue) flags.push("overdue");
@@ -252,6 +256,24 @@ export function appHomeView(obligations: Obligation[], now: number = Date.now())
       { type: "mrkdwn", text: `:eyes: *Awaiting verify:* ${a.awaitingVerify.length}` },
     ],
   });
+  // W5 — promise-drift radar band (certainty-decay derived → deterministic): which
+  // commitments are softening / slipping / going silent. Rendered only when something drifts.
+  const radar = driftRadar(obligations, now);
+  if (radar.counts.drifting > 0) {
+    blocks.push({
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `:chart_with_downwards_trend: *Drifting:* ${radar.counts.drifting}` },
+        { type: "mrkdwn", text: `:red_circle: *Stalled:* ${radar.counts.stalled}` },
+        { type: "mrkdwn", text: `:large_orange_circle: *Slipping:* ${radar.counts.slipping}` },
+        { type: "mrkdwn", text: `:wavy_dash: *Softening:* ${radar.counts.softening}` },
+      ],
+    });
+    for (const r of radar.readings.slice(0, 3)) {
+      const why = r.reasons.length ? ` — ${escapeMrkdwn(r.reasons.join(", "))}` : "";
+      blocks.push(context(`${DRIFT_EMOJI[r.bucket]} *${escapeMrkdwn(r.customer)}* — ${escapeMrkdwn(r.outcome)}: _${r.bucket.toLowerCase()}_${why}`));
+    }
+  }
   const byCustomer = new Map<string, Obligation[]>();
   for (const o of obligations) {
     const list = byCustomer.get(o.customer) ?? [];

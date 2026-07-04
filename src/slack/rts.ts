@@ -13,8 +13,14 @@ export interface RtsQuery {
   channel: string;
   /** The triggering user — retrieval runs with their permissions. */
   userId: string;
-  /** User token for permission-scoped Slack search (real adapter). */
+  /** User token for permission-scoped Slack search (legacy/dev adapter). */
   userToken?: string;
+  /**
+   * W3 — the Real-Time Search `action_token`, present on assistant/message events.
+   * Required by `assistant.search.context` when calling with a BOT token (the
+   * Marketplace-legal path). Absent → the assistant-search retriever no-ops.
+   */
+  actionToken?: string;
 }
 
 export interface RtsContext {
@@ -86,6 +92,12 @@ export interface SlackSearchClient {
 }
 
 /**
+ * @deprecated W3 — the classic `search.messages` needs the BLANKET `search:read`
+ * scope, which is BANNED in the Slack Marketplace (invariant #6). Superseded by
+ * `SlackAssistantSearchRetriever` (`assistant.search.context`, granular scopes).
+ * Retained only for the local/dev `KEPT_SLACK_USER_SEARCH` path — never wired in a
+ * Marketplace build. Prefer `SlackAssistantSearchRetriever`.
+ *
  * Cross-channel RTS via Slack search, run with the TRIGGERING USER's token so
  * results respect that user's permissions (permission parity, D3). It surfaces
  * EPHEMERAL context notes (which channels have related discussion) — never raw
@@ -111,6 +123,97 @@ export class SlackRtsRetriever implements RtsRetriever {
     const notes = matches
       .slice(0, max)
       .map((m) => `related discussion in #${m.channel?.name ?? m.channel?.id ?? "?"}`);
+    return { priorCommitments: [], suggestedOwner: null, areaOwner: null, notes };
+  }
+}
+
+/**
+ * Structural view of one `assistant.search.context` result. Kept reads only the
+ * *location* fields (channel_id/name, team_id) — never `content` (the raw message
+ * body), which stays out of every note and out of the log (zero-copy, invariant #2).
+ */
+export interface AssistantSearchResult {
+  content?: string;
+  author_user_id?: string;
+  team_id?: string;
+  channel_id?: string;
+  channel_name?: string;
+  permalink?: string;
+}
+/**
+ * Structural view of the Real-Time Search surface (satisfied by a `WebClient` holding
+ * a bot token). Response results live under `results.messages` per the API.
+ */
+export interface AssistantSearchClient {
+  assistant: {
+    search: {
+      context(args: {
+        query: string;
+        action_token?: string;
+        channel_types?: string[];
+        content_types?: string[];
+        limit?: number;
+      }): Promise<{ results?: { messages?: AssistantSearchResult[] } }>;
+    };
+  };
+}
+
+/**
+ * W3 — Marketplace-legal RTS via the Real-Time Search API (`assistant.search.context`).
+ * Unlike the classic `search.messages` (blanket `search:read`, BANNED), this uses a
+ * BOT token plus the event's `action_token` and the granular scopes
+ * `search:read.public` / `search:read.files` / `search:read.users`.
+ *
+ * Discipline is unchanged from the rest of Kept:
+ *  • EPHEMERAL — results map to short "where related discussion lives" notes; the raw
+ *    `content` is NEVER read into a note or the log (zero-copy, invariant #2).
+ *  • Tenant-scoped — only results whose `team_id` matches the acting team are surfaced
+ *    (invariant #4; the retriever is already handed a per-team bot client).
+ *  • Rate-guarded — exactly ONE API call per inquiry (well under the API's ~10/inquiry
+ *    ceiling); `limit` caps the result count.
+ *  • Fault-isolated — any error (including a not-allowlisted / paid-plan API) yields
+ *    EMPTY, so the pipeline never blocks and `LedgerRtsRetriever` still answers.
+ *
+ * `clientFor(teamId)` resolves the acting team's bot-token client.
+ */
+export class SlackAssistantSearchRetriever implements RtsRetriever {
+  constructor(
+    private readonly opts: {
+      clientFor: (teamId: string) => AssistantSearchClient | Promise<AssistantSearchClient>;
+      /** Result cap per call (default 5 — headroom under the API's ~10/inquiry limit). */
+      limit?: number;
+      /** Max notes surfaced on the card (default = limit). */
+      maxNotes?: number;
+    },
+  ) {}
+
+  async retrieve(query: RtsQuery): Promise<RtsContext> {
+    // Bot-token calls REQUIRE an action_token (present on assistant/message events);
+    // without one there is no legal call to make.
+    if (!query.actionToken) return EMPTY_RTS;
+    const limit = this.opts.limit ?? 5;
+    const maxNotes = this.opts.maxNotes ?? limit;
+    let results: AssistantSearchResult[] = [];
+    try {
+      const client = await this.opts.clientFor(query.team);
+      const subject = query.subject_canonical.replace(/_/g, " ").toLowerCase();
+      const res = await client.assistant.search.context({
+        query: `${query.customer} ${subject}`,
+        action_token: query.actionToken,
+        channel_types: ["public_channel", "private_channel"],
+        content_types: ["messages"],
+        limit,
+      });
+      results = res.results?.messages ?? [];
+    } catch {
+      return EMPTY_RTS; // search failure / not-allowlisted must never block the pipeline
+    }
+    // Tenant isolation: only same-team results (defense-in-depth atop the per-team client).
+    // Notes reference WHERE related discussion is — never the message `content`.
+    const notes = results
+      .filter((m) => !m.team_id || m.team_id === query.team)
+      .slice(0, maxNotes)
+      .map((m) => `related discussion in #${m.channel_name ?? m.channel_id ?? "?"}`);
     return { priorCommitments: [], suggestedOwner: null, areaOwner: null, notes };
   }
 }

@@ -30,6 +30,7 @@ features:
     assistant_description: "Ask the obligation ledger: what's overdue, what we owe a customer, or what's waiting on you to verify."
     suggested_prompts:
       - "What's overdue?"
+      - "What's slipping?"
       - "What did we promise Acme this week?"
       - "Anything waiting on me to verify?"
   slash_commands:
@@ -53,9 +54,13 @@ oauth_config:
       - groups:history # read messages in private / Slack Connect shared channels Kept is in
       - channels:read # channel metadata
       - groups:read # private/shared channel metadata
-    # Uncomment to enable cross-channel RTS (KEPT_SLACK_USER_SEARCH=1) — needs a user token:
-    # user:
-    #   - search:read
+      # W3 — Real-Time Search API (assistant.search.context), gated by KEPT_RTS=1.
+      # GRANULAR scopes ONLY (invariant #6) — the blanket `search:read` is BANNED.
+      - search:read.public # cross-channel context from public channels the bot can see
+      - search:read.files # file results in the RTS response
+      - search:read.users # user results in the RTS response
+    # NOTE: the legacy cross-channel search (classic search.messages) needed the BANNED
+    # blanket user `search:read`; it is superseded by the bot-token RTS above and removed.
 
 settings:
   event_subscriptions:

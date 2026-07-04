@@ -51,6 +51,8 @@ export interface SlackMessage {
   ts: string;
   userId: string;
   userToken?: string;
+  /** W3 — RTS `action_token` from the Slack event context (Real-Time Search API). */
+  actionToken?: string;
   text: string;
   permalink?: string;
 }
@@ -152,6 +154,7 @@ export class KeptOrchestrator {
       channel: msg.channel,
       userId: msg.userId,
       userToken: msg.userToken,
+      actionToken: msg.actionToken,
     });
 
     // W1 — stamp the acting workspace onto the obligation (the proposer omits it).

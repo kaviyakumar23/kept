@@ -16,7 +16,16 @@ import { LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.j
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { WebClient } from "@slack/web-api";
-import { LedgerRtsRetriever, CompositeRtsRetriever, SlackRtsRetriever, type SlackSearchClient } from "../slack/rts.js";
+import {
+  LedgerRtsRetriever,
+  CompositeRtsRetriever,
+  SlackRtsRetriever,
+  SlackAssistantSearchRetriever,
+  type SlackSearchClient,
+  type AssistantSearchClient,
+  type AssistantSearchResult,
+  type RtsRetriever,
+} from "../slack/rts.js";
 import { FileRoadmapSource, type RoadmapSource } from "../policy/roadmap.js";
 import { PostgresRoadmapSource } from "../integrations/roadmapPostgres.js";
 import { KeptOrchestrator } from "../app/orchestrator.js";
@@ -147,16 +156,39 @@ async function main() {
     llm,
     makeOrchestrator: (notifier) => {
       notifierRef.n = notifier;
-      // Ledger-backed RTS (prior commitments + owner); optionally add cross-channel
-      // Slack search with per-user tokens for permission-safe context.
+      // Ledger-backed RTS (prior commitments + owner) is the ALWAYS-ON fallback — a real,
+      // runnable source that works even if the Real-Time Search API needs a paid plan /
+      // allowlist. KEPT_RTS=1 layers on Marketplace-legal cross-channel context via
+      // assistant.search.context (granular scopes + bot token + action_token). The legacy
+      // KEPT_SLACK_USER_SEARCH path (classic search.messages, banned scope) is dev-only.
       const ledgerRts = new LedgerRtsRetriever({ listObligations: (teamId) => service.listObligations(teamId) });
-      const rts =
-        process.env.KEPT_SLACK_USER_SEARCH === "1"
-          ? new CompositeRtsRetriever([
-              ledgerRts,
-              new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }),
-            ])
-          : ledgerRts;
+      // Resolve the acting team's BOT-token client for the Real-Time Search API. We route
+      // through the generic `apiCall` (not a typed method) so the call works even on SDK
+      // versions that don't yet type `assistant.search.context` — and degrades to EMPTY
+      // (caught in the retriever) if the API isn't allowlisted for the workspace.
+      const assistantSearchClientFor = async (teamId: string): Promise<AssistantSearchClient> => {
+        const token = oauth
+          ? (await installationStore!.fetchInstallation({ teamId, enterpriseId: undefined, isEnterpriseInstall: false })).bot?.token
+          : cfg.slack.botToken;
+        if (!token) throw new Error(`no bot token available for team ${teamId}`);
+        const wc = new WebClient(token);
+        return {
+          assistant: {
+            search: {
+              context: (args) =>
+                wc.apiCall("assistant.search.context", args) as Promise<{ results?: { messages?: AssistantSearchResult[] } }>,
+            },
+          },
+        };
+      };
+      const retrievers: RtsRetriever[] = [ledgerRts];
+      if (process.env.KEPT_RTS === "1") {
+        retrievers.push(new SlackAssistantSearchRetriever({ clientFor: assistantSearchClientFor }));
+      }
+      if (process.env.KEPT_SLACK_USER_SEARCH === "1") {
+        retrievers.push(new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }));
+      }
+      const rts = retrievers.length === 1 ? retrievers[0] : new CompositeRtsRetriever(retrievers);
       return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource });
     },
   });
@@ -179,7 +211,13 @@ async function main() {
   }
 
   const roadmapMode = process.env.KEPT_ROADMAP_FILE ? "file" : cfg.databaseUrl ? "postgres" : "none";
-  const rtsMode = process.env.KEPT_SLACK_USER_SEARCH === "1" ? "ledger+slack-search" : "ledger";
+  const rtsMode = [
+    "ledger",
+    process.env.KEPT_RTS === "1" ? "assistant.search.context" : null,
+    process.env.KEPT_SLACK_USER_SEARCH === "1" ? "legacy-user-search" : null,
+  ]
+    .filter(Boolean)
+    .join("+");
   const remindersMode = cfg.redisUrl ? "bullmq" : pgScheduler ? "postgres" : "in-memory";
   console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode}`);
 }

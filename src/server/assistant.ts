@@ -21,6 +21,7 @@ export function buildKeptAssistant(deps: { orch: KeptOrchestrator; llm: LlmProvi
         title: "Ask the ledger",
         prompts: [
           { title: "What's overdue?", message: "What's overdue?" },
+          { title: "What's slipping?", message: "What's slipping?" },
           { title: "What did we promise Acme this week?", message: "What did we promise Acme this week?" },
           { title: "Anything waiting on me to verify?", message: "Anything waiting on me to verify?" },
         ],

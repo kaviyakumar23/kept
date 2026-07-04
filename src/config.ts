@@ -66,4 +66,9 @@ export const SLACK_BOT_SCOPES: string[] = [
   "groups:history",
   "channels:read",
   "groups:read",
+  // W3 — Real-Time Search API (assistant.search.context). GRANULAR search scopes only;
+  // never the banned blanket `search:read`. Gated at runtime by KEPT_RTS=1.
+  "search:read.public",
+  "search:read.files",
+  "search:read.users",
 ];

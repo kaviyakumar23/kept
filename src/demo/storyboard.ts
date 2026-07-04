@@ -197,7 +197,7 @@ async function main() {
   if (audit) log(renderBlocks(auditHistoryView(audit.obligation, audit.events)));
 
   beat("2:20  App Home — the live obligation-ledger dashboard");
-  log(renderBlocks((appHomeView(await orch.allObligations(T_ACME)) as { blocks: SlackBlock[] }).blocks));
+  log(renderBlocks((appHomeView(await orch.allObligations(T_ACME), NOW) as { blocks: SlackBlock[] }).blocks));
 
   beat("(polish)  Edit modals — edit-and-confirm at Gate 1, edit-the-reply at closure");
   const sample = await orch.obligation(id);
