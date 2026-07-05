@@ -139,6 +139,9 @@ export class KeptOrchestrator {
   // --- inbound: a new customer-channel message -----------------------------
   /** Detect a request/commitment in a message and send the Gate-1 confirm card. */
   async ingestMessage(msg: SlackMessage): Promise<IngestResult> {
+    // Defense-in-depth (invariant #4): an unattributable delivery has no tenant to scope
+    // to, so it is dropped — never collapsed into a synthetic/placeholder ledger.
+    if (!msg.team) return { kind: "skipped", signal: "no_team" };
     const at = new Date(this.now()).toISOString();
     const proposal = await proposeFromMessage(
       this.d.llm,
@@ -443,21 +446,31 @@ export class KeptOrchestrator {
     return this.d.service.listObligations(teamId, this.now());
   }
 
-  /** A single obligation projection (for opening a modal). */
-  async obligation(id: ObligationId): Promise<Obligation | null> {
-    return this.d.service.getObligation(id, this.now());
+  /**
+   * A single obligation projection (for opening a modal). Tenant-scoped like the write
+   * path (invariant #4): when an `actingTeam` is supplied (the clicking user's workspace)
+   * it MUST equal the obligation's owning team, else the read is blocked. Omitting it
+   * preserves internal/demo/eval callers (no cross-tenant check).
+   */
+  async obligation(id: ObligationId, actingTeam?: string): Promise<Obligation | null> {
+    const o = await this.d.service.getObligation(id, this.now());
+    if (o && actingTeam && o.team !== actingTeam) throw new CrossTenantWriteError(actingTeam, o.team, id);
+    return o;
   }
 
-  /** The auto-generated sanitized closure text (to prefill the edit-reply modal). */
-  async closureDraftText(id: ObligationId): Promise<string | null> {
-    const o = await this.d.service.getObligation(id, this.now());
+  /** The auto-generated sanitized closure text (to prefill the edit-reply modal). Tenant-scoped. */
+  async closureDraftText(id: ObligationId, actingTeam?: string): Promise<string | null> {
+    const o = await this.obligation(id, actingTeam);
     return o ? buildClosureDraft(o).text : null;
   }
 
-  async auditFor(obligationId: ObligationId): Promise<{ obligation: Obligation; events: import("../domain/events.js").ObligationEvent[] } | null> {
+  /** The full audit log for an obligation (for the history modal). Tenant-scoped (invariant #4). */
+  async auditFor(obligationId: ObligationId, actingTeam?: string): Promise<{ obligation: Obligation; events: import("../domain/events.js").ObligationEvent[] } | null> {
     const events = await this.d.service.getEvents(obligationId);
     if (events.length === 0) return null;
-    return { obligation: project(events, { now: this.now() }), events };
+    const obligation = project(events, { now: this.now() });
+    if (actingTeam && obligation.team !== actingTeam) throw new CrossTenantWriteError(actingTeam, obligation.team, obligationId);
+    return { obligation, events };
   }
 
   // --- W6: customer trust page (audience-safe, per-(team, customer) capability) ------

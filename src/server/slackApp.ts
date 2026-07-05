@@ -21,6 +21,19 @@ import {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+/**
+ * W2 (invariant #4) — fail-CLOSED resolver of the acting workspace for a Slack payload.
+ * A signature-verified block-action / view submission always carries `team.id` (org
+ * installs fall back to the user's `team_id`); if NEITHER resolves we refuse to derive a
+ * tenant rather than proceed unchecked, so the cross-tenant guard can never degrade to the
+ * internal no-check path on a malformed payload. Throws when no team resolves.
+ */
+export function requireTeam(body: any): string {
+  const t = body?.team?.id ?? body?.user?.team_id;
+  if (!t) throw new Error("no acting workspace on payload");
+  return t;
+}
+
 /** W2 — OAuth HTTP mode configuration (multi-workspace install + per-tenant tokens). */
 export interface SlackOAuthConfig {
   clientId: string;
@@ -96,9 +109,11 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
 
   // A new message in a (shared) channel → detect + Gate-1 card.
   app.message(async ({ message, context }: any) => {
-    if (message.subtype || !message.text) return; // ignore edits/bot/system messages
+    // Fail CLOSED on an unattributable delivery: a message with no team can't be scoped
+    // to a tenant, so we drop it rather than mint a synthetic ledger (invariant #4).
+    if (message.subtype || !message.text || !message.team) return; // ignore edits/bot/system/team-less
     await orch.ingestMessage({
-      team: message.team ?? "T",
+      team: message.team,
       channel: message.channel,
       threadTs: message.thread_ts ?? message.ts,
       ts: message.ts,
@@ -110,8 +125,6 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
 
   const obligationOf = (action: any): string => parseActionId(action.action_id).obligationId;
-  /** The acting workspace for a block-action/view payload (org installs fall back to the user's team). */
-  const teamOf = (body: any): string => body?.team?.id ?? body?.user?.team_id;
   const republishHome = async (client: any, userId: string, teamId: string) => {
     try {
       // W1 — App Home shows ONLY the acting workspace's obligations.
@@ -140,6 +153,19 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     }
     return false;
   };
+  /**
+   * Fail-CLOSED resolution of the acting workspace for a handler: returns the team id, or
+   * DMs the user and returns null when no team resolves — so a team-less payload never
+   * reaches the orchestrator on the internal (unchecked) path.
+   */
+  const resolveTeam = async (client: any, body: any): Promise<string | null> => {
+    try {
+      return requireTeam(body);
+    } catch {
+      await dmUser(client, body.user.id, ":warning: Couldn't determine your workspace — action blocked.");
+      return null;
+    }
+  };
 
   // Global safety net so a listener exception never goes unsurfaced.
   app.error(async (error: any) => {
@@ -155,9 +181,11 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   // --- gate actions (each enforces acting team == obligation team) ---
   app.action(new RegExp(`^${ACTIONS.confirm}:`), async ({ ack, body, action, client }: any) => {
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     try {
-      await orch.confirmCommitment(obligationOf(action), body.user.id, undefined, teamOf(body));
-      await republishHome(client, body.user.id, teamOf(body));
+      await orch.confirmCommitment(obligationOf(action), body.user.id, undefined, team);
+      await republishHome(client, body.user.id, team);
     } catch (err) {
       if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
@@ -165,47 +193,71 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
   app.action(new RegExp(`^${ACTIONS.dismiss}:`), async ({ ack, body, action, client }: any) => {
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     try {
-      await orch.dismiss(obligationOf(action), body.user.id, teamOf(body));
-      await republishHome(client, body.user.id, teamOf(body));
+      await orch.dismiss(obligationOf(action), body.user.id, team);
+      await republishHome(client, body.user.id, team);
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
   app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action, client }: any) => {
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     try {
-      await orch.verify(obligationOf(action), body.user.id, teamOf(body));
+      await orch.verify(obligationOf(action), body.user.id, team);
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
   app.action(new RegExp(`^${ACTIONS.approveSend}:`), async ({ ack, body, action, client }: any) => {
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     try {
-      await orch.approveSend(obligationOf(action), body.user.id, teamOf(body));
-      await republishHome(client, body.user.id, teamOf(body));
+      await orch.approveSend(obligationOf(action), body.user.id, team);
+      await republishHome(client, body.user.id, team);
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
 
-  // --- modal openers ---
+  // --- modal openers (tenant-scoped reads: block opening another workspace's card) ---
   app.action(new RegExp(`^${ACTIONS.edit}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    const o = await orch.obligation(obligationOf(action));
-    if (o) await client.views.open({ trigger_id: body.trigger_id, view: editObligationModal(o) });
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    try {
+      const o = await orch.obligation(obligationOf(action), team);
+      if (o) await client.views.open({ trigger_id: body.trigger_id, view: editObligationModal(o) });
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
   app.action(new RegExp(`^${ACTIONS.editDraft}:`), async ({ ack, body, action, client }: any) => {
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     const id = obligationOf(action);
-    const o = await orch.obligation(id);
-    if (o) await client.views.open({ trigger_id: body.trigger_id, view: editDraftModal(o, (await orch.closureDraftText(id)) ?? "") });
+    try {
+      const o = await orch.obligation(id, team);
+      if (o) await client.views.open({ trigger_id: body.trigger_id, view: editDraftModal(o, (await orch.closureDraftText(id, team)) ?? "") });
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
   app.action(new RegExp(`^${ACTIONS.history}:`), async ({ ack, body, action, client }: any) => {
     await ack();
-    const audit = await orch.auditFor(obligationOf(action));
-    if (audit) await client.views.open({ trigger_id: body.trigger_id, view: auditModal(audit.obligation, audit.events) });
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    try {
+      const audit = await orch.auditFor(obligationOf(action), team);
+      if (audit) await client.views.open({ trigger_id: body.trigger_id, view: auditModal(audit.obligation, audit.events) });
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
   });
   app.action(new RegExp(`^${ACTIONS.notYet}:`), async ({ ack }: any) => {
     await ack();
@@ -215,13 +267,15 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.view(CALLBACKS.editObligation, async ({ ack, body, view, client }: any) => {
     const v = view.state.values;
     await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
     try {
       await orch.confirmCommitment(view.private_metadata, body.user.id, {
         outcome: v[FIELDS.outcome.block]?.[FIELDS.outcome.action]?.value || undefined,
         due: v[FIELDS.due.block]?.[FIELDS.due.action]?.value || null,
         owner: v[FIELDS.owner.block]?.[FIELDS.owner.action]?.value || undefined,
-      }, teamOf(body));
-      await republishHome(client, body.user.id, teamOf(body));
+      }, team);
+      await republishHome(client, body.user.id, team);
     } catch (err) {
       if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
@@ -229,7 +283,15 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
   app.view(CALLBACKS.editDraft, async ({ ack, body, view }: any) => {
     const text = view.state.values[FIELDS.draft.block]?.[FIELDS.draft.action]?.value ?? "";
-    const res = await orch.approveSendWithText(view.private_metadata, body.user.id, text, teamOf(body));
+    let team: string;
+    try {
+      team = requireTeam(body);
+    } catch {
+      // Team-less submission → fail closed with an inline error rather than an unchecked send.
+      await ack({ response_action: "errors", errors: { [FIELDS.draft.block]: "Couldn't determine your workspace — action blocked." } });
+      return;
+    }
+    const res = await orch.approveSendWithText(view.private_metadata, body.user.id, text, team);
     if (res.kind === "rejected") {
       // Keep the modal open with an inline error — the edited reply still leaks.
       await ack({ response_action: "errors", errors: { [FIELDS.draft.block]: "Remove internal references (ticket keys, PRs, deploys, etc.) before sending." } });

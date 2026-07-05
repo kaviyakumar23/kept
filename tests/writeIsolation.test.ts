@@ -91,4 +91,21 @@ describe("W2 — write-side tenant isolation (P0): a workspace can only write it
     const res = await orch.confirmCommitment(alpha.id, "U_ALPHA");
     expect(res.obligation?.state).not.toBe("CANDIDATE");
   });
+
+  it("blocks cross-tenant modal READS (obligation / closureDraftText / auditFor)", async () => {
+    const { service, orch } = buildStack();
+    const alpha = await seed(service, T_ALPHA, { customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", outcome: "alpha SSO fix", idempotencyKey: "a:1" });
+    await expect(orch.obligation(alpha.id, T_BETA)).rejects.toBeInstanceOf(CrossTenantWriteError);
+    await expect(orch.closureDraftText(alpha.id, T_BETA)).rejects.toBeInstanceOf(CrossTenantWriteError);
+    await expect(orch.auditFor(alpha.id, T_BETA)).rejects.toBeInstanceOf(CrossTenantWriteError);
+    // same-tenant modal read still works
+    expect(await orch.auditFor(alpha.id, T_ALPHA)).not.toBeNull();
+    expect((await orch.obligation(alpha.id, T_ALPHA))?.customer).toBe("Acme");
+  });
+
+  it("skips ingest of a team-less message instead of minting synthetic tenant 'T'", async () => {
+    const { orch } = buildStack();
+    const res = await orch.ingestMessage({ team: "", channel: "C", threadTs: "1", ts: "1", userId: "U", text: "we'll ship the SSO fix by Friday" });
+    expect(res).toEqual({ kind: "skipped", signal: "no_team" });
+  });
 });
