@@ -180,7 +180,8 @@ export class KeptOrchestrator {
     if (result.status !== "created") return { kind: "skipped", signal: proposal.classification.signal };
 
     // Secondary beat: warn (privately, on the card) if the committed date contradicts the roadmap.
-    const roadmap = this.d.roadmapSource ? await this.d.roadmapSource.list() : (this.d.roadmap ?? []);
+    // W1 — scope the roadmap read to the acting workspace (invariant #4).
+    const roadmap = this.d.roadmapSource ? await this.d.roadmapSource.list(result.obligation.team) : (this.d.roadmap ?? []);
     const warning = roadmap.length ? checkRoadmapConflict(result.obligation, roadmap) : null;
 
     const owner = this.owner(result.obligation, rts);

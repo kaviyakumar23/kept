@@ -67,8 +67,16 @@ aws rds create-db-instance \
   --db-name kept \
   --publicly-accessible \
   --backup-retention-period 7 \
+  --storage-encrypted \
   --region REGION
 ```
+
+> **Encryption at rest (required):** `--storage-encrypted` turns on RDS storage
+> encryption. With no `--kms-key-id`, RDS uses the account's **default AWS-managed KMS
+> key for RDS** (`aws/rds`) — sufficient for the questionnaire's "encrypted at rest =
+> yes". Pass `--kms-key-id <arn>` to use a customer-managed key instead. This also
+> encrypts automated backups, read replicas, and snapshots. Encryption can only be set
+> at create time, so do not omit it and retrofit later.
 
 - Wait until `available`:
   `aws rds describe-db-instances --db-instance-identifier kept-db --query 'DBInstances[0].DBInstanceStatus'`

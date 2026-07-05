@@ -27,8 +27,8 @@ CREATE INDEX IF NOT EXISTS idx_obligation_events_team
 
 -- Approved roadmap (system of record for the contradiction check). A committed due
 -- date earlier than target_date raises a private warning at Gate 1.
--- W1 — roadmap is also tenant-partitioned by team_id. NOTE: the read path
--- (PostgresRoadmapSource.list) is not yet team-scoped — TODO(W2): per-tenant roadmap.
+-- W1 — roadmap is tenant-partitioned by team_id, and the read path
+-- (PostgresRoadmapSource.list(teamId)) is now team-scoped (invariant #4).
 CREATE TABLE IF NOT EXISTS roadmap (
   team_id           TEXT NOT NULL,
   customer          TEXT NOT NULL,

@@ -22,6 +22,24 @@ export class InMemoryScheduler implements Scheduler {
     }
   }
 
+  /**
+   * Invariant #4 — uninstall data-deletion: drop every pending reminder for the given
+   * obligation ids (a tenant's obligations, resolved by the event store). Cascaded from
+   * `InMemoryEventStore.purgeTeam`. Returns the count deleted.
+   */
+  async purgeObligations(obligationIds: readonly ObligationId[]): Promise<number> {
+    const set = new Set(obligationIds);
+    let n = 0;
+    for (const [id, job] of this.jobs) {
+      if (set.has(job.obligationId)) {
+        this.jobs.delete(id);
+        this.fired.delete(id);
+        n++;
+      }
+    }
+    return n;
+  }
+
   /** Fire all due, not-yet-fired jobs as of `now`. Returns the jobs fired. */
   async runDue(now: number): Promise<ReminderJob[]> {
     const due = [...this.jobs.values()]

@@ -54,6 +54,7 @@ describe("optimistic concurrency", () => {
       hasIdempotencyKey(k: string) { return this.i.hasIdempotencyKey(k); }
       getEvents(o: ObligationId) { return this.i.getEvents(o); }
       getAllObligationIds(teamId: string) { return this.i.getAllObligationIds(teamId); }
+      purgeTeam(teamId: string) { return this.i.purgeTeam(teamId); }
     }
     const svc = new ObligationService(new ConflictOnce(inner), () => NOW);
     const r = await svc.dispatch(confirm, confirmCtx(id, "c"));
@@ -72,6 +73,7 @@ describe("optimistic concurrency", () => {
       hasIdempotencyKey(k: string) { return this.i.hasIdempotencyKey(k); }
       getEvents(o: ObligationId) { return this.i.getEvents(o); }
       getAllObligationIds(teamId: string) { return this.i.getAllObligationIds(teamId); }
+      purgeTeam(teamId: string) { return this.i.purgeTeam(teamId); }
     }
     const svc = new ObligationService(new AlwaysConflict(inner), () => NOW);
     const r = await svc.dispatch(confirm, confirmCtx(id, "c"));

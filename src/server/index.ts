@@ -140,6 +140,17 @@ async function main() {
     pgScheduler.start();
   }
 
+  // Invariant #4 — uninstall data-deletion: let the in-memory event store's `purgeTeam`
+  // cascade to the sibling in-memory stores (trust links, reminders). In the Postgres
+  // path this is unnecessary — `PostgresEventStore.purgeTeam` deletes the colocated
+  // derived tables in one transaction.
+  if (store instanceof InMemoryEventStore) {
+    store.attachDerivedStores({
+      trustLinks: trustLinks instanceof InMemoryTrustLinkStore ? trustLinks : undefined,
+      reminders: scheduler instanceof InMemoryScheduler ? scheduler : undefined,
+    });
+  }
+
   // Lazy orchestrator holder so the OAuth customRoutes (built before the orchestrator
   // exists) can reach it at request time.
   const orchHolder: { orch?: KeptOrchestrator } = {};
@@ -165,6 +176,12 @@ async function main() {
       : undefined,
     customRoutes,
     llm,
+    // W2 (invariant #4) — full per-tenant purge on uninstall (event log + derived rows),
+    // logged so "data is deleted on uninstall" is provable in the operator's logs.
+    purgeTenant: async (teamId: string) => {
+      const summary = await store.purgeTeam(teamId);
+      console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify(summary)}`);
+    },
     makeOrchestrator: (notifier) => {
       notifierRef.n = notifier;
       // Ledger-backed RTS (prior commitments + owner) is the ALWAYS-ON fallback — a real,

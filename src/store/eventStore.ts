@@ -15,6 +15,21 @@ export interface AppendOpts {
   expectedVersion?: number;
 }
 
+/**
+ * Per-table row counts deleted by `purgeTeam` — surfaced to the uninstall audit log so
+ * "data is deleted on uninstall" is provable, not just asserted.
+ */
+export interface PurgeSummary {
+  /** Distinct obligations whose entire event log was deleted. */
+  obligations: number;
+  /** Trust-link capability tokens deleted (customer trust page). */
+  trustLinks: number;
+  /** Pending reminder jobs deleted. */
+  reminders: number;
+  /** Roadmap target-date rows deleted (0 on the memory/demo path — roadmap is static there). */
+  roadmap: number;
+}
+
 export interface EventStore {
   /**
    * Append events atomically. Events whose idempotency_key already exists are
@@ -35,4 +50,14 @@ export interface EventStore {
    * caller MUST supply the acting workspace, so a cross-tenant read is a type error.
    */
   getAllObligationIds(teamId: string): Promise<ObligationId[]>;
+
+  /**
+   * Invariant #4 + Marketplace data-deletion: irreversibly delete ALL data for one
+   * tenant — its obligation event log AND every derived row (trust links, reminders,
+   * roadmap). STRICTLY team-scoped: purging team A leaves team B's data completely
+   * intact. Idempotent and fail-safe: purging an unknown team deletes nothing. Wired
+   * to the Slack `app_uninstalled` / bot-token-revoked event so an uninstall honestly
+   * purges the tenant (not just the stored bot token). Returns per-table counts.
+   */
+  purgeTeam(teamId: string): Promise<PurgeSummary>;
 }

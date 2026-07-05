@@ -50,21 +50,26 @@ structured command; only the human-confirmed derived fields are ever written.
   time-based purge / TTL** in the code. `<TODO: confirm>` a retention policy (e.g. purge
   obligation data N days after a workspace uninstalls, or on a rolling window) and, if
   required, implement it.
-- **Deletion on uninstall — KNOWN GAP (must fix before/at launch):**
-  - `PostgresInstallationStore.deleteInstallation()` exists and deletes the
-    `slack_installations` row for a team/enterprise (`src/store/installationStore.ts`).
-  - **However**, `<TODO: fix>` there is currently **no Slack `app_uninstalled` /
-    `tokens_revoked` event subscription** in `slack-manifest.yaml` and **no handler** wired
-    to call `deleteInstallation`. As shipped, an uninstall does not automatically purge even
-    the stored bot token.
-  - Even once wired, `deleteInstallation` only removes the **token row**. It does **not**
-    purge that team's `obligation_events`, `roadmap`, `trust_links`, or `reminders`. A full
-    per-tenant purge helper does not yet exist. `<TODO: implement>` an
-    `EventStore.purgeTeam(teamId)` (delete all rows WHERE `team_id = $1` across the four
-    tenant-scoped tables) and invoke it from the uninstall handler.
-  - **Interim answer for the questionnaire:** deletion is available on request via the
-    contact in `docs/SUPPORT.md`; the operator runs the scoped `DELETE`s manually. This must
-    become automatic before we can honestly answer "data is deleted on uninstall."
+- **Deletion on uninstall — IMPLEMENTED (automatic):**
+  - The Slack `app_uninstalled` and `tokens_revoked` bot events are subscribed in
+    `slack-manifest.yaml`. A Bolt handler in `src/server/slackApp.ts` (OAuth branch)
+    resolves the acting team (Bolt skips authorization for these events and still supplies
+    `context.teamId`) and, on uninstall, calls **both**
+    `installationStore.deleteInstallation()` (drops the stored bot token) **and**
+    `EventStore.purgeTeam(teamId)` (purges the tenant's ledger + derived rows). The handler
+    is idempotent and fail-safe — it logs and continues on any error, never crashing the app,
+    and a re-delivered event re-runs a no-op purge. `tokens_revoked` triggers the purge only
+    when the **bot** token is among those revoked (a user-token-only revoke leaves the app
+    installed, so the ledger is preserved).
+  - `EventStore.purgeTeam(teamId)` (`src/store/eventStore.ts`) deletes **every** tenant-scoped
+    row for the team. In Postgres it runs one transaction of `DELETE ... WHERE team_id = $1`
+    across `obligation_events`, `trust_links`, and `roadmap`, plus `reminders` (which inherit
+    the team via their `obligation_id`) — all-or-nothing. It is strictly team-scoped: purging
+    team A leaves team B's data intact (verified in `tests/dataDeletion.test.ts`), and returns
+    per-table counts logged to the uninstall audit trail. `slack_installations` is dropped
+    separately by `deleteInstallation` (it is keyed by installation id and holds the bot token).
+  - Ad-hoc deletion / data-access requests remain available via `docs/SUPPORT.md` (operator
+    runs the same team-scoped purge on demand).
 - **Data-access / export requests:** handled manually by the operator against the RDS
   instance, scoped by `team_id`. See `docs/SUPPORT.md` and `docs/PRIVACY.md`.
 
@@ -88,10 +93,12 @@ code (CLAUDE.md invariant #4 — a cross-tenant read is a P0 bug).
   any side effect on confirm/verify/dismiss/approve-send.
 - The customer **trust page** is authorized by an opaque per-`(team, customer)` capability
   token; the resolved `team_id` is the only tenant the page may read (`src/server/trustPage.ts`).
-- **Known limitation:** `src/store/schema.sql` notes that the roadmap read path
-  (`PostgresRoadmapSource.list`) is **not yet team-scoped** (`TODO(W2)`). Roadmap holds only
-  target dates (no message content), but this should be closed for defense-in-depth.
-  `<TODO: fix>` per-tenant roadmap reads.
+- **Roadmap read scoping — CLOSED:** the roadmap read path is now team-scoped.
+  `RoadmapSource.list(teamId)` takes the acting workspace, the orchestrator passes
+  `result.obligation.team`, and `PostgresRoadmapSource.list(teamId)` filters
+  `WHERE team_id = $1` (`src/integrations/roadmapPostgres.ts`). Roadmap holds only target
+  dates (no message content), so this is defense-in-depth rather than a leak fix, but the
+  cross-tenant read is now closed at the query.
 
 ---
 
@@ -117,7 +124,10 @@ shared customer channel or the customer trust page (CLAUDE.md invariant #5).
   mode when `SLACK_CLIENT_ID` + `SLACK_CLIENT_SECRET` + `SLACK_STATE_SECRET` are all set
   (`src/config.ts` `isOAuthMode`). Each workspace installs via `GET /slack/install` →
   `GET /slack/oauth_redirect`; Bolt persists the install via `PostgresInstallationStore`
-  and authorizes each inbound event to the correct workspace's bot token.
+  and authorizes each inbound event to the correct workspace's bot token. `GET /slack/install`
+  is configured with `installerOptions.directInstall: true` (`src/server/slackApp.ts`), so it
+  HTTP-302s straight to `slack.com/oauth/v2/authorize` (the Marketplace Direct Install
+  requirement) rather than rendering an intermediate button page.
 - **Signed requests:** Slack request signatures are verified by Bolt using
   `SLACK_SIGNING_SECRET`.
 - **Provider webhooks** (`/webhooks/{linear,jira,github,deploy}`) are guarded by an optional
@@ -136,10 +146,10 @@ shared customer channel or the customer trust page (CLAUDE.md invariant #5).
     (`docs/DEPLOY-AWS.md` step 3).
   - Kept ⇆ Slack API / Anthropic API / GitHub API: HTTPS.
 - **At rest:**
-  - RDS storage encryption (KMS) — `<TODO: fix>` the documented `aws rds
-    create-db-instance` in `docs/DEPLOY-AWS.md` does **not** pass `--storage-encrypted`, so
-    at-rest encryption is **not guaranteed** by the current runbook. Enable
-    `--storage-encrypted` (and choose a KMS key) before launch, then answer "yes" here.
+  - RDS storage encryption (KMS) — **enabled.** The `aws rds create-db-instance` command in
+    `docs/DEPLOY-AWS.md` now passes `--storage-encrypted`, which encrypts storage, automated
+    backups, replicas, and snapshots using the account's default AWS-managed KMS key for RDS
+    (`aws/rds`) unless a customer-managed `--kms-key-id` is supplied. Answer: **yes**.
   - Secrets (DB URL, Slack client secret/signing secret/state secret, GitHub token,
     optional Anthropic key) are stored in **AWS Secrets Manager** and injected as runtime
     secrets into App Runner (`docs/DEPLOY-AWS.md` step 4) — never baked into the image or the
@@ -175,12 +185,20 @@ live sub-processors today. Do not represent them as certified live integrations
 
 ---
 
-## Open items summary (must resolve before "submittable")
+## Open items summary
 
-1. Wire `app_uninstalled` / `tokens_revoked` → `deleteInstallation` **and** a per-tenant
-   data purge (Section 2). Highest priority.
-2. Enable RDS `--storage-encrypted` (Section 6).
-3. Define & (if required) implement a data-retention policy (Section 2).
-4. Team-scope the roadmap read path (Section 3).
-5. Confirm `KEPT_WEBHOOK_SECRET`, `KEPT_RTS`, CloudWatch log retention, and a security
+Resolved in this hardening pass:
+
+1. ~~Wire `app_uninstalled` / `tokens_revoked` → `deleteInstallation` **and** a per-tenant
+   data purge~~ — **done** (Section 2): manifest subscription + Bolt handler +
+   `EventStore.purgeTeam`, regression-tested in `tests/dataDeletion.test.ts`.
+2. ~~Enable RDS `--storage-encrypted`~~ — **done** (Section 6).
+3. ~~Team-scope the roadmap read path~~ — **done** (Section 3).
+4. ~~Direct Install must HTTP-302~~ — **done** (`installerOptions.directInstall`, Section 5).
+
+Still open for the operator:
+
+5. Define & (if required) implement a data-**retention** policy (time-based purge/TTL is
+   still absent; deletion-on-uninstall is now automatic — Section 2).
+6. Confirm `KEPT_WEBHOOK_SECRET`, `KEPT_RTS`, CloudWatch log retention, and a security
    contact (Sections 3/5/8).

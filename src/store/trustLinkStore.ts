@@ -80,6 +80,22 @@ export class InMemoryTrustLinkStore implements TrustLinkStore {
     }
     return n;
   }
+
+  /**
+   * Invariant #4 — uninstall data-deletion: hard-delete EVERY link (active or revoked)
+   * for a team. Team-scoped, so one workspace's uninstall never drops another's tokens.
+   * Cascaded from `InMemoryEventStore.purgeTeam`. Returns the count deleted.
+   */
+  async purgeTeam(teamId: string): Promise<number> {
+    let n = 0;
+    for (const [token, link] of this.byToken) {
+      if (link.team_id === teamId) {
+        this.byToken.delete(token);
+        n++;
+      }
+    }
+    return n;
+  }
 }
 
 function normalize(row: {

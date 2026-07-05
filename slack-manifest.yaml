@@ -73,6 +73,11 @@ settings:
       - app_home_opened # publish the App Home obligation-ledger dashboard
       - assistant_thread_started # AI Assistant pane opened → greet + suggested prompts
       - assistant_thread_context_changed # AI Assistant thread context updates
+      # Invariant #4 — data deletion on uninstall: purge the stored bot token AND the
+      # tenant's ledger + derived rows. Neither event requires a scope (Slack delivers
+      # them to the app that was uninstalled / whose tokens were revoked).
+      - app_uninstalled # workspace removed the app → deleteInstallation + purgeTeam
+      - tokens_revoked # bot token revoked → treated as an effective uninstall
   interactivity:
     is_enabled: true # buttons, modals, and view_submission (edit-and-confirm / edit-the-reply)
     request_url: https://kept.example.com/slack/events # same single endpoint as events

@@ -60,6 +60,13 @@ export interface SlackAppDeps {
   makeOrchestrator: (notifier: Notifier) => KeptOrchestrator;
   /** LLM provider for the Assistant's NL query router (the engine still runs the read). */
   llm: LlmProvider;
+  /**
+   * W2 (invariant #4) — full per-tenant data deletion on uninstall. Invoked by the
+   * `app_uninstalled` / bot-token-revoked handler AFTER `deleteInstallation`, to purge
+   * the team's obligation ledger + derived rows (`EventStore.purgeTeam`). Optional: the
+   * single-token / dev path may omit it.
+   */
+  purgeTenant?: (teamId: string) => Promise<void>;
 }
 
 /**
@@ -77,6 +84,10 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
         scopes: deps.oauth.scopes,
         installationStore: deps.oauth.installationStore,
         customRoutes: deps.customRoutes,
+        // Marketplace (invariant #6): the Direct Install URL must HTTP-302 straight to
+        // slack.com/oauth/v2/authorize. `directInstall` makes GET /slack/install redirect
+        // instead of rendering Bolt's default 200 HTML "Add to Slack" button page.
+        installerOptions: { directInstall: true },
       })
     : new App({
         token: deps.botToken,
@@ -171,6 +182,41 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.error(async (error: any) => {
     console.error("[kept] slack listener error:", error);
   });
+
+  // W2 (invariant #4) — data deletion on uninstall. Bolt skips authorization for
+  // app_uninstalled / tokens_revoked (the token is already gone), populating context
+  // with the acting team, so we can resolve the tenant and purge honestly. This is the
+  // Marketplace "data is deleted on uninstall" guarantee: we drop BOTH the stored bot
+  // token (deleteInstallation) AND the tenant's ledger + derived rows (purgeTenant).
+  if (deps.oauth) {
+    const installs = deps.oauth.installationStore;
+    // Fail-SAFE + idempotent: log-and-continue on any error; never crash the app, and a
+    // re-delivered event just re-runs a no-op purge (unknown team deletes nothing).
+    const purgeTenant = async (teamId: string): Promise<void> => {
+      try {
+        await installs.deleteInstallation?.({ teamId, enterpriseId: undefined, isEnterpriseInstall: false });
+      } catch (err) {
+        console.error(`[kept] deleteInstallation failed for team ${teamId}:`, err);
+      }
+      try {
+        await deps.purgeTenant?.(teamId);
+      } catch (err) {
+        console.error(`[kept] purgeTeam failed for team ${teamId}:`, err);
+      }
+      console.log(`[kept] uninstall processed for team ${teamId} — installation + tenant data purged`);
+    };
+    app.event("app_uninstalled", async ({ context, body }: any) => {
+      const teamId = context.teamId ?? body?.team_id;
+      if (teamId) await purgeTenant(teamId);
+    });
+    app.event("tokens_revoked", async ({ event, context, body }: any) => {
+      // Only a BOT-token revoke is an effective uninstall for us. A user-token-only
+      // revoke leaves the app installed, so purging the ledger would be data loss.
+      if (!event?.tokens?.bot?.length) return;
+      const teamId = context.teamId ?? body?.team_id;
+      if (teamId) await purgeTenant(teamId);
+    });
+  }
 
   // App Home — the live obligation-ledger dashboard (scoped to the opener's workspace).
   app.event("app_home_opened", async ({ event, body, client }: any) => {

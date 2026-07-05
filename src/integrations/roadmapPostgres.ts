@@ -12,11 +12,18 @@ export class PostgresRoadmapSource implements RoadmapSource {
     this.pool = opts.pool ?? new pg.Pool({ connectionString: opts.connectionString });
   }
 
-  async list(): Promise<RoadmapEntry[]> {
-    // TODO(W2): per-tenant — scope this read by team_id (the roadmap table now carries it).
-    const res = await this.pool.query<{ customer: string; subject_canonical: string; target_date: string }>(
-      "SELECT customer, subject_canonical, to_char(target_date, 'YYYY-MM-DD') AS target_date FROM roadmap",
-    );
+  async list(teamId?: string): Promise<RoadmapEntry[]> {
+    // W1 / invariant #4 — tenant-scoped read: when the acting workspace is supplied,
+    // return ONLY that team's targets (defense-in-depth — roadmap holds target dates,
+    // no message content). A missing teamId (single-tenant / legacy caller) reads all.
+    const res = teamId
+      ? await this.pool.query<{ customer: string; subject_canonical: string; target_date: string }>(
+          "SELECT customer, subject_canonical, to_char(target_date, 'YYYY-MM-DD') AS target_date FROM roadmap WHERE team_id = $1",
+          [teamId],
+        )
+      : await this.pool.query<{ customer: string; subject_canonical: string; target_date: string }>(
+          "SELECT customer, subject_canonical, to_char(target_date, 'YYYY-MM-DD') AS target_date FROM roadmap",
+        );
     return res.rows.map((r) => ({ customer: r.customer, subject_canonical: r.subject_canonical, targetDate: r.target_date }));
   }
 
