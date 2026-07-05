@@ -1,102 +1,115 @@
 # Kept
 
-> **Elevator pitch:** Kept remembers what your company owes every customer — and makes sure the customer hears when it's actually done. A Slack-native, human-verified obligation ledger that never treats a single message, ticket status, or merged PR as truth.
+> **Elevator pitch:** Kept is a Slack-native, human-verified obligation ledger for shared customer channels that never treats a ticket status or a merged PR as truth — it **verifies reality** from proof it gathers itself, and closes the loop back in the original thread only after a human signs.
+
+**Submission track: Slack Agent for _Organizations_ · Slack Marketplace.**
+**App ID:** `<APP_ID_TBD>` · **Judge sandbox:** invited `slackhack@salesforce.com` + `testing@devpost.com` (see *Try it out*).
 
 ---
 
-## Inspiration
+## The 15-second version (why this isn't another ticketer)
 
-Shared Slack channels are where modern B2B relationships live. They're also where promises quietly die. A customer asks for something in a thread. Someone on the team says "yep, we'll get that out this week." Then the real work scatters: a Linear ticket, a GitHub PR, a deploy, three other threads. Weeks later nobody can say whether the thing actually shipped — and the customer, the one person who should hear "it's done," is the last to find out.
+A Jira ticket flips to **Done**. Pylon, Thena, and ClearFeed would now surface it as fixed and let someone tell the customer.
 
-Two failure modes erode trust fastest, and every tool we looked at walks straight into them:
+Kept doesn't. It queries the **LaunchDarkly feature flag over MCP** — the flag gating that fix is **OFF in production**. The deploy never shipped. So Kept **blocks the close**, and shows the owner an **Evidence Packet**: ticket Done ✓, PR merged ✓, prod deploy ✓ — **feature flag OFF ✗ → not verifiably available**.
 
-- **False "done."** A ticket flips to Done, so someone tells the customer it's fixed. But Done is an internal status, not proof the customer can use the feature. The customer tries it, it still fails, and now you've burned credibility.
-- **Leaked internal chatter.** In the rush to close the loop, internal context — ticket keys, PR numbers, "security vuln," roadmap dates — gets pasted straight into the customer channel.
+That single beat is the whole thesis. **Your ticketer tracks status. Kept verifies reality.** It's the exact failure mode — "false done" — that burns customer trust, and it's the one thing a status-tracking tool structurally cannot catch.
 
-We also didn't trust the obvious AI approach. A model that reads a channel and *decides* to mark obligations done, create tickets, or message customers is exactly the kind of agent that confidently does the wrong thing. We wanted an agent a skeptical staff engineer would actually deploy in a shared customer channel: one where the model never controls state, every consequential action passes a deterministic guard, and a human approves before anything reaches the customer.
+## The concept exists. Here's how Kept improves on it.
 
-So we built the opposite of an inbound ticketer. Kept treats every promise as a first-class **obligation with a life of its own** — and the north star, written into the code rather than the pitch, is *never treat a single message, ticket status, or merged PR as truth.*
+The Organizations judging question is *"does this already exist, and how much does this improve on it?"* — so we'll answer it head-on.
+
+| | Pylon / Thena / ClearFeed | **Kept** |
+|---|---|---|
+| Unit of work | a ticket / conversation | a **first-class obligation** with its own lifecycle |
+| "Done" means | a status field flipped | **proof reconciled** — flag ON + PR merged + prod deploy (or a customer confirmation) |
+| Who acts | agent routes / auto-replies | **agent assembles proof; a human signs the verdict** |
+| Customer safety | manual care | **audience sanitizer + leak detector on every customer-facing word, by construction** |
+| Multi-tenant | product feature | **tenant isolation as a P0 invariant** — a cross-tenant read is a security bug the tests hunt for |
+
+The improvement isn't a nicer inbox. It's a **different definition of "done"** — one that can't be faked by a stale ticket — enforced by code, not by a prompt.
 
 ## What it does
 
-Kept maintains a human-verified, event-sourced **obligation ledger** for shared customer channels — capturing both what your company owes each customer and the commitments your team makes back. Watch one obligation move through it:
+Kept maintains a human-verified, **event-sourced obligation ledger** for shared customer channels — capturing what your company owes each customer and the commitments your team makes back. One obligation's journey:
 
-1. **Capture.** A customer message lands in a shared channel. Kept's LLM layer classifies and extracts a candidate obligation and *proposes* it. Nothing is committed yet — it enters as a `CANDIDATE`.
-2. **Gate 1 — Confirm (human).** The owner gets a private card: here's what we think you committed to, here are prior commitments to this customer (pulled from the ledger), and a roadmap-conflict warning if the promised date is earlier than the roadmap. Only when the human clicks **Confirm** does the obligation become `OPEN` — and *only then* does Kept create the work-item issue (over MCP — a Linear/Jira tool call that *code*, not the model, decides to make). No accidental commitments, no premature side effects.
-3. **Track.** Linear status changes, GitHub merges, and deploy events arrive as webhooks and attach as *evidence* — moving the obligation through `IN_PROGRESS` and into `POSSIBLE_FULFILLMENT`. Note the name: *possible*, not done.
-4. **Reconcile.** Kept fuses multiple evidence sources. Ticket-Done alone is never enough. A merged PR **plus** a production deploy is sufficient; a direct customer confirmation is the strongest closure of all; a customer denial blocks closure entirely.
-5. **Gate 2 — Verify (human).** When evidence opens the gate, the owner gets a verify card listing the contributing evidence. *Evidence opens the gate; it does not walk through it* — a human still approves, moving the obligation to `VERIFIED`.
-6. **Close the loop.** Kept drafts a **sanitized, leak-checked, customer-safe** closure message, the owner approves (or edits) it, and Kept posts it back into the **original thread** — the customer finally hears that it's done.
+1. **Capture.** A customer message lands in a shared channel. Kept's LLM layer classifies and *proposes* a candidate obligation. Nothing is committed — it enters as `CANDIDATE`.
+2. **Gate 1 — Confirm (human).** The owner gets a private card: what we think you committed to, prior commitments to this customer (pulled from the ledger), and a roadmap-conflict warning if the promised date beats the roadmap. Only on **Confirm** does it become `OPEN` — and *only then* does Kept create the work item over MCP (a Linear/Jira tool call that *code*, not the model, decides to make).
+3. **Track & collect proof.** Ticket status, PR merges, and deploys arrive as webhooks. Then the agent **autonomously assembles Proof-of-Done** — it queries a feature flag's production state, a CI run's conclusion, a status page's health — over MCP, and proposes each as evidence.
+4. **Reconcile — Proof-of-Done.** Ticket-Done alone is *never* enough. `assessFulfillment` resolves to exactly two sufficiency lanes: a merged PR **and** a production deploy, or a direct customer confirmation — and it refuses forged or non-production evidence. **The flag-OFF case blocks here.**
+5. **Gate 2 — Verify (human).** When proof is sufficient, the owner gets a **verify card listing the Evidence Packet**. The agent did 95%; the human signs. Evidence opens the gate — it does not walk through it.
+6. **Close the loop.** Kept drafts a **sanitized, leak-checked, customer-safe** closure, the owner approves (or edits) it, and it posts back into the **original thread**. The customer finally hears it's done.
 7. **Outlive the ticket.** If the customer replies "still failing," the obligation `REOPENED`s — even if the ticket stays Done forever.
 
-Ten lifecycle states (`CANDIDATE → OPEN → IN_PROGRESS → POSSIBLE_FULFILLMENT → VERIFIED → CUSTOMER_NOTIFIED → CLOSED`, plus `DISMISSED`, `CANCELLED`, `REOPENED`), two mandatory human gates, one source of truth that lives in Slack.
+Ten lifecycle states, two mandatory human gates, one source of truth that lives in Slack.
 
-The whole experience lives in Slack: a private confirm card, a verify card listing contributing evidence, a closure-draft card with a leak-safety indicator and editable modal, an **App Home** tab grouping every obligation by customer, audit-history modals, a `/kept <customer>` ledger view, and private at-risk/overdue reminders to owners — never to the customer channel.
+**Reframing human-in-the-loop.** This isn't approval fatigue. The agent does the work — gathering, reconciling, drafting, sanitizing; the human only **signs the verdict** at two gates. *The agent does 95%; you sign.*
+
+## Two more reasons to keep it (the wow features)
+
+- **Promise-drift radar.** "Next Tuesday" becomes "soon" becomes silence. Kept quantifies that decay — every live commitment gets a **drift score** (language softened, date slipped, scope moved, gone quiet, disputed) and surfaces the drifting ones in the App Home band and the Assistant's *"what's slipping?"* answer. Pure, deterministic, derived from the same event log; nothing is persisted.
+- **Per-account customer trust page.** A private, audience-safe web page per customer — **Kept / in progress / verifying / at-risk** — that a CSM can share as a retention weapon. It runs through the **same D1 audience sanitizer** as the channel: a leaky commitment label collapses to "Commitment #N," and no ticket, PR, or flag ever appears. Mint it with `/kept trust <customer>`, revoke it with `/kept untrust`.
+
+## The three qualifying technologies (all genuine)
+
+1. **Slack AI Assistant.** A conversational Assistant pane over the ledger (*"what's overdue?", "what did we promise Acme this week?"*). The LLM only **routes the question into a fixed intent grammar**; deterministic code runs the read — the same LLM-proposes/code-decides discipline as the rest of Kept.
+2. **Model Context Protocol (MCP).** Kept is a **deterministic MCP client** used two ways: to *create* work items (Linear / Atlassian), and to *gather proof* (feature-flag state, CI conclusion, status-page health). The model never selects a tool — **code picks the tool and arguments**; the model interprets language only. The demo + tests run a real MCP client↔server round-trip against an in-process server; hosted Linear/Atlassian MCP plug in with a token.
+3. **Real-Time Search API.** Cross-channel context on a new message via `assistant.search.context`, using a **bot token + the event's `action_token`** and **granular scopes** (`search:read.public/.files/.users`) — never the blanket `search:read`, which is **banned in the Marketplace**. Results are ephemeral (a "related discussion lives in #…" note; the raw content is never read into the log). *Honest note:* the Real-Time Search API is allowlisted/gated, so the retriever is **fault-isolated** — a `LedgerRtsRetriever` sources prior commitments from the ledger Kept already owns, and the app works with or without RTS enabled.
+
+## Built for organizations (Marketplace shape)
+
+- **Multi-workspace OAuth, HTTP mode.** Production runs **HTTP mode (no Socket Mode)** with `@slack/bolt` OAuth and a `PostgresInstallationStore` — per-tenant bot tokens fetched per event and for out-of-band sends (reminders, webhook-driven closures).
+- **Tenant isolation is a P0 invariant.** Every read is scoped by `team_id` through two choke points; a fail-**closed** resolver refuses to derive a tenant from a malformed payload; a cross-tenant write throws `CrossTenantWriteError` before any side effect. There are dedicated tenant-isolation and write-isolation test suites — a cross-tenant read is treated as a security bug, not a bug report.
+- **Minimal, granular scopes; no banned scopes.** The manifest declares exactly what the code uses, and every scope is granular.
 
 ## How we built it
 
-Kept is TypeScript (ESM, Node 20+), structured as four deterministic layers around a pure engine with a strict seam between language and state. The keystone: **the LLM proposes; code decides.** *(See the architecture diagram in the gallery for the full message-to-closure flow.)*
+Kept is TypeScript (ESM, Node 20+), four deterministic layers around a pure engine with a strict seam between language and state. The keystone: **the LLM proposes; code decides.**
 
-**LLM-proposes / engine-decides.** An inbound message goes to `proposeFromMessage` (`src/llm/propose.ts`), which classifies and extracts fields using **forced tool-use with Zod validation at the boundary** (`src/llm/anthropic.ts`, default `claude-opus-4-8`): the Zod schema becomes the tool's `input_schema`, `tool_choice` pins that tool, and the returned input is `schema.parse()`d at the boundary. The model returns a *Proposal* — a candidate `Command` — and nothing else. It never writes an event or mutates state. When there's no API key, a `MockLlmProvider` runs a heuristic responder against the same schemas, fully offline and deterministic. The deterministic heart is `decide()` in `src/engine/commandHandler.ts`: a pure `(events, command, ctx) → Decision` function that performs no I/O. Its pipeline runs in order — **envelope validation → idempotency → command-boundary checks (leak + evidence-consistency) → project current state → zero-copy `assertNoRawContent` → reconciliation gate → `canApply`**. As the state-machine header puts it: *"The LLM proposes; THIS decides. No transition happens without passing here."*
+**LLM-proposes / engine-decides.** An inbound message goes to `proposeFromMessage`, which classifies and extracts via **forced tool-use with Zod validation at the boundary** (default `claude-opus-4-8`). The model returns a *Proposal* — a candidate `Command` — and nothing else. It never writes an event or mutates state. Offline, a `MockLlmProvider` runs a heuristic against the same schemas, fully deterministic. The deterministic heart is `decide()`: a pure `(events, command, ctx) → Decision` with no I/O — envelope validation → idempotency → command-boundary leak/consistency checks → project state → zero-copy `assertNoRawContent` → reconciliation gate → `canApply`.
 
-**Event sourcing.** State is never a mutable row. The ledger is an append-only log of typed events (16 event kinds), and an obligation is a *pure fold* of that log (`project()` in `src/domain/projection.ts`). Because state is derived in code, a logic change is a *replay, not a migration* — and time-travel (`projectAt`) is free, which is exactly what powers the audit view.
+**Event sourcing.** State is never a mutable row — the ledger is an append-only log, and an obligation is a *pure fold* of it. A logic change is a *replay, not a migration*, and `projectAt` gives free time-travel for the audit view.
 
-**Guarded finite state machine with two human gates.** Every legal transition lives in one `TRANSITIONS` table (`src/domain/stateMachine.ts`), each row carrying `requiresApproval`, `requiresEvidence`, and `changesState`. The single `canApply` guard runs ordered checks — legal transition, approval present, evidence present, evidence *sufficient* — returning typed codes (`ILLEGAL_TRANSITION`, `APPROVAL_REQUIRED`, `EVIDENCE_REQUIRED`, `INSUFFICIENT_EVIDENCE`). Two transitions are the human gates: **Gate 1** — `COMMITMENT_CONFIRMED` (CANDIDATE → OPEN), enforced by the `requiresApproval && !event.approved_by` branch in `canApply`; and **Gate 2** — `INTERNALLY_VERIFIED` (POSSIBLE_FULFILLMENT → VERIFIED), which requires *both* a human approval *and* sufficient reconciled evidence.
+**Proof-of-Done reconciliation.** `assessFulfillment` first drops forged or mislabeled evidence (a `customer_reply` claiming to be from GitHub is rejected), then resolves to two sufficiency lanes. A staging deploy can't masquerade as production; a self-declared `customer_scoped` flag on a non-prod deploy is ignored; a customer denial blocks verification. **The feature-flag-OFF observation is what holds a "ticket Done" obligation out of the gate.**
 
-**Multi-source reconciliation.** `assessFulfillment()` (`src/engine/reconciliation.ts`) first drops forged or mislabeled evidence — a `customer_reply` claiming to come from GitHub is rejected by `isConsistentEvidence` — then resolves to **exactly two sufficiency lanes**: (a) a positive customer confirmation, or (b) a merged PR **and** a production deploy. A staging deploy can't masquerade as production (a self-declared `customer_scoped` flag on a non-prod deploy is ignored); a customer denial blocks verification outright. As the engine comment says: *"evidence opens the gate; it does not walk through it."*
+**Zero-copy persistence.** No raw Slack body, prompt, model response, or retrieved text is ever persisted. `assertNoRawContent` runs name- and value-based scans before every append — forbidden keys, oversized strings, and *any* Unicode line terminator. Payloads carry IDs, permalinks, and short derived fields only.
 
-**Zero-copy persistence.** No raw Slack message body, prompt, model response, or retrieved text is ever persisted. `assertNoRawContent()` (`src/domain/zeroCopy.ts`) runs **name-based and value-based scans** before every append and throws on any hit — flagging forbidden keys, oversized strings, and *any* Unicode line terminator (U+2028/U+2029/NEL/VT/FF, not just `\n`). Payloads carry IDs, permalinks, and short derived fields only.
+**Gate-before-side-effect ordering.** The orchestrator dispatches the gate command *first* and only creates a work item or posts to the customer thread `if (status === "applied")`. A deduped race returns `suppressed`, not `applied`, so two concurrent Confirm clicks can never create two tickets — no locks.
 
-**Gate-before-side-effect ordering.** The transport-agnostic orchestrator (`src/app/orchestrator.ts`) dispatches the gate command *first* and only creates a Linear issue or posts to the customer thread `if (status === "applied")`. Because `dispatch` returns `suppressed` (not `applied`) for an idempotent race loser, two concurrent Confirm clicks can never create two tickets — no locks required.
+**Substrate that upgrades by environment.** Set `DATABASE_URL` and the in-memory store becomes a real `PostgresEventStore` (transactional `ON CONFLICT DO NOTHING`); `REDIS_URL` moves reminders to BullMQ; `ANTHROPIC_API_KEY` switches to real Claude; `LINEAR_MCP_TOKEN` / `ATLASSIAN_MCP_TOKEN` route work items to the hosted MCP servers.
 
-**Slack is the real, live surface.** A Slack Bolt app (`@slack/bolt`, Socket Mode) handles the Events API, Block Kit confirm/verify/closure cards, edit modals, the App Home tab, and the `/kept` slash command. The Bolt layer is deliberately thin — all real logic (gates, sanitization, reconciliation) lives in the engine and the orchestrator; the Slack layer only translates the wire. The same orchestrator methods are driven by the Bolt app, the webhook server, and the demo.
-
-**MCP as a governed action transport.** Kept satisfies MCP server integration as a *deterministic MCP client*: after Gate 1 passes, the orchestrator calls a specific MCP tool (`create_issue`) with computed arguments — the model never selects the tool. `src/integrations/mcp.ts` is a streamable-HTTP MCP client for Linear (`https://mcp.linear.app/mcp`) and Atlassian/Jira (`https://mcp.atlassian.com/v1/mcp`) behind the same `WorkItemAdapter`, plus an in-process **simulated MCP server** so the demo and the hermetic tests exercise a real MCP client↔server round-trip (`listTools` + `callTool`) with no network or OAuth. This is the keystone applied to actions: the model interprets language; code — not the model — decides which MCP tool to call. (Tool resolution, argument building, and result parsing are configurable, since the hosted servers' schemas evolve.)
-
-**Substrate that upgrades by environment.** The engine is hermetic and adapter-driven. Set `DATABASE_URL` and the in-memory store upgrades to a real `PostgresEventStore` (transactional `INSERT ... ON CONFLICT (idempotency_key) DO NOTHING`). Set `REDIS_URL` and reminders move to a real `BullmqScheduler`. Set `ANTHROPIC_API_KEY` for real Claude. Set `LINEAR_MCP_TOKEN` or `ATLASSIAN_MCP_TOKEN` and work items flow to the hosted Linear/Atlassian MCP servers instead of the in-process simulated one. *(Honest framing: Slack is the real, live integration; work items are created over MCP, where the demo + tests use an in-process simulated MCP server and the hosted Linear/Atlassian MCP servers plug in with a token; Postgres + Redis/BullMQ are real and exercised by the live integration suite; the LLM only proposes — the deterministic engine decides every transition, and code, not the model, chooses every MCP tool call.)*
-
-**The six guarantees** — each an invariant the engine will not break, enforced by a specific mechanism, not a convention:
-
-1. **No accidental commitment** — `OPEN` is reachable only via Gate 1, where `canApply` rejects `COMMITMENT_CONFIRMED` unless a human's `approved_by` is set.
-2. **No false fulfillment** — ticket-Done / merged PR is evidence, not truth; `VERIFIED` requires `assessFulfillment` to be *sufficient* (a customer confirmation, or merged PR + production deploy) **and** a human at Gate 2.
-3. **No duplicated side effects** — deterministic idempotency keys plus a storage-layer `ON CONFLICT DO NOTHING` make repeated webhooks and double-clicks no-ops; a deduped race returns `suppressed`, not `applied`, and side effects fire only on `applied`.
-4. **No confidential leakage** — `sanitizeForAudience` drops internal-only sources, the engine re-runs `detectLeaks` on the `NOTIFY_CUSTOMER` *command* and rejects a leaky draft, and a human still approves before anything reaches `postInThread`.
-5. **Complete auditability** — every transition envelope records source, evidence, actor, timestamp, prior/new state, approval, and idempotency key in the append-only log; state is derived, never overwritten, and `projectAt` reconstructs any point in time.
-6. **The obligation outlives the ticket** — a customer dispute fires `REOPENED` even from `CLOSED`/`VERIFIED`/`CUSTOMER_NOTIFIED`, so a stale "Done" ticket can never silence a real failure.
+**Honesty framing (a credibility beat, invariant #7).** **Slack is the real, live surface.** **GitHub Actions is a genuine live proof source** (a real workflow-run `conclusion` fetched from the GitHub REST API). Work items (Linear/Jira) and the other proof sources (**LaunchDarkly** flags, **Atlassian Statuspage**) are **simulated over an in-process MCP server with real API skeletons** — a token swaps in the live one. Postgres + Redis/BullMQ are real and exercised by the live integration suite. We never imply a certified live integration for a simulated one — the honesty *is* the credibility.
 
 ## Challenges we ran into
 
-- **Keeping the LLM out of the decision path without making it useless.** The hardest discipline was keeping the model strictly on the language side. We solved it structurally: the model returns a Zod-validated `Command`, and a pure, I/O-free `decide()` is the only thing that can produce an event. Resisting the temptation to let the model "just handle the edge case" was the core design tension.
-- **Defining "done" without lying to the customer.** A merged PR feels like done. It isn't. Reconciliation went through several iterations before we settled on exactly two sufficiency lanes and explicitly refused to honor a self-declared `customer_scoped` flag on a non-production deploy — building it as a small set of explicit, testable lanes rather than a confidence score.
-- **Zero-copy is sneakier than it looks.** Raw content tries to leak in through oversized strings and exotic Unicode line terminators. We ended up scanning both field names and values, capping lengths, normalizing Unicode, folding lookalike dashes, stripping zero-width characters, and flagging *every* Unicode line break.
-- **Concurrency at the gates.** Two owners clicking Confirm at the same instant must not create two issues. The fix was making `dispatch` return `suppressed` for the idempotent loser and ordering the orchestrator so persistence precedes every side effect — race safety without locks or a DB constraint alone.
+- **Keeping the LLM out of the decision path without making it useless.** The model returns a Zod-validated `Command`; a pure `decide()` is the only thing that can emit an event. Every new "agentic" feature — proof collection, the Assistant, drift — obeys the same seam.
+- **Defining "done" without lying to the customer.** A merged PR *feels* like done. It isn't. Reconciliation became a small set of explicit, testable sufficiency lanes plus an explicit refusal to honor a `customer_scoped` flag on a non-production deploy — and the flag-OFF proof source that catches the false "done."
+- **Multi-tenant safety as a property, not a hope.** Every read had to carry the acting `team_id`; we made the tenant resolver fail *closed* and turned a cross-tenant write into a thrown error checked before any side effect — then wrote suites that try to break it.
+- **Zero-copy is sneakier than it looks.** Raw content leaks in through oversized strings and exotic Unicode line terminators; we scan names and values, cap lengths, and flag *every* Unicode line break — including on the new proof, trust-page, and RTS surfaces.
 
 ## Accomplishments that we're proud of
 
-- A genuinely **pure decision core**: `decide()` and `canApply()` perform no I/O, which makes the guarantees testable and the whole engine replayable.
-- **140 hermetic tests + 5 live integration tests.** The engine and unit suite run fully in-memory and deterministic — including a real MCP client↔server round-trip over an in-memory transport and the Slack AI Assistant's query router; the integration suite verifies the real Postgres event store and Redis/BullMQ scheduler against live services (and each integration test self-skips when its service env is absent).
-- **7 adversarial verification rounds**, where we attacked our own guarantees and turned every finding into a permanent regression test — the command-path leak check plus forged-evidence rejection (Round 1), the all-Unicode line-break zero-copy fix (Round 3), the retry-stable Jira idempotency key (Round 5), a Round-6 sweep of the MCP path that fixed a confirmed-but-orphaned obligation on a work-item failure (a retry now self-heals behind a per-obligation lock) plus parser hardening, and a Round-7 sweep of the new Assistant + analytics surfaces (the architecture held — the model only routes into a fixed intent enum, the read is pure — while we hardened escaping, list caps, and a large-ledger crash). Each hole became a permanent test, not a patch note.
-- **Provider parity demonstrated in code.** The full obligation lifecycle runs end-to-end on the simulated Jira adapter too — same guarantees, different provider — proving the `WorkItemAdapter` abstraction holds (both providers behind one interface; the demo runs on Linear).
-- **A clean transport-agnostic core** and a **polished Slack-native UX**: confirm/verify/closure cards, edit modals that re-run the leak check on submit, an App Home dashboard grouped by customer, and a slash-command ledger — all dependency-light, plain-object Block Kit. And a correctness story we can defend line by line: every guarantee maps to a specific guard in a specific file.
+- A genuinely **pure decision core** — `decide()` and `canApply()` do no I/O — which makes the guarantees testable and the engine replayable.
+- **179 hermetic tests + a live integration suite.** The engine, the Slack AI Assistant router, a real MCP client↔server round-trip, the Proof-of-Done gate, tenant isolation, and the trust page all run in-memory and deterministic; the integration suite verifies real Postgres + Redis/BullMQ (self-skipping when a service env is absent).
+- **8 adversarial verification rounds**, where we attacked our own guarantees and turned every finding into a permanent regression test — command-path leak checks and forged-evidence rejection, the all-Unicode zero-copy fix, retry-stable idempotency keys, an MCP-path self-heal for a confirmed-but-orphaned obligation, the Assistant/analytics hardening sweep, and a Round-8 pass over the new Proof-of-Done, trust-page, and tenancy surfaces.
+- **Proof-of-Done that actually blocks.** The flag-OFF case isn't a slide — `npm run demo` shows the engine refusing to verify with ticket Done + merge + deploy in hand, then flipping to green the instant the flag goes ON.
+- **A clean transport-agnostic core and a polished Slack-native UX** — confirm/verify/closure cards, edit modals that re-run the leak check on submit, an App Home dashboard with the drift band, a slash-command ledger, and the customer trust page — every guarantee mapping to a specific guard in a specific file.
 
 ## What we learned
 
-**Trust is an architecture, not a feature.** The most valuable thing an agent can do in a customer channel is *refuse to act* until the right conditions hold — and prove why. A few things crystallized for us:
+**Trust is an architecture, not a feature.** The most valuable thing an agent can do in a customer channel is *refuse to act* until the right conditions hold — and prove why.
 
-- **Make the safety property structural, not procedural.** "Remember to check approval" is a bug waiting to happen; a guard table that *cannot* emit an event without `approved_by` is a guarantee. "The model never decides a transition" did more to make the system trustworthy than any accuracy number could.
-- **Event sourcing is the perfect substrate for an agent.** It makes "what did the agent know, and when" answerable by replay, lets us evolve logic without migrating data, and gave us free time-travel for audits. Reworking how an obligation is derived was a replay, not a migration.
-- **"Evidence, not truth" is the right default.** Treating ticket status and merged PRs as signals to reconcile — rather than facts to act on — is what makes an autonomous-feeling agent safe in a customer channel.
-- **Adversarial self-review beats more feature work.** Every round we ran against our own six guarantees surfaced bugs no happy-path test would have, and each one hardened into a regression that makes the next round harder to break.
-
-Separating "the model interprets language" from "code controls state and actions" gave us both the fluency of an LLM and a predictability customers can actually rely on.
+- **Make the safety property structural, not procedural.** A guard table that *cannot* emit an event without `approved_by`, and a reconciler that *cannot* verify without reconciled proof, did more for trust than any accuracy number.
+- **"Evidence, not truth" is the right default** — and Proof-of-Done is what makes it real. Treating ticket status as a signal to reconcile against *reality* (a flag, a deploy, a customer's own confirmation) is the difference between an autonomous agent that's safe in a customer channel and one that isn't.
+- **Human-in-the-loop is a feature, not a tax — if the agent does the assembling.** "The agent does 95%; you sign" reframes approval from friction into a signature on work already done.
+- **Adversarial self-review beats more feature work.** Every round against our own guarantees surfaced bugs no happy-path test would.
 
 ## What's next for Kept
 
-- Complete the OAuth flow for the hosted Linear and Atlassian **MCP** servers (the streamable-HTTP MCP client is wired and the demo + tests run against an in-process MCP server; live use just needs token/OAuth credentials). The legacy direct-API adapters remain as fallbacks.
-- Per-source webhook HMAC verification, replacing the current shared-secret stand-in.
-- Richer account context (CRM) and changelog/status-page evidence as additional reconciliation lanes, behind the same consistency checks, with configurable per-team sufficiency policy.
-- Expand the opt-in cross-channel RTS retriever, which already runs permission-safe under the triggering user's token and keeps results ephemeral.
-- Analytics on the ledger — time-to-fulfillment, at-risk forecasting, SLA reporting — all derivable from the existing event log, plus broader proactive at-risk/overdue nudges to owners.
+- Complete OAuth for the hosted Linear/Atlassian **MCP** servers (the streamable-HTTP client is wired; live use needs credentials) and swap the simulated LaunchDarkly/Statuspage adapters for live tokens behind the same `query()` contract.
+- Per-source webhook HMAC verification, replacing the shared-secret stand-in.
+- Richer reconciliation lanes (CRM account context, changelog/status-page evidence) behind the same consistency checks, with per-team sufficiency policy.
+- Enterprise Grid org-wide install, broader proactive drift nudges, and ledger analytics (time-to-fulfillment, at-risk forecasting) — all derivable from the existing event log.
 
 <!-- ─────────────────────────────────────────────────────────────────────────
      CRIB SHEET — maps to the OTHER Devpost form fields (not part of the story).
@@ -104,27 +117,32 @@ Separating "the model interprets language" from "code controls state and actions
      ───────────────────────────────────────────────────────────────────── -->
 <!--
 ELEVATOR PITCH (Devpost's short pitch field, ~200 char max — pick one):
-  • Kept remembers what your company owes every customer — and makes sure the customer hears when it's actually done.
-  • A Slack-native obligation ledger that never treats a single message, ticket status, or merged PR as truth.
-  • The LLM interprets the language. Code controls the state. A human approves before the customer ever hears a word.
-  • Promises are made in chat; fulfillment lives everywhere else. Kept closes the loop — in the original thread, only after a human verifies it's real.
+  • Your ticketer tracks status. Kept verifies reality — it blocks a "done" the deploy never shipped, and closes the loop only after a human signs.
+  • A Slack-native obligation ledger that never treats a ticket status or a merged PR as truth. The agent assembles the proof; you sign the verdict.
+  • Kept remembers what your company owes every customer — and makes sure the customer hears when it's ACTUALLY done, verified from proof, in the original thread.
 
-BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Block Kit, Slack Events API, Socket Mode,
-  App Home, Model Context Protocol (MCP), PostgreSQL, Redis, BullMQ, Anthropic Claude, claude-opus-4-8, Zod,
-  Linear, Jira, GitHub webhooks, event sourcing, finite-state-machine, Vitest
+BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Slack OAuth, Block Kit, Slack Events API,
+  Slack AI Assistant, App Home, Real-Time Search API (assistant.search.context), Model Context Protocol (MCP),
+  PostgreSQL, Redis, BullMQ, Anthropic Claude, claude-opus-4-8, Zod, Linear, Atlassian/Jira, LaunchDarkly,
+  Atlassian Statuspage, GitHub Actions, event sourcing, finite-state-machine, Vitest
 
 TRY IT OUT (Devpost links field):
   • GitHub repo:   https://github.com/kaviyakumar23/kept
   • Landing page:  https://kept-iota.vercel.app   (live on Vercel)
-  • Run it:        npm install  →  npm test (140 hermetic tests)  →  npm run demo (full-lifecycle storyboard)  →  npm start (Bolt app + webhook server)
-                   Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, LINEAR_* / JIRA_*.
+  • Run it:        npm install → npm test (179 hermetic tests) → npm run demo (full-lifecycle storyboard incl. the flag-OFF block) → npm start (Bolt OAuth app + webhook server)
+                   Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, LINEAR_MCP_TOKEN / ATLASSIAN_MCP_TOKEN, GITHUB_TOKEN.
 
-SUBMISSION TRACK: New Slack Agent
+SUBMISSION TRACK: Slack Agent for Organizations
 
-GALLERY: upload docs/architecture.png (the architecture diagram) + screenshots of the Slack cards / App Home.
+REQUIRED TECH STATED IN DESCRIPTION (need ≥1 of the three; Kept has all three):
+  • Slack AI Assistant  • Model Context Protocol (MCP)  • Real-Time Search API (assistant.search.context)
+
+GALLERY: upload docs/architecture.png (architecture diagram) + the Evidence Packet card, the trust page,
+  and the App Home drift band (docs/slack-cards.png + real Slack screenshots once recorded).
 
 STILL TO FILL BEFORE SUBMITTING:
-  • Demo video URL (≤ 3 min)  — also replace <your-demo-url> in docs/index.html
-  • Landing-page URL          — once GitHub Pages is live
-  • Test access for judges    — slackhack@salesforce.com + testing@devpost.com
+  • Slack App ID              — Basic Information → App ID → replace <APP_ID_TBD> above
+  • Demo video URL (≤ 3 min)  — opens on the flag-OFF block (see docs/VIDEO-SCRIPT.md); also replace <your-demo-url> in docs/index.html
+  • Judge sandbox access      — invite slackhack@salesforce.com + testing@devpost.com to the workspace + demo channel (see docs/SETUP.md §8)
+  • Landing-page URL          — https://kept-iota.vercel.app (live)
 -->

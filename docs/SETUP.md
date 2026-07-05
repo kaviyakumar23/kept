@@ -45,7 +45,7 @@ Everything else can stay blank for the demo (store = in-memory, work items = in-
 - **Terminal B:** `npm run demo:drive -- --ref=PROJ-NNN` → press **Enter** through the 4 signals (In Progress → duplicate → PR merged → prod deploy).
 - **Back in Slack:** **Verify** → review the sanitized draft → **Approve & send** → the closure posts in the original thread.
 - **Finale:** open the **App Home** tab; run `/kept Acme`.
-- Follow [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) for the voiceover + shot timing.
+- Follow [`VIDEO-SCRIPT.md`](VIDEO-SCRIPT.md) for the voiceover + shot timing.
 
 ## 6. (Optional) Real provider webhooks via a tunnel
 You don't need this for the demo — the driver simulates Linear/GitHub/deploy locally. For real events: expose `:3001` (`cloudflared tunnel --url http://localhost:3001` or `ngrok http 3001`), point Linear/GitHub webhooks at `https://<tunnel>/webhooks/{linear,github}`, set `KEPT_WEBHOOK_SECRET`, and send it as the `x-kept-secret` header.
