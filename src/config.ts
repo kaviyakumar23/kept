@@ -22,6 +22,27 @@ export interface KeptConfig {
   /** Public HTTPS origin the deployed app is reachable at (for docs/manifest wiring). */
   publicUrl: string | undefined;
   riskWindowMs: number;
+  /**
+   * W4 — Proof-of-Done sources. Each is REAL when its credentials are present, else the
+   * proof-collector routes to the in-process simulated MCP proof server (so the offline
+   * demo + hermetic tests are unchanged). GitHub Actions (the always-live source) reads its
+   * token straight from GITHUB_TOKEN inside GitHubActionsProofAdapter.
+   */
+  proof: {
+    /** LaunchDarkly REST (feature-flag production state). */
+    launchDarkly: { apiToken: string | undefined; projectKey: string | undefined; environment: string; baseUrl: string | undefined };
+    /** Atlassian Statuspage REST (component operational health). */
+    statuspage: { apiKey: string | undefined; pageId: string | undefined; baseUrl: string | undefined };
+    /** Jira issue status — hosted Atlassian MCP (preferred) or Jira Cloud REST. */
+    jira: {
+      mcpToken: string | undefined; mcpUrl: string | undefined; cloudId: string | undefined; mcpStatusTool: string | undefined;
+      baseUrl: string | undefined; email: string | undefined; apiToken: string | undefined;
+    };
+    /** Linear issue status — hosted Linear MCP (preferred) or Linear GraphQL. */
+    linear: { mcpToken: string | undefined; mcpUrl: string | undefined; mcpStatusTool: string | undefined; apiKey: string | undefined };
+    /** Optional JSON file mapping subject_canonical → { flag, status, ci } proof targets. */
+    targetsFile: string | undefined;
+  };
 }
 
 export function loadConfig(): KeptConfig {
@@ -40,6 +61,35 @@ export function loadConfig(): KeptConfig {
     },
     publicUrl: process.env.KEPT_PUBLIC_URL,
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
+    proof: {
+      launchDarkly: {
+        apiToken: process.env.LAUNCHDARKLY_API_TOKEN,
+        projectKey: process.env.LAUNCHDARKLY_PROJECT_KEY,
+        environment: process.env.LAUNCHDARKLY_ENVIRONMENT ?? "production",
+        baseUrl: process.env.LAUNCHDARKLY_BASE_URL,
+      },
+      statuspage: {
+        apiKey: process.env.STATUSPAGE_API_KEY,
+        pageId: process.env.STATUSPAGE_PAGE_ID,
+        baseUrl: process.env.STATUSPAGE_BASE_URL,
+      },
+      jira: {
+        mcpToken: process.env.ATLASSIAN_MCP_TOKEN,
+        mcpUrl: process.env.ATLASSIAN_MCP_URL,
+        cloudId: process.env.JIRA_CLOUD_ID,
+        mcpStatusTool: process.env.JIRA_MCP_STATUS_TOOL,
+        baseUrl: process.env.JIRA_BASE_URL,
+        email: process.env.JIRA_EMAIL,
+        apiToken: process.env.JIRA_API_TOKEN,
+      },
+      linear: {
+        mcpToken: process.env.LINEAR_MCP_TOKEN,
+        mcpUrl: process.env.LINEAR_MCP_URL,
+        mcpStatusTool: process.env.LINEAR_MCP_STATUS_TOOL,
+        apiKey: process.env.LINEAR_API_KEY,
+      },
+      targetsFile: process.env.KEPT_PROOF_TARGETS_FILE,
+    },
   };
 }
 

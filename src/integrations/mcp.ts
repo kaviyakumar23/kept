@@ -269,6 +269,15 @@ export class McpProofClient implements McpQueryClient {
   async close(): Promise<void> {
     if (this.client) await this.client.close();
   }
+
+  /** A read-only proof client bound to a hosted MCP server (streamable HTTP + Bearer token). */
+  static hosted(opts: { token: string; url: string; label?: string }): McpProofClient {
+    const url = new URL(opts.url);
+    return new McpProofClient({
+      transport: () => new StreamableHTTPClientTransport(url, { requestInit: { headers: { Authorization: `Bearer ${opts.token}` } } }),
+      label: opts.label ?? "mcp(hosted-proof)",
+    });
+  }
 }
 
 /** Mutable state a simulated proof server reads at call time (mutate to model a toggle over time). */
@@ -277,14 +286,18 @@ export interface SimulatedProofState {
   flags: Record<string, { enabled: boolean; environment?: string }>;
   /** component name → its Statuspage health (defaults to "operational" when absent). */
   statuses: Record<string, { component_status: string }>;
+  /** issue key → its work-item status (defaults to "unknown" when absent). Backs get_issue_status. */
+  issues?: Record<string, { status: string }>;
 }
 
 /**
  * In-process simulated proof MCP server (LaunchDarkly `get_flag_state` + Atlassian
- * Statuspage `get_status_page`) wired to a real MCP client over an in-memory transport.
- * Mirrors createSimulatedMcpWorkItems: a REAL client↔server round-trip, no network/OAuth,
- * so the demo and hermetic tests exercise the actual MCP query path (these two sources
- * are honestly SIMULATED — GitHub Actions is the one genuine live proof source).
+ * Statuspage `get_status_page` + Jira/Linear `get_issue_status`) wired to a real MCP
+ * client over an in-memory transport. Mirrors createSimulatedMcpWorkItems: a REAL
+ * client↔server round-trip, no network/OAuth, so the demo and hermetic tests exercise the
+ * actual MCP query path. This is the FALLBACK the real proof adapters (launchDarkly /
+ * statuspage / JiraProofAdapter / LinearProofAdapter) degrade to when their credentials
+ * aren't configured — GitHub Actions is the one always-live proof source.
  */
 export async function createSimulatedProofServer(
   state: SimulatedProofState = { flags: {}, statuses: {} },
@@ -321,6 +334,22 @@ export async function createSimulatedProofServer(
       return {
         content: [{ type: "text", text: `component ${component}: ${component_status}` }],
         structuredContent: { component_status },
+      };
+    },
+  );
+  server.registerTool(
+    "get_issue_status",
+    {
+      title: "Get work-item status",
+      description: "Return the current status of a Jira/Linear issue (fallback for the real proof adapters).",
+      inputSchema: { key: z.string(), system: z.string().optional() },
+      outputSchema: { status: z.string() },
+    },
+    async ({ key }) => {
+      const status = state.issues?.[key]?.status ?? "unknown";
+      return {
+        content: [{ type: "text", text: `issue ${key}: ${status}` }],
+        structuredContent: { status },
       };
     },
   );

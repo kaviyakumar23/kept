@@ -7,7 +7,8 @@ import type { McpQueryClient } from "./mcp.js";
  *
  * Given an obligation's linked refs, it gathers Proof-of-Done from real proof sources
  * over MCP — a feature flag's production state, a status page's health, a CI run's
- * conclusion — and returns proposed `Evidence[]`. It ONLY proposes: the orchestrator
+ * conclusion, a linked Jira/Linear issue's status — and returns proposed `Evidence[]`.
+ * It ONLY proposes: the orchestrator
  * dispatches each as RECORD_FULFILLMENT_SIGNAL, and `assessFulfillment` + Gate 2 decide.
  * The agent never mutates state, never verifies, never chooses a tool the way an
  * open-ended agent would — CODE (targetsFor) picks the tools and arguments.
@@ -25,10 +26,16 @@ export interface ProofTarget {
   status?: { component: string };
   /** A GitHub Actions workflow run whose conclusion proves the build passed (get_workflow_run). */
   ci?: { owner: string; repo: string; runId: number | string };
+  /** A linked Jira/Linear issue whose real status we read (get_issue_status → ticket_status evidence). */
+  work?: { system: "jira" | "linear"; key: string };
 }
 
 export interface ProofCollectorDeps {
-  /** MCP client exposing get_flag_state + get_status_page (simulated LaunchDarkly / Statuspage). */
+  /**
+   * MCP client exposing get_flag_state + get_status_page + get_issue_status. In the offline
+   * demo/tests this is the simulated proof server; in production it's the routing client from
+   * proofSources.ts (real LaunchDarkly / Statuspage / Jira / Linear where configured, else sim).
+   */
   proof?: McpQueryClient;
   /** The live GitHub Actions source (its own get_workflow_run under the same query() contract). */
   ci?: McpQueryClient;
@@ -119,6 +126,26 @@ export class ProofCollector {
           accessible_to_user: true,
           data: { conclusion },
           proves: conclusion === "success" ? "CI run concluded success" : "CI run did not pass",
+        });
+      }
+    }
+
+    if (target.work && this.d.proof) {
+      const sc = await safe(() =>
+        this.d.proof!.query("get_issue_status", { key: target.work!.key, system: target.work!.system }),
+      );
+      if (sc) {
+        const status = cap(sc.status, "unknown");
+        // ticket_status source MUST be jira|linear (KIND_SOURCES) so the engine accepts it.
+        out.push({
+          id: `${target.work.system}:${target.work.key}:${at}`,
+          source: target.work.system,
+          kind: "ticket_status",
+          ref: `${target.work.key}@${at}`,
+          at,
+          accessible_to_user: true,
+          data: { status },
+          proves: `linked ${target.work.system} issue status: ${status}`,
         });
       }
     }

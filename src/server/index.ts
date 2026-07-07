@@ -16,6 +16,7 @@ import type { LlmProvider } from "../llm/provider.js";
 import { LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
+import { buildProofCollector } from "../integrations/proofSources.js";
 import { WebClient } from "@slack/web-api";
 import {
   LedgerRtsRetriever,
@@ -95,6 +96,13 @@ async function main() {
     workItems = await createSimulatedMcpWorkItems();
     workItemsMode = "mcp:simulated";
   }
+
+  // W4 — Proof-of-Done collector. Each source (LaunchDarkly / Statuspage / Jira / Linear /
+  // GitHub Actions) upgrades to its REAL adapter when configured, else the collector routes to
+  // the in-process simulated MCP proof server. Null when nothing is configured (no proof step).
+  const builtProof = await buildProofCollector(cfg);
+  const proofCollector = builtProof?.collector;
+  const proofMode = builtProof ? (builtProof.liveSources.length ? `live(${builtProof.liveSources.join(",")})` : "simulated") : "off";
 
   const fallbackOwner = process.env.KEPT_DEFAULT_OWNER ?? "U_ACCOUNT_MANAGER";
 
@@ -217,7 +225,7 @@ async function main() {
         retrievers.push(new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }));
       }
       const rts = retrievers.length === 1 ? retrievers[0] : new CompositeRtsRetriever(retrievers);
-      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks });
+      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks, proofCollector });
     },
   });
   orchHolder.orch = orch;
@@ -247,7 +255,7 @@ async function main() {
     .filter(Boolean)
     .join("+");
   const remindersMode = cfg.redisUrl ? "bullmq" : pgScheduler ? "postgres" : "in-memory";
-  console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode}`);
+  console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode} · proof=${proofMode}`);
 }
 
 main().catch((err) => {
