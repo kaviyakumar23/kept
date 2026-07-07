@@ -3,611 +3,666 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kept — the obligation ledger for shared customer channels</title>
+<title>Kept — Don't tell customers it's done until the evidence agrees.</title>
+<meta name="description" content="Kept turns promises made in Slack into verified commitments. It gathers proof from delivery tools, flags missing evidence, and requires human sign-off before closure.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Kept — the obligation ledger for shared customer channels">
-<meta property="og:description" content="Kept remembers what your company owes every customer — and makes sure the customer hears when it's done.">
+<meta property="og:title" content="Kept — commitment verification for shared customer channels">
+<meta property="og:description" content="Kept turns promises made in Slack into verified commitments. It gathers proof from delivery tools, flags missing evidence, and requires human sign-off before closure.">
 <meta property="og:url" content="https://kept-iota.vercel.app/">
 <meta property="og:image" content="https://kept-iota.vercel.app/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Kept — never treat one message, ticket, or merged PR as truth. A human-verified obligation ledger for shared customer channels.">
+<meta property="og:image:alt" content="Kept — don't tell customers it's done until the evidence agrees. Slack-native commitment verification.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://kept-iota.vercel.app/og.png">
-<meta name="twitter:title" content="Kept — obligation ledger for customer Slack channels">
-<meta name="twitter:description" content="Bidirectional, verified, loop-closing. 0 false closures · 100% duplicate suppression · 0 unauthorized customer messages.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230F6E5C'/%3E%3Cpath d='M8 6v12M8 12l7-6M8 12l7 6' stroke='%23F4F1EA' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<meta name="description" content="Kept remembers what your company owes every customer — and makes sure the customer hears when it's done.">
+<meta name="twitter:title" content="Kept — commitment verification for shared customer channels">
+<meta name="twitter:description" content="Turn promises made in Slack into evidence-backed verdicts. Human sign-off before closure.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='28' y2='28' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%232563EB'/%3E%3Cstop offset='1' stop-color='%2314B8A6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1' y='1' width='26' height='26' rx='8' fill='url(%23g)'/%3E%3Cpath d='M8 14.5 L12 18.5 L20 9.5' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='8' cy='14.5' r='1.9' fill='white'/%3E%3C/svg%3E">
 <style>
-  *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
-  body{margin:0;background:#F4F1EA;color:#1B1A17;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:17px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
-  h1,h2{font-optical-sizing:auto;}
-  ::selection{background:#DCEDE8;color:#0B5346;}
-  a{color:inherit;}
-  @keyframes keptRise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
-  @keyframes keptBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
-  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
-  ::-webkit-scrollbar{height:9px;width:9px;}
-  ::-webkit-scrollbar-thumb{background:#D2CAB6;border-radius:8px;}
-  ::-webkit-scrollbar-track{background:#ECE8DE;}
-  .kept-action{cursor:pointer;border:none;transition:filter .15s ease,background .15s ease;}
-  .kept-action:hover{filter:brightness(1.08);}
-  .kept-gate{font-family:'IBM Plex Mono',monospace;font-size:12px;border-radius:6px;padding:6px 11px;transition:all .2s ease;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Geist',system-ui,-apple-system,sans-serif;color:#111827;background:#F7F9FB;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+p{margin:0}
+img{max-width:100%}
+a{color:var(--brand,#2563EB);text-decoration:none}
+a:hover{color:var(--brand-strong,#1D4ED8)}
+*:focus-visible{outline:2px solid var(--brand,#2563EB);outline-offset:2px;border-radius:5px}
+::selection{background:color-mix(in srgb,var(--brand,#2563EB) 20%,#fff)}
+@keyframes kIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes kPulse{0%,100%{opacity:.5}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.001ms!important;animation-delay:0ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style>
 </head>
-<body id="top">
-<div style="background:#F4F1EA;overflow-x:hidden;">
+<body>
 
-<!-- ============ NAV ============ -->
-<header style="position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);background:rgba(244,241,234,0.82);border-bottom:1px solid #E4DECF;">
-  <nav style="max-width:1120px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;">
-    <a href="#top" style="display:flex;align-items:center;gap:11px;text-decoration:none;">
-      <span style="width:25px;height:25px;border-radius:6px;background:#0F6E5C;display:flex;align-items:center;justify-content:center;color:#F4F1EA;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px;">K</span>
-      <span style="font-family:'Fraunces',serif;font-weight:600;font-size:20px;letter-spacing:-0.01em;">Kept</span>
+<div style="--brand:#2563EB; --accent:#0F766E; --brand-strong:color-mix(in srgb, var(--brand,#2563EB) 82%, #000); --brand-tint:color-mix(in srgb, var(--brand,#2563EB) 9%, #fff); --brand-line:color-mix(in srgb, var(--brand,#2563EB) 22%, #fff); --accent-tint:color-mix(in srgb, var(--accent,#0F766E) 11%, #fff); --accent-line:color-mix(in srgb, var(--accent,#0F766E) 26%, #fff); background:#F7F9FB; overflow-x:hidden">
+
+<header style="position:sticky;top:0;z-index:60;background:rgba(247,249,251,.82);backdrop-filter:saturate(1.5) blur(12px);-webkit-backdrop-filter:saturate(1.5) blur(12px);border-bottom:1px solid #E7ECF2">
+  <div style="max-width:1200px;margin:0 auto;padding:11px clamp(20px,5vw,40px);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 24px">
+    <a href="#top" style="display:flex;align-items:center;gap:10px;flex:0 0 auto;color:#111827" aria-label="Kept home">
+      <svg width="27" height="27" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="8" fill="url(#kmH)"/><path d="M8 14.5 L12 18.5 L20 9.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="14.5" r="1.9" fill="#fff"/><defs><linearGradient id="kmH" x1="1" y1="1" x2="27" y2="27" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs></svg>
+      <span style="font-weight:700;font-size:19px;letter-spacing:-.02em">Kept</span>
     </a>
-    <div style="display:flex;align-items:center;gap:24px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:#837C6E;">
-      <a href="#problem" style="text-decoration:none;" style-hover="color:#0F6E5C;">problem</a>
-      <a href="#lifecycle" style="text-decoration:none;" style-hover="color:#0F6E5C;">lifecycle</a>
-      <a href="#guarantees" style="text-decoration:none;" style-hover="color:#0F6E5C;">guarantees</a>
-      <a href="#architecture" style="text-decoration:none;" style-hover="color:#0F6E5C;">architecture</a>
-      <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="text-decoration:none;color:#0F6E5C;border:1px solid #0F6E5C;padding:7px 13px;border-radius:8px;" style-hover="background:#0F6E5C;color:#F4F1EA;">GitHub ↗</a>
+    <nav aria-label="Primary" style="flex:1 1 330px;display:flex;justify-content:center;align-items:center;gap:6px 26px;flex-wrap:wrap">
+      <a href="#how" style="color:#3A4351;font-weight:500;font-size:14.5px;padding:6px 2px" style-hover="color:var(--brand,#2563EB)">How it works</a>
+      <a href="#integrations" style="color:#3A4351;font-weight:500;font-size:14.5px;padding:6px 2px" style-hover="color:var(--brand,#2563EB)">Integrations</a>
+      <a href="#security" style="color:#3A4351;font-weight:500;font-size:14.5px;padding:6px 2px" style-hover="color:var(--brand,#2563EB)">Security</a>
+      <a href="#demo" style="color:#3A4351;font-weight:500;font-size:14.5px;padding:6px 2px" style-hover="color:var(--brand,#2563EB)">Demo</a>
+    </nav>
+    <div style="flex:0 0 auto;display:flex;align-items:center;gap:10px">
+      <a href="/slack/install" style="color:#3A4351;font:600 14.5px 'Geist',sans-serif;padding:8px 6px" style-hover="color:#111827">Sign in</a>
+      <a href="/slack/install" style="display:inline-flex;align-items:center;gap:8px;padding:10px 15px;background:var(--brand,#2563EB);color:#fff;border:none;border-radius:10px;font:600 14.5px 'Geist',sans-serif;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.10),0 8px 18px -10px color-mix(in srgb,var(--brand,#2563EB) 70%,transparent);transition:transform .15s ease,background .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-1px);background:var(--brand-strong,#1D4ED8)"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="2"/><rect x="9" y="1" width="6" height="6" rx="2"/><rect x="1" y="9" width="6" height="6" rx="2"/><rect x="9" y="9" width="6" height="6" rx="2"/></g></svg>Add to Slack</a>
     </div>
-  </nav>
+  </div>
 </header>
 
-<!-- ============ HERO ============ -->
-<section id="top" style="max-width:1120px;margin:0 auto;padding:clamp(44px,7vw,88px) 24px clamp(52px,8vw,96px);">
-  <div style="display:flex;flex-wrap:wrap;gap:clamp(40px,5vw,60px);align-items:center;">
-    <div style="flex:1 1 470px;min-width:300px;animation:keptRise .55s ease both;">
-      <span style="display:inline-flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid #D2CAB6;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.02em;color:#837C6E;background:#FBF9F3;">
-        <span style="width:7px;height:7px;border-radius:50%;background:#0F6E5C;"></span>
-        Slack-native · event-sourced · human-verified
-      </span>
-      <h1 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(2.5rem,6vw,4rem);line-height:1.05;letter-spacing:-0.02em;margin:24px 0 0;color:#1B1A17;">
-        Kept remembers what your company owes <span style="color:#0F6E5C;">every customer</span> — and makes sure the customer hears when it&rsquo;s&nbsp;done.
-      </h1>
-      <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:22px 0 0;max-width:60ch;">
-        A Slack agent that keeps a human-verified, event-sourced <em style="font-style:normal;color:#1B1A17;font-weight:600;">obligation ledger</em>: every request a customer makes and every promise your team makes — captured the moment it&rsquo;s said, tracked through its real lifecycle, closed back in the original thread.
-      </p>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;">
-        <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 21px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;" style-hover="background:#2E2B25;">
-          <span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> View on GitHub
-        </a>
-        <a href="#try-it" style="display:inline-flex;align-items:center;gap:10px;background:transparent;color:#0F6E5C;padding:13px 21px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:15px;text-decoration:none;">
-          <span style="width:18px;height:18px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:8px;">▶</span> Try the live walkthrough
-        </a>
+<section id="top" aria-label="Hero" style="position:relative;overflow:hidden;padding:clamp(34px,5vw,66px) 0 clamp(56px,8vw,104px);background:radial-gradient(1100px 480px at 80% -8%, color-mix(in srgb,var(--accent,#0F766E) 16%,transparent), transparent 60%), radial-gradient(820px 460px at 10% -4%, color-mix(in srgb,var(--brand,#2563EB) 14%,transparent), transparent 58%), #F7F9FB">
+  <div aria-hidden="true" style="position:absolute;inset:0;background-image:linear-gradient(to right, rgba(17,24,39,.045) 1px, transparent 1px), linear-gradient(to bottom, rgba(17,24,39,.045) 1px, transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(760px 440px at 46% 0%, #000, transparent 74%);mask-image:radial-gradient(760px 440px at 46% 0%, #000, transparent 74%);opacity:.75;pointer-events:none"></div>
+  <div style="position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px);display:flex;flex-wrap:wrap;align-items:center;gap:clamp(30px,4vw,56px)">
+    <div style="flex:1 1 438px;min-width:0">
+      <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB);border-radius:999px;font:600 12px/1 'Geist Mono',ui-monospace,monospace;letter-spacing:.05em;text-transform:uppercase"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent,#0F766E)"></span>Slack-native commitment verification</span>
+      <h1 style="margin:18px 0 0;font-size:clamp(37px,5.5vw,72px);line-height:1.03;letter-spacing:-.028em;font-weight:700;color:#0B1220;text-wrap:balance">Don't tell customers it's done until the evidence agrees.</h1>
+      <p style="margin:20px 0 0;max-width:548px;font-size:clamp(17px,1.5vw,20px);line-height:1.6;color:#3A4351">Kept turns promises made in Slack into verified commitments. It gathers proof from delivery tools, flags missing evidence, and requires human sign-off before closure.</p>
+      <div style="margin:28px 0 0;display:flex;flex-wrap:wrap;gap:12px">
+        <a href="/slack/install" style="display:inline-flex;align-items:center;gap:9px;padding:13px 20px;background:var(--brand,#2563EB);color:#fff;border:none;border-radius:11px;font:600 15px 'Geist',sans-serif;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.08),0 10px 22px -10px color-mix(in srgb,var(--brand,#2563EB) 70%,transparent);transition:transform .15s ease,background .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-1px);background:var(--brand-strong,#1D4ED8);box-shadow:0 3px 6px rgba(16,24,40,.10),0 16px 32px -10px color-mix(in srgb,var(--brand,#2563EB) 62%,transparent)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="2"/><rect x="9" y="1" width="6" height="6" rx="2"/><rect x="1" y="9" width="6" height="6" rx="2"/><rect x="9" y="9" width="6" height="6" rx="2"/></g></svg>Add to Slack</a>
+        <a href="#demo" style="display:inline-flex;align-items:center;gap:9px;padding:13px 18px;background:#fff;color:#111827;border:1px solid #DBE2EA;border-radius:11px;font:600 15px 'Geist',sans-serif;box-shadow:0 1px 2px rgba(16,24,40,.04);transition:transform .15s ease,border-color .2s ease" style-hover="transform:translateY(-1px);border-color:#C3CDD9"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="var(--accent,#0F766E)" stroke-width="1.8"/><path d="M10 8.5v7l6-3.5z" fill="var(--accent,#0F766E)"/></svg>Watch demo</a>
+      </div>
+      <div style="margin:26px 0 0;display:flex;flex-wrap:wrap;gap:10px 22px">
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:#42505F;font-weight:500"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Stores derived facts, not message bodies</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:#42505F;font-weight:500"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Human sign-off required</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:#42505F;font-weight:500"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Evidence from your delivery tools</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:#42505F;font-weight:500"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Built for shared customer channels</span>
       </div>
     </div>
 
-    <!-- Slack confirm card -->
-    <div style="flex:1 1 370px;min-width:300px;animation:keptRise .65s .1s ease both;">
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-left:4px solid #0F6E5C;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(27,26,23,.06),0 18px 40px -20px rgba(27,26,23,.28);">
-        <div style="display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #E4DECF;">
-          <span style="width:9px;height:9px;border-radius:2px;background:#0F6E5C;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#1B1A17;font-weight:500;"># northwind &harr; acme</span>
-          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;padding:3px 8px;border:1px solid #E4DECF;border-radius:5px;">shared · connect</span>
+    <div style="flex:1 1 452px;min-width:0;position:relative">
+      <div style="animation:kIn .6s ease both;animation-delay:60ms;background:#fff;border:1px solid #E7ECF2;border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 46px -22px rgba(16,24,40,.24);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #EEF2F6;background:#FBFCFD">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A0AD" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <span style="font:600 12.5px 'Geist Mono',monospace;color:#5B6672">#acme-shared</span>
+          <span style="margin-left:auto;font:500 11px 'Geist Mono',monospace;color:#94A0AD">Shared channel</span>
         </div>
-        <div style="padding:16px;display:flex;flex-direction:column;gap:13px;">
-          <div style="display:flex;gap:11px;">
-            <span style="flex:none;width:30px;height:30px;border-radius:6px;background:#ECE8DE;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;">PN</span>
-            <div>
-              <div style="font-size:13px;"><strong style="font-weight:600;">Priya</strong> <span style="color:#837C6E;font-family:'IBM Plex Mono',monospace;font-size:11px;">Northwind · 9:14</span></div>
-              <div style="font-size:14px;color:#46433C;margin-top:2px;line-height:1.45;">Any chance SSO lands this week? Our security review is Friday.</div>
+        <div style="padding:14px 16px 16px">
+          <div style="display:flex;gap:11px">
+            <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#F59E0B,#DC2626);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex:0 0 auto" aria-hidden="true">JR</div>
+            <div style="min-width:0">
+              <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-weight:700;font-size:14px;color:#111827">Jordan Rivera</span><span style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD">10:42 AM</span></div>
+              <div style="margin-top:2px;font-size:14.5px;color:#28303B;line-height:1.5">We'll ship the SSO fix by <strong style="color:#111827">Friday</strong>.</div>
             </div>
           </div>
-          <div style="display:flex;gap:11px;">
-            <span style="flex:none;width:30px;height:30px;border-radius:6px;background:#DCEDE8;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;">AM</span>
-            <div>
-              <div style="font-size:13px;"><strong style="font-weight:600;">Amelia</strong> <span style="color:#837C6E;font-family:'IBM Plex Mono',monospace;font-size:11px;">you · 9:14</span></div>
-              <div style="font-size:14px;color:#46433C;margin-top:2px;line-height:1.45;">We&rsquo;ll have SSO live for you this week.</div>
+          <div style="margin-top:13px;border:1px solid var(--brand-line,#D5E1FB);border-left:3px solid var(--brand,#2563EB);border-radius:12px;background:linear-gradient(180deg,var(--brand-tint,#EAF0FE),#fff 60%);overflow:hidden">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 13px;flex-wrap:wrap">
+              <svg width="18" height="18" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="8" fill="url(#kmS)"/><path d="M8 14.5 L12 18.5 L20 9.5" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="14.5" r="2" fill="#fff"/><defs><linearGradient id="kmS" x1="1" y1="1" x2="27" y2="27" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs></svg>
+              <span style="font-weight:700;font-size:13.5px;color:#111827">Kept</span>
+              <span style="font:600 9.5px 'Geist Mono',monospace;letter-spacing:.08em;color:var(--brand,#2563EB);background:#fff;border:1px solid var(--brand-line,#D5E1FB);padding:2px 5px;border-radius:5px">APP</span>
+              <span style="margin-left:auto;font:600 11px 'Geist Mono',monospace;color:var(--accent,#0F766E)">Commitment detected</span>
             </div>
-          </div>
-
-          <div style="border:1px solid #E4DECF;border-radius:9px;background:#F8F1DF;padding:14px;margin-top:2px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px;">
-              <span style="width:18px;height:18px;border-radius:4px;background:#8A6A12;color:#F8F1DF;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;">K</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8A6A12;letter-spacing:0.03em;text-transform:uppercase;">Kept · candidate detected</span>
-            </div>
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;font-family:'IBM Plex Mono',monospace;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:7px;padding:11px 13px;">
-              <span style="color:#837C6E;">owes</span><span>SSO live for Northwind</span>
-              <span style="color:#837C6E;">due</span><span>this week · by Fri review</span>
-              <span style="color:#837C6E;">owner</span><span>Amelia (you)</span>
-            </div>
-            <p style="font-size:12.5px;color:#46433C;margin:12px 0 12px;line-height:1.45;">Track this as a promise to the customer? Nothing is recorded until a human confirms.</p>
-            <div style="display:flex;gap:9px;">
-              <span style="flex:1;background:#1F6B49;color:#FBF9F3;border-radius:7px;padding:10px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;text-align:center;">Approve commitment</span>
-              <span style="flex:none;background:transparent;color:#B5502E;border:1px solid #E3C8BC;border-radius:7px;padding:10px 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:500;font-size:13.5px;">Not a commitment</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:7px;margin-top:11px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">
-              <span style="width:6px;height:6px;border-radius:1px;background:#0F6E5C;"></span> Gate 1 · only the account owner can make this real · private to your team
+            <div style="padding:0 13px 13px">
+              <div style="font-weight:650;font-size:15.5px;color:#111827;line-height:1.4">SSO fix live for Acme by Friday</div>
+              <div style="margin-top:11px;display:grid;grid-template-columns:1fr 1fr;gap:9px 14px">
+                <div><div style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:#94A0AD">Customer</div><div style="font-size:13.5px;font-weight:600;color:#28303B;margin-top:2px">Acme</div></div>
+                <div><div style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:#94A0AD">Owner</div><div style="font-size:13.5px;font-weight:600;color:#28303B;margin-top:2px">Amelia</div></div>
+                <div><div style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:#94A0AD">Due</div><div style="font-size:13.5px;font-weight:600;color:#28303B;margin-top:2px">Friday</div></div>
+                <div><div style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;color:#94A0AD">Source</div><div style="font-size:13.5px;font-weight:600;color:#28303B;margin-top:2px">#acme-shared</div></div>
+              </div>
+              <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5);font:600 11px 'Geist Mono',monospace"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>Human gate 1 · Confirm</span>
+              </div>
+              <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+                <span style="padding:7px 13px;background:var(--brand,#2563EB);color:#fff;border-radius:8px;font:600 12.5px 'Geist',sans-serif">Confirm commitment</span>
+                <span style="padding:7px 13px;background:#fff;color:#5B6672;border:1px solid #DBE2EA;border-radius:8px;font:600 12.5px 'Geist',sans-serif">Not a commitment</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <p style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;margin:12px 0 0;">↑ a Kept <span style="color:#0F6E5C;">Gate-1 confirm card</span> — private to your team</p>
-    </div>
-  </div>
-</section>
 
-<!-- ============ PROBLEM ============ -->
-<section id="problem" style="border-top:1px solid #E4DECF;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#B5502E;">01 · The problem</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;max-width:20ch;">Promises are made in chat. Fulfillment lives everywhere else. The customer is the last to know.</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:#E4DECF;border:1px solid #E4DECF;border-radius:10px;overflow:hidden;margin-top:40px;">
-      <div style="background:#FBF9F3;padding:28px 26px;">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A39B8C;">01</span>
-        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">Customer requests and team promises are made <strong style="color:#1B1A17;font-weight:600;">casually, in shared Slack channels</strong> — between two other messages, never written down as commitments.</p>
-      </div>
-      <div style="background:#FBF9F3;padding:28px 26px;">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A39B8C;">02</span>
-        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">Fulfillment lives <strong style="color:#1B1A17;font-weight:600;">elsewhere</strong> — in tickets, in code, in deploys, in someone&rsquo;s memory. None of it points back to the thread where the promise was made.</p>
-      </div>
-      <div style="background:#FBF9F3;padding:28px 26px;">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#B5502E;">03</span>
-        <p style="font-size:1.0625rem;line-height:1.6;color:#46433C;margin:14px 0 0;">The customer is usually the <strong style="color:#1B1A17;font-weight:600;">last to hear it&rsquo;s done</strong>. The work ships; the follow-up gets <span style="color:#B5502E;text-decoration:line-through;text-decoration-color:rgba(181,80,46,0.55);">dropped</span>.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ WEDGE ============ -->
-<section style="border-top:1px solid #E4DECF;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">02 · The wedge</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;">Not another inbound ticketer.</h2>
-    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:0;line-height:1.55;">Inbound-only Slack ticketing (Pylon, Thena) logs what the customer asked. Kept tracks the part nobody owns: what <em style="font-style:normal;color:#1B1A17;font-weight:600;">you</em> promised back.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-top:38px;">
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
-        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:17px;">&harr;</span>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Bidirectional</h3>
-        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Tracks what your team <strong style="color:#1B1A17;font-weight:600;">owes</strong> the customer — the promises — not just the inbound asks.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
-        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:16px;">&check;</span>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Verified fulfillment</h3>
-        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Closes on real availability <em style="font-style:normal;color:#1B1A17;font-weight:600;">to the customer</em>, human-confirmed — never on a &ldquo;Done&rdquo; flag.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;box-shadow:0 1px 2px rgba(27,26,23,.05);" style-hover="border-color:#0F6E5C;">
-        <span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:#DCEDE8;align-items:center;justify-content:center;color:#0F6E5C;font-family:'IBM Plex Mono',monospace;font-size:16px;">&#8617;</span>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:18px 0 9px;line-height:1.3;">Closes the loop</h3>
-        <p style="font-size:14.5px;line-height:1.6;color:#46433C;margin:0;">Returns to the <strong style="color:#1B1A17;font-weight:600;">original thread</strong> with the promise as evidence — on human approval.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ PULL QUOTE (inverted band) ============ -->
-<section style="background:#1B1A17;">
-  <div style="max-width:1000px;margin:0 auto;padding:clamp(60px,9vw,104px) 24px;">
-    <div style="border-left:3px solid #B5502E;padding-left:clamp(20px,3vw,32px);">
-      <blockquote style="margin:0;font-family:'Fraunces',serif;font-weight:500;font-size:clamp(1.6rem,3.6vw,2.6rem);line-height:1.32;letter-spacing:-0.015em;color:#F4F1EA;">
-        Ticketing systems track whether work is marked <span style="font-family:'IBM Plex Mono',monospace;font-size:0.78em;color:#A7A39A;">done</span>. Kept tracks whether the <span style="color:#36C2A8;">promise made to the customer</span> was actually <span style="color:#36C2A8;">kept</span> — and whether the customer was <span style="color:#E2774E;">told</span>.
-      </blockquote>
-    </div>
-  </div>
-</section>
-
-<!-- ============ LIFECYCLE ============ -->
-<section id="lifecycle" style="border-top:1px solid #E4DECF;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">03 · The lifecycle</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;max-width:24ch;">An obligation has a life. Two of its steps belong to a human.</h2>
-    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:0 0 26px;line-height:1.55;">Step through it — every transition writes one immutable line to the audit history on the right.</p>
-
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px;">
-      <span style="display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:6px 11px;"><span style="width:7px;height:7px;border-radius:1px;background:#0F6E5C;"></span>Gate 1 — account manager confirms the commitment</span>
-      <span style="display:inline-flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:6px 11px;"><span style="width:7px;height:7px;border-radius:1px;background:#0F6E5C;"></span>Gate 2 — human verifies, then approves the reply</span>
-    </div>
-
-    <div style="overflow-x:auto;padding:24px 0 10px;">
-      <div style="position:relative;min-width:760px;display:flex;align-items:flex-start;justify-content:space-between;">
-        <div style="position:absolute;top:7px;left:6%;right:6%;height:2px;background:#D2CAB6;"></div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#C49A2E;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">CANDIDATE</span>
+      <div style="animation:kIn .6s ease both;animation-delay:170ms;margin-top:16px;background:#fff;border:1px solid #E7ECF2;border-radius:16px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 20px 46px -22px rgba(16,24,40,.24);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid #EEF2F6">
+          <span style="font-weight:700;font-size:14px;color:#111827">Evidence packet</span>
+          <span style="font:500 11px 'Geist Mono',monospace;color:#94A0AD">CMT-2481</span>
+          <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB);font:600 11px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>Verifying</span>
         </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#0F6E5C;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">OPEN</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.02em;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:4px;padding:1px 5px;white-space:nowrap;">Gate 1 · human</span>
+        <div style="padding:8px 10px 2px">
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;animation:kIn .5s ease both;animation-delay:80ms">
+            <span style="width:28px;height:28px;border-radius:8px;background:#F3F6FA;border:1px solid #E7ECF2;display:flex;align-items:center;justify-content:center;color:#5B6672;flex:0 0 auto" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg></span>
+            <div style="flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:600;color:#28303B">Jira ticket</div>
+            <span style="font:500 12px 'Geist Mono',monospace;color:#6B7280">Done</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 11.5px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;animation:kIn .5s ease both;animation-delay:190ms">
+            <span style="width:28px;height:28px;border-radius:8px;background:#F3F6FA;border:1px solid #E7ECF2;display:flex;align-items:center;justify-content:center;color:#5B6672;flex:0 0 auto" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="8" r="2.4"/><path d="M6 8.4v7.2M8.3 6.6h3.2a4 4 0 0 1 4 4v1"/></svg></span>
+            <div style="flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:600;color:#28303B">Pull request</div>
+            <span style="font:500 12px 'Geist Mono',monospace;color:#6B7280">Merged</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 11.5px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;animation:kIn .5s ease both;animation-delay:300ms">
+            <span style="width:28px;height:28px;border-radius:8px;background:#F3F6FA;border:1px solid #E7ECF2;display:flex;align-items:center;justify-content:center;color:#5B6672;flex:0 0 auto" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12l2.4 2.4 4.8-4.8"/></svg></span>
+            <div style="flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:600;color:#28303B">CI checks</div>
+            <span style="font:500 12px 'Geist Mono',monospace;color:#6B7280">Passed</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 11.5px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;animation:kIn .5s ease both;animation-delay:410ms">
+            <span style="width:28px;height:28px;border-radius:8px;background:#F3F6FA;border:1px solid #E7ECF2;display:flex;align-items:center;justify-content:center;color:#5B6672;flex:0 0 auto" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9m0 0l-4 4m4-4l4 4M5 4h14"/></svg></span>
+            <div style="flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:600;color:#28303B">Deploy</div>
+            <span style="font:500 12px 'Geist Mono',monospace;color:#6B7280">Completed</span>
+            <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 11.5px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span>
+          </div>
+          <div id="flagRow" style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;background:rgba(220,38,38,.055);border:1px solid rgba(220,38,38,.26);transition:background .3s ease,border-color .3s ease;animation:kIn .5s ease both;animation-delay:520ms">
+            <span style="width:28px;height:28px;border-radius:8px;background:#fff;border:1px solid #E7ECF2;display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg id="flagIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h11l-2 3.5 2 3.5H5"/></svg></span>
+            <div style="flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:600;color:#28303B">Feature flag</div>
+            <span id="flagStatus" style="font:600 12px 'Geist Mono',monospace;color:#B91C1C">OFF</span>
+            <span id="flagPill" style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;background:rgba(220,38,38,.10);color:#B91C1C;border:1px solid rgba(220,38,38,.26);font:600 11.5px 'Geist Mono',monospace">Fail</span>
+          </div>
         </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#0F6E5C;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">IN_PROGRESS</span>
-        </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#8A6BB0;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">POSSIBLE_<br>FULFILLMENT</span>
-        </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#1F9E73;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">VERIFIED</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.02em;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:4px;padding:1px 5px;white-space:nowrap;">Gate 2 · human</span>
-        </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#1F9E73;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">CUSTOMER_<br>NOTIFIED</span>
-        </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:9px;flex:1;">
-          <span style="width:15px;height:15px;border-radius:50%;background:#1F9E73;border:3px solid #F4F1EA;box-shadow:0 0 0 1px #D2CAB6;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;line-height:1.25;color:#1B1A17;text-align:center;max-width:96px;">CLOSED</span>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:30px;">
-      <!-- explainer -->
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:26px;display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:5px;padding:3px 9px;">two human gates</span>
-        <h3 style="font-family:'Fraunces',serif;font-weight:600;font-size:1.375rem;letter-spacing:-0.01em;margin:18px 0 0;">Evidence opens the gate. A human walks through it.</h3>
-        <p style="font-size:15px;line-height:1.62;color:#46433C;margin:11px 0 0;">Kept advances an obligation as evidence arrives — a status change, a merged PR, a production deploy. But the two consequential steps — <strong style="font-weight:600;">confirming the commitment</strong> (Gate&nbsp;1) and <strong style="font-weight:600;">verifying fulfillment before telling the customer</strong> (Gate&nbsp;2) — require a person.</p>
-        <div style="margin-top:20px;border-left:3px solid #A8431F;background:#F7ECE6;border-radius:0 8px 8px 0;padding:14px 16px;">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A8431F;font-weight:500;">&#8635; REOPENED &rarr; IN_PROGRESS</span>
-          <span style="font-size:13px;color:#46433C;line-height:1.5;display:block;margin-top:5px;">The obligation outlives the ticket. A customer dispute reopens it even if the tracker still says &ldquo;Done&rdquo;.</span>
-        </div>
-      </div>
-
-      <!-- audit log -->
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid #E4DECF;background:#F4F1EA;">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;font-weight:500;">audit_history</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">append-only · obligation #1043</span>
-          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A39B8C;letter-spacing:0.08em;">IMMUTABLE</span>
-        </div>
-        <div style="padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:13px;">
-          <div style="display:flex;gap:11px;">
-            <span style="color:#A39B8C;flex:none;">09:14</span>
-            <div style="min-width:0;">
-              <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#F6EFD9;border:1px solid #E8D9B0;color:#8A6A12;">CANDIDATE</span>
-              <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">Kept</span>
-              <div style="color:#837C6E;margin-top:3px;word-break:break-word;">detected in #northwind&harr;acme</div>
+        <div style="padding:6px 14px 14px">
+          <div id="verdictBox" style="border:1px solid rgba(220,38,38,.24);background:rgba(220,38,38,.06);border-radius:12px;padding:12px 13px;transition:background .3s ease,border-color .3s ease">
+            <span id="verdictKicker" style="font:600 10.5px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#B91C1C">Gate 2 · Blocked</span>
+            <div id="verdictTitle" style="margin-top:5px;font-weight:700;font-size:15.5px;color:#B91C1C">Not ready to close</div>
+            <div id="verdictReason" style="margin-top:3px;font-size:13px;color:#42505F;line-height:1.5">Evidence mismatch — the feature flag is still off in production.</div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <button type="button" id="toggleBtn" style="padding:8px 13px;background:#0B1220;color:#fff;border:none;border-radius:9px;font:600 12.5px 'Geist',sans-serif;cursor:pointer;transition:transform .15s ease,background .2s ease" style-hover="transform:translateY(-1px);background:#1B2536">Enable flag in production</button>
+              <button type="button" id="signoffBtn" disabled style="padding:8px 13px;background:#EAEEF3;color:#9AA3AF;border:none;border-radius:9px;font:600 12.5px 'Geist',sans-serif;cursor:not-allowed;transition:background .2s ease">Sign-off locked</button>
+              <span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font:500 11px 'Geist Mono',monospace;color:#94A0AD">Try it<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
             </div>
           </div>
-          <div style="display:flex;gap:11px;">
-            <span style="color:#A39B8C;flex:none;">09:15</span>
-            <div style="min-width:0;">
-              <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#DCE8F5;border:1px solid #BFD3EC;color:#1F5FA6;">OPEN</span>
-              <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">Amelia</span>
-              <div style="color:#837C6E;margin-top:3px;word-break:break-word;">Gate 1 · commitment confirmed → issue created over MCP</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="problem" aria-label="Problem" style="padding:clamp(60px,8vw,112px) 0;background:#fff;border-top:1px solid #EEF2F6">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>The gap</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">"Done" is scattered across too many systems.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">A customer commitment can start in Slack, move through Jira, get merged in GitHub, pass CI, deploy successfully — and still fail to be customer-visible. Kept keeps the promise open until the evidence lines up.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:16px;margin-top:clamp(32px,4vw,52px)">
+      <div data-reveal data-reveal-delay="0" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 30px -16px rgba(16,24,40,.20)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.4-4.4A8.5 8.5 0 1 1 20 11.5z"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16.5px;color:#111827">Promises happen in Slack</div>
+        <p style="margin-top:6px;font-size:14.3px;line-height:1.55;color:#42505F">Customer-facing commitments are made casually in shared channels — between updates, not in a tracker.</p>
+        <span style="display:inline-block;margin-top:13px;font:500 11.5px 'Geist Mono',monospace;color:#6B7280;background:#F3F6FA;border:1px solid #E7ECF2;border-radius:7px;padding:4px 8px">#acme-shared · 10:42</span>
+      </div>
+      <div data-reveal data-reveal-delay="80" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 30px -16px rgba(16,24,40,.20)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16.5px;color:#111827">Tickets are not proof</div>
+        <p style="margin-top:6px;font-size:14.3px;line-height:1.55;color:#42505F">A closed ticket does not mean the customer can actually use the feature yet.</p>
+        <span style="display:inline-block;margin-top:13px;font:500 11.5px 'Geist Mono',monospace;color:#6B7280;background:#F3F6FA;border:1px solid #E7ECF2;border-radius:7px;padding:4px 8px">PROJ-482 · Done</span>
+      </div>
+      <div data-reveal data-reveal-delay="160" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 30px -16px rgba(16,24,40,.20)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M7.6 7.6 11 15M16.4 7.6 13 15"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16.5px;color:#111827">Evidence is fragmented</div>
+        <p style="margin-top:6px;font-size:14.3px;line-height:1.55;color:#42505F">PRs, CI, deploys, feature flags, and status pages each tell only part of the truth.</p>
+        <span style="display:inline-block;margin-top:13px;font:500 11.5px 'Geist Mono',monospace;color:#6B7280;background:#F3F6FA;border:1px solid #E7ECF2;border-radius:7px;padding:4px 8px">5 sources · 1 verdict</span>
+      </div>
+      <div data-reveal data-reveal-delay="240" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 30px -16px rgba(16,24,40,.20)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16.5px;color:#111827">Customers remember</div>
+        <p style="margin-top:6px;font-size:14.3px;line-height:1.55;color:#42505F">When "Friday" quietly becomes "soon," trust starts to erode — one missed promise at a time.</p>
+        <span style="display:inline-block;margin-top:13px;font:500 11.5px 'Geist Mono',monospace;color:#B45309;background:#FFF7ED;border:1px solid #FCD9A8;border-radius:7px;padding:4px 8px">Friday → soon</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how" aria-label="How it works" style="scroll-margin-top:80px;padding:clamp(60px,8vw,112px) 0;background:#F3F6FA">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>How it works</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">From Slack promise to signed verdict.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Two of the five steps are human gates. The agent gathers and proposes; people confirm and sign.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:14px;margin-top:clamp(32px,4vw,52px)">
+      <div data-reveal data-reveal-delay="0" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:20px 18px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font:600 12px 'Geist Mono',monospace;color:#B4BEC9">01</span><span style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)">Agent</span></div>
+        <span style="margin-top:14px;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5v3M16 4h3v3M8 20H5v-3M16 20h3v-3"/><circle cx="12" cy="12" r="2"/></svg></span>
+        <div style="margin-top:13px;font-weight:700;font-size:16px;color:#111827">Capture</div>
+        <p style="margin-top:6px;font-size:13.8px;line-height:1.5;color:#42505F">Kept detects a commitment in a Slack channel and stores it as a derived fact.</p>
+        <div style="margin-top:13px;padding-top:10px;border-top:1px dashed #E1E7EE;font:500 11.5px 'Geist Mono',monospace;color:#6B7280">No raw message body stored.</div>
+      </div>
+      <div data-reveal data-reveal-delay="90" style="background:var(--accent-tint,#E6F2F0);border:1px solid var(--accent-line,#B7DBD5);border-radius:16px;padding:20px 18px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font:600 12px 'Geist Mono',monospace;color:color-mix(in srgb,var(--accent,#0F766E) 55%,#fff)">02</span><span style="display:inline-flex;align-items:center;gap:5px;font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:#fff;color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>Human gate</span></div>
+        <span style="margin-top:14px;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>
+        <div style="margin-top:13px;font-weight:700;font-size:16px;color:#0B3D38">Confirm</div>
+        <p style="margin-top:6px;font-size:13.8px;line-height:1.5;color:#2C4B47">A human confirms the commitment is real before Kept tracks it.</p>
+        <div style="margin-top:13px;padding-top:10px;border-top:1px dashed var(--accent-line,#B7DBD5);font:500 11.5px 'Geist Mono',monospace;color:#2C6B64">Gate 1 prevents false positives.</div>
+      </div>
+      <div data-reveal data-reveal-delay="180" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:20px 18px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font:600 12px 'Geist Mono',monospace;color:#B4BEC9">03</span><span style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)">Agent</span></div>
+        <span style="margin-top:14px;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg></span>
+        <div style="margin-top:13px;font-weight:700;font-size:16px;color:#111827">Gather</div>
+        <p style="margin-top:6px;font-size:13.8px;line-height:1.5;color:#42505F">Kept collects evidence from the tools that actually ship the work.</p>
+        <div style="margin-top:13px;padding-top:10px;border-top:1px dashed #E1E7EE;font:500 11.5px 'Geist Mono',monospace;color:#6B7280">Tickets, PRs, CI, deploys, flags.</div>
+      </div>
+      <div data-reveal data-reveal-delay="270" style="background:#fff;border:1px solid #E7ECF2;border-radius:16px;padding:20px 18px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font:600 12px 'Geist Mono',monospace;color:#B4BEC9">04</span><span style="font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)">Agent</span></div>
+        <span style="margin-top:14px;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg></span>
+        <div style="margin-top:13px;font-weight:700;font-size:16px;color:#111827">Compare</div>
+        <p style="margin-top:6px;font-size:13.8px;line-height:1.5;color:#42505F">The evidence packet is evaluated against the promise.</p>
+        <div style="margin-top:13px;padding-top:10px;border-top:1px dashed #E1E7EE;font:500 11.5px 'Geist Mono',monospace;color:#6B7280">LLM proposes; code decides.</div>
+      </div>
+      <div data-reveal data-reveal-delay="360" style="background:var(--accent-tint,#E6F2F0);border:1px solid var(--accent-line,#B7DBD5);border-radius:16px;padding:20px 18px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between"><span style="font:600 12px 'Geist Mono',monospace;color:color-mix(in srgb,var(--accent,#0F766E) 55%,#fff)">05</span><span style="display:inline-flex;align-items:center;gap:5px;font:600 10px 'Geist Mono',monospace;letter-spacing:.04em;text-transform:uppercase;padding:3px 7px;border-radius:6px;background:#fff;color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>Human gate</span></div>
+        <span style="margin-top:14px;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:#fff;color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3 0 3.5-8 6.5-8s2.5 8 5.5 8M17 15l3 3M19 13l2.2 2.2"/></svg></span>
+        <div style="margin-top:13px;font-weight:700;font-size:16px;color:#0B3D38">Sign</div>
+        <p style="margin-top:6px;font-size:13.8px;line-height:1.5;color:#2C4B47">A human signs the verdict and Kept posts closure back to Slack.</p>
+        <div style="margin-top:13px;padding-top:10px;border-top:1px dashed var(--accent-line,#B7DBD5);font:500 11.5px 'Geist Mono',monospace;color:#2C6B64">Gate 2 prevents false closure.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="demo" aria-label="Evidence mismatch demo" style="scroll-margin-top:80px;padding:clamp(60px,8vw,112px) 0;background:#fff;border-top:1px solid #EEF2F6">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:720px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#B91C1C"><span style="width:18px;height:2px;background:#DC2626;border-radius:2px"></span>The dangerous miss</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">A closed ticket that never shipped.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Acme was promised the SSO fix live by Friday. Four systems say it's done. One says it isn't — and that's the one the customer feels.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;margin-top:clamp(32px,4vw,48px);align-items:stretch">
+      <div data-reveal style="flex:1 1 500px;min-width:0;background:#fff;border:1px solid #E7ECF2;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 18px 40px -24px rgba(16,24,40,.18);overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid #EEF2F6;background:#FBFCFD">
+          <span style="font-weight:700;font-size:15px;color:#111827">SSO fix live for Acme by Friday</span>
+          <span style="margin-left:auto;font:500 12px 'Geist Mono',monospace;color:#94A0AD">Customer: Acme</span>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-family:'Geist',sans-serif">
+          <thead><tr>
+            <th style="text-align:left;padding:11px 20px;font:600 11px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#94A0AD;border-bottom:1px solid #EEF2F6">Evidence</th>
+            <th style="text-align:left;padding:11px 12px;font:600 11px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#94A0AD;border-bottom:1px solid #EEF2F6">Status</th>
+            <th style="text-align:right;padding:11px 20px;font:600 11px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#94A0AD;border-bottom:1px solid #EEF2F6">Result</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:13px 20px;font-size:14.5px;font-weight:600;color:#28303B;border-bottom:1px solid #F1F4F7">Ticket</td><td style="padding:13px 12px;font:500 13px 'Geist Mono',monospace;color:#6B7280;border-bottom:1px solid #F1F4F7">Done</td><td style="padding:13px 20px;text-align:right;border-bottom:1px solid #F1F4F7"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 12px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span></td></tr>
+            <tr><td style="padding:13px 20px;font-size:14.5px;font-weight:600;color:#28303B;border-bottom:1px solid #F1F4F7">Pull request</td><td style="padding:13px 12px;font:500 13px 'Geist Mono',monospace;color:#6B7280;border-bottom:1px solid #F1F4F7">Merged</td><td style="padding:13px 20px;text-align:right;border-bottom:1px solid #F1F4F7"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 12px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span></td></tr>
+            <tr><td style="padding:13px 20px;font-size:14.5px;font-weight:600;color:#28303B;border-bottom:1px solid #F1F4F7">CI</td><td style="padding:13px 12px;font:500 13px 'Geist Mono',monospace;color:#6B7280;border-bottom:1px solid #F1F4F7">Green</td><td style="padding:13px 20px;text-align:right;border-bottom:1px solid #F1F4F7"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 12px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span></td></tr>
+            <tr><td style="padding:13px 20px;font-size:14.5px;font-weight:600;color:#28303B;border-bottom:1px solid #F1F4F7">Deploy</td><td style="padding:13px 12px;font:500 13px 'Geist Mono',monospace;color:#6B7280;border-bottom:1px solid #F1F4F7">Shipped</td><td style="padding:13px 20px;text-align:right;border-bottom:1px solid #F1F4F7"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 12px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Pass</span></td></tr>
+            <tr><td style="padding:14px 20px;font-size:14.5px;font-weight:700;color:#111827;background:rgba(220,38,38,.05);border-left:3px solid #DC2626">Feature flag</td><td style="padding:14px 12px;font:600 13px 'Geist Mono',monospace;color:#B91C1C;background:rgba(220,38,38,.05)">OFF</td><td style="padding:14px 20px;text-align:right;background:rgba(220,38,38,.05)"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(220,38,38,.10);color:#B91C1C;border:1px solid rgba(220,38,38,.26);font:600 12px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>Fail</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <div data-reveal data-reveal-delay="120" style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:16px">
+        <div style="flex:1 1 auto;border:1px solid rgba(220,38,38,.26);background:linear-gradient(180deg,rgba(220,38,38,.06),#fff 70%);border-radius:18px;padding:24px;display:flex;flex-direction:column;justify-content:center">
+          <span style="font:600 11px 'Geist Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#B91C1C">Kept verdict</span>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:9px;background:rgba(220,38,38,.10);border:1px solid rgba(220,38,38,.24);color:#B91C1C;display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><path d="M10.3 4.3 3 17a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z"/></svg></span><span style="font-weight:700;font-size:22px;letter-spacing:-.02em;color:#0B1220">Blocked from closure</span></div>
+          <p style="margin-top:12px;font-size:14.5px;line-height:1.6;color:#3A4351">Kept found the one signal that mattered: the feature was still disabled in production. Four green checks, one customer-visible gap.</p>
+        </div>
+        <a href="#top" style="display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:14px 18px;background:var(--brand,#2563EB);color:#fff;border-radius:12px;font:600 15px 'Geist',sans-serif;box-shadow:0 1px 2px rgba(16,24,40,.08),0 10px 22px -10px color-mix(in srgb,var(--brand,#2563EB) 70%,transparent);transition:transform .15s ease,background .2s ease" style-hover="transform:translateY(-1px);background:var(--brand-strong,#1D4ED8)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg>Watch the demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-label="Promise Drift Index" style="padding:clamp(60px,8vw,112px) 0;background:#F3F6FA">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>Promise Drift Index</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">Catch promise drift before customers do.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Kept tracks how commitments weaken over time — from specific dates, to vague updates, to silence.</p>
+    </div>
+    <div data-reveal style="margin-top:clamp(32px,4vw,48px);background:#fff;border:1px solid #E7ECF2;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 18px 40px -24px rgba(16,24,40,.16);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 20px;border-bottom:1px solid #EEF2F6;background:#FBFCFD">
+        <span style="font-weight:700;font-size:14.5px;color:#111827">Drift monitor</span>
+        <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
+          <span style="font:600 11px 'Geist Mono',monospace;color:#0F766E;background:rgba(15,118,110,.10);border:1px solid rgba(15,118,110,.22);padding:3px 8px;border-radius:999px">Firm</span>
+          <span style="font:600 11px 'Geist Mono',monospace;color:#B45309;background:rgba(245,158,11,.13);border:1px solid rgba(245,158,11,.30);padding:3px 8px;border-radius:999px">Softening</span>
+          <span style="font:600 11px 'Geist Mono',monospace;color:#6B7280;background:#F1F3F6;border:1px solid #E1E6EC;padding:3px 8px;border-radius:999px">Stalled</span>
+          <span style="font:600 11px 'Geist Mono',monospace;color:#B91C1C;background:rgba(220,38,38,.09);border:1px solid rgba(220,38,38,.24);padding:3px 8px;border-radius:999px">At risk</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:15px 20px;border-top:1px solid #F1F4F7">
+        <span style="flex:0 0 92px;display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:5px 10px;border-radius:999px;background:rgba(15,118,110,.10);color:#0F766E;border:1px solid rgba(15,118,110,.22);font:600 12px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>Firm</span>
+        <div style="flex:1 1 220px;min-width:0"><div style="font-weight:650;font-size:15px;color:#111827">SSO live for Northwind</div><div style="font:500 12px 'Geist Mono',monospace;color:#6B7280;margin-top:2px">Reaffirmed today · Owner: Amelia · Due: Friday</div></div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px"><div style="width:120px;height:6px;border-radius:999px;background:#EAEEF3;overflow:hidden"><div style="height:100%;width:94%;border-radius:999px;background:#0F766E"></div></div><span style="font:600 13px 'Geist Mono',monospace;color:#0F766E">→</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:15px 20px;border-top:1px solid #F1F4F7">
+        <span style="flex:0 0 92px;display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:5px 10px;border-radius:999px;background:rgba(245,158,11,.13);color:#B45309;border:1px solid rgba(245,158,11,.30);font:600 12px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>Softening</span>
+        <div style="flex:1 1 220px;min-width:0"><div style="font-weight:650;font-size:15px;color:#111827">CSV export fix</div><div style="font:500 12px 'Geist Mono',monospace;color:#6B7280;margin-top:2px">"early next week" → "soon" · 6 days old</div></div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px"><div style="width:120px;height:6px;border-radius:999px;background:#EAEEF3;overflow:hidden"><div style="height:100%;width:56%;border-radius:999px;background:#F59E0B"></div></div><span style="font:600 13px 'Geist Mono',monospace;color:#B45309">↘</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:15px 20px;border-top:1px solid #F1F4F7">
+        <span style="flex:0 0 92px;display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:5px 10px;border-radius:999px;background:#F1F3F6;color:#6B7280;border:1px solid #E1E6EC;font:600 12px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>Stalled</span>
+        <div style="flex:1 1 220px;min-width:0"><div style="font-weight:650;font-size:15px;color:#111827">SAML metadata endpoint</div><div style="font:500 12px 'Geist Mono',monospace;color:#6B7280;margin-top:2px">No update for 11 days · Owner missing</div></div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px"><div style="width:120px;height:6px;border-radius:999px;background:#EAEEF3;overflow:hidden"><div style="height:100%;width:30%;border-radius:999px;background:#9AA3AF"></div></div><span style="font:600 13px 'Geist Mono',monospace;color:#9AA3AF">—</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:15px 20px;border-top:1px solid #F1F4F7">
+        <span style="flex:0 0 92px;display:inline-flex;align-items:center;gap:6px;justify-content:center;padding:5px 10px;border-radius:999px;background:rgba(220,38,38,.09);color:#B91C1C;border:1px solid rgba(220,38,38,.24);font:600 12px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor;animation:kPulse 1.8s ease-in-out infinite"></span>At risk</span>
+        <div style="flex:1 1 220px;min-width:0"><div style="font-weight:650;font-size:15px;color:#111827">Billing webhook retry</div><div style="font:500 12px 'Geist Mono',monospace;color:#6B7280;margin-top:2px">Evidence incomplete · Due tomorrow</div></div>
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:9px"><div style="width:120px;height:6px;border-radius:999px;background:#EAEEF3;overflow:hidden"><div style="height:100%;width:20%;border-radius:999px;background:#DC2626"></div></div><span style="font:600 13px 'Geist Mono',monospace;color:#B91C1C">↘</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-label="Customer trust page" style="padding:clamp(60px,8vw,112px) 0;background:#fff;border-top:1px solid #EEF2F6">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,56px);align-items:center">
+      <div data-reveal style="flex:1 1 360px;min-width:0">
+        <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>Customer trust page</span>
+        <h2 style="margin:14px 0 0;font-size:clamp(29px,3.6vw,44px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">Give every customer a verified commitment page.</h2>
+        <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Kept turns scattered Slack promises into a clean, customer-safe view of what was promised, what changed, and what is actually done.</p>
+        <div style="margin-top:22px;display:flex;align-items:center;gap:9px;font-size:14px;color:#42505F"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><span>Only <strong style="color:#111827">signed verdicts</strong> appear as kept.</span></div>
+      </div>
+      <div data-reveal data-reveal-delay="120" style="flex:1 1 460px;min-width:0;background:#fff;border:1px solid #E7ECF2;border-radius:18px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 24px 50px -26px rgba(16,24,40,.26);overflow:hidden">
+        <div style="height:4px;background:linear-gradient(90deg,var(--brand,#2563EB),var(--accent,#14B8A6))"></div>
+        <div style="padding:20px 22px">
+          <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+            <div style="width:38px;height:38px;border-radius:10px;background:#0B1220;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:0 0 auto" aria-hidden="true">A</div>
+            <div><div style="font-weight:700;font-size:17px;color:#111827;letter-spacing:-.01em">Acme · Commitments</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD">Updated Jul 7, 2026</div></div>
+            <span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5);font:600 11.5px 'Geist Mono',monospace"><svg width="13" height="13" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="7" fill="url(#kmT)"/><path d="M8 14.5 L12 18.5 L20 9.5" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="kmT" x1="2" y1="2" x2="26" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs></svg>Verified by Kept</span>
+          </div>
+          <div style="margin-top:16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+            <div style="background:#F7F9FB;border:1px solid #E7ECF2;border-radius:12px;padding:12px 12px 11px;text-align:center"><div style="font:600 24px 'Geist Mono',monospace;color:#16A34A;letter-spacing:-.02em">12</div><div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">Kept</div></div>
+            <div style="background:#F7F9FB;border:1px solid #E7ECF2;border-radius:12px;padding:12px 12px 11px;text-align:center"><div style="font:600 24px 'Geist Mono',monospace;color:var(--brand,#2563EB);letter-spacing:-.02em">3</div><div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">In progress</div></div>
+            <div style="background:#F7F9FB;border:1px solid #E7ECF2;border-radius:12px;padding:12px 12px 11px;text-align:center"><div style="font:600 24px 'Geist Mono',monospace;color:#B45309;letter-spacing:-.02em">1</div><div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">Verifying</div></div>
+            <div style="background:#F7F9FB;border:1px solid #E7ECF2;border-radius:12px;padding:12px 12px 11px;text-align:center"><div style="font:600 24px 'Geist Mono',monospace;color:#B91C1C;letter-spacing:-.02em">1</div><div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">At risk</div></div>
+          </div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid #EEF2F6;border-radius:11px">
+              <div style="flex:1 1 auto;min-width:0"><div style="font-weight:650;font-size:14px;color:#111827">SSO login fix</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD;margin-top:1px">Signed Jul 2</div></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(22,163,74,.10);color:#15803D;border:1px solid rgba(22,163,74,.24);font:600 11.5px 'Geist Mono',monospace"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Kept</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid #EEF2F6;border-radius:11px">
+              <div style="flex:1 1 auto;min-width:0"><div style="font-weight:650;font-size:14px;color:#111827">CSV export</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD;margin-top:1px">Evidence pending</div></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB);font:600 11.5px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>In progress</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid #EEF2F6;border-radius:11px">
+              <div style="flex:1 1 auto;min-width:0"><div style="font-weight:650;font-size:14px;color:#111827">SAML metadata endpoint</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD;margin-top:1px">No owner update</div></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(220,38,38,.09);color:#B91C1C;border:1px solid rgba(220,38,38,.24);font:600 11.5px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>At risk</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid #EEF2F6;border-radius:11px">
+              <div style="flex:1 1 auto;min-width:0"><div style="font-weight:650;font-size:14px;color:#111827">Billing webhook retry</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#94A0AD;margin-top:1px">Awaiting sign-off</div></div>
+              <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:rgba(245,158,11,.13);color:#B45309;border:1px solid rgba(245,158,11,.30);font:600 11.5px 'Geist Mono',monospace"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>Verifying</span>
             </div>
           </div>
-          <div style="display:flex;gap:11px;">
-            <span style="color:#A39B8C;flex:none;">14:02</span>
-            <div style="min-width:0;">
-              <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#ECE4F3;border:1px solid #D5C5E6;color:#6B4E9E;">POSSIBLE_FULFILLMENT</span>
-              <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">github+deploy</span>
-              <div style="color:#837C6E;margin-top:3px;word-break:break-word;">PR #449 merged + production deploy</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:11px;">
-            <span style="color:#A39B8C;flex:none;">14:06</span>
-            <div style="min-width:0;">
-              <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#DCEDE8;border:1px solid #B7D7CE;color:#0B5346;">VERIFIED</span>
-              <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">Amelia</span>
-              <div style="color:#837C6E;margin-top:3px;word-break:break-word;">Gate 2 · fulfillment verified</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:11px;">
-            <span style="color:#A39B8C;flex:none;">14:07</span>
-            <div style="min-width:0;">
-              <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#DCEDE8;border:1px solid #B7D7CE;color:#0B5346;">CUSTOMER_NOTIFIED</span>
-              <span style="color:#837C6E;"> by </span><span style="color:#1B1A17;">Amelia</span>
-              <div style="color:#837C6E;margin-top:3px;word-break:break-word;">sanitized reply posted in-thread</div>
-            </div>
-          </div>
-          <span style="color:#0F6E5C;display:inline-block;width:8px;height:15px;background:#0F6E5C;animation:keptBlink 1.1s step-end infinite;"></span>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============ IN SLACK ============ -->
-<section id="try-it" style="border-top:1px solid #E4DECF;background:#F4F1EA;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">Try it · interactive</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 8px;">Click one obligation through both gates.</h2>
-    <p style="font-size:16px;color:#46433C;line-height:1.6;max-width:64ch;margin:0 0 22px;">The same beats the live engine runs — no install. Confirm and verify cards stay private to the owner; the work item is created over MCP after Gate&nbsp;1; only an approved, sanitized reply reaches the customer thread.</p>
-
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
-      <span id="kept-g1" class="kept-gate">Gate 1 · confirm commitment</span>
-      <span id="kept-g2" class="kept-gate">Gate 2 · verify fulfillment</span>
+<section id="integrations" aria-label="Integrations" style="scroll-margin-top:80px;padding:clamp(60px,8vw,112px) 0;background:#F3F6FA">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>Integrations</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">Evidence from the systems that ship the work.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Connect the delivery tools your team already uses. Kept reads them to assemble proof for every commitment — the promise starts in Slack, the evidence comes from everywhere the work actually happens.</p>
     </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start;">
-      <div style="background:#FFFFFF;border:1px solid #E4DECF;border-radius:12px;box-shadow:0 1px 2px rgba(27,26,23,.06),0 18px 40px -24px rgba(27,26,23,.25);overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid #E4DECF;background:#FBF9F3;">
-          <span style="width:9px;height:9px;border-radius:2px;background:#0F6E5C;"></span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#1B1A17;font-weight:500;"># northwind &harr; acme</span>
-          <span id="kept-surface-tag" style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;padding:3px 8px;border:1px solid #E4DECF;border-radius:5px;">private to owner</span>
-        </div>
-        <div id="kept-card" style="padding:16px;"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:clamp(32px,4vw,48px)">
+      <div data-reveal data-reveal-delay="0" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font:700 20px 'Geist Mono',monospace" aria-hidden="true">#</span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">Slack</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Live promise source</div></div>
       </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:12px;overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid #E4DECF;background:#F4F1EA;">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#46433C;font-weight:500;">audit_history</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#837C6E;">append-only</span>
-          <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#A39B8C;letter-spacing:0.08em;">IMMUTABLE</span>
-        </div>
-        <div id="kept-audit" style="padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:12px;"></div>
+      <div data-reveal data-reveal-delay="60" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M6 8.4v3.2A2.4 2.4 0 0 0 8.4 14h7.2A2.4 2.4 0 0 0 18 11.6V8.4M12 14v1.6"/></svg></span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">GitHub Actions</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Proof · CI conclusion</div></div>
+      </div>
+      <div data-reveal data-reveal-delay="120" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg></span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">Jira</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Proof · issue status</div></div>
+      </div>
+      <div data-reveal data-reveal-delay="180" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7l14 0M6 12l12 0M9 17l9 0"/></svg></span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">Linear</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Proof · issue state</div></div>
+      </div>
+      <div data-reveal data-reveal-delay="240" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="8" cy="12" r="3" fill="currentColor" stroke="none"/></svg></span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">LaunchDarkly</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Proof · prod flag state</div></div>
+      </div>
+      <div data-reveal data-reveal-delay="300" style="position:relative;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;display:flex;align-items:center;gap:13px;box-shadow:0 1px 2px rgba(16,24,40,.03);transition:transform .2s ease,box-shadow .2s ease" style-hover="transform:translateY(-3px);box-shadow:0 12px 28px -16px rgba(16,24,40,.20)">
+        <span style="width:42px;height:42px;border-radius:11px;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);display:flex;align-items:center;justify-content:center;flex:0 0 auto" aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></span>
+        <div style="min-width:0"><div style="font-weight:700;font-size:15px;color:#111827">Statuspage</div><div style="font:500 11.5px 'Geist Mono',monospace;color:#8A96A3;margin-top:2px">Proof · component status</div></div>
       </div>
     </div>
-    <p style="font-size:12.5px;color:#837C6E;margin:18px 0 0;">A faithful, in-browser replica of the real Block Kit cards. Run <code style="font-family:'IBM Plex Mono',monospace;background:#ECE8DE;padding:1px 6px;border-radius:4px;">npm run demo</code> for the live engine, or <a href="slack-cards.png" target="_blank" rel="noopener" style="color:#0F6E5C;">see all three cards as one image &#8599;</a>.</p>
-    <p style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;margin:40px 0 14px;">Or watch the real engine run</p>
-    <img src="demo.png" alt="Abridged terminal output of npm run demo: the full obligation loop end to end — confirm at Gate 1, work item created over MCP, duplicate webhook suppressed, merge + prod deploy reconciled, Gate 2 verify, sanitized in-thread closure, then reopened when the customer disputes." loading="lazy" style="width:100%;height:auto;display:block;border:1px solid #E4DECF;border-radius:12px;box-shadow:0 1px 2px rgba(27,26,23,.06),0 24px 50px -28px rgba(27,26,23,.30);">
-    <p style="font-size:12.5px;color:#837C6E;margin:14px 0 0;">The deterministic engine end to end — no Slack, database, or network. <code style="font-family:'IBM Plex Mono',monospace;background:#ECE8DE;padding:1px 6px;border-radius:4px;">npm run demo</code> reproduces it in seconds.</p>
-  </div>
-</section>
-
-<!-- ============ GUARANTEES ============ -->
-<section id="guarantees" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">04 · The guarantees</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;">Six invariants the engine will not break.</h2>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:18px;margin-top:40px;">
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No accidental commitment</h3>
-        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">A customer request becomes a promise only when the account owner approves it.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G2</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No false fulfillment</h3>
-        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">A ticket status or merged PR is evidence, not truth. Closure needs reconciled evidence — merge + deploy reaching the customer, or the customer&rsquo;s own confirmation — plus a human.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G3</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No duplicated side effects</h3>
-        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Repeated Slack events and webhooks never double-create an obligation or double-notify a customer.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G4</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">No confidential leakage</h3>
-        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Internal evidence — PRs, deploys, internal notes — never reaches the shared customer channel.</p>
-      </div>
-      <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:24px;box-shadow:0 1px 2px rgba(27,26,23,.05);">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0F6E5C;font-weight:600;">G5</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#A39B8C;">invariant</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#1B1A17;line-height:1.3;">Complete auditability</h3>
-        <p style="font-size:14px;line-height:1.6;color:#46433C;margin:0;">Every transition records source, evidence, actor, timestamp, prior/new state, and approval.</p>
-      </div>
-      <div style="background:#F3DFD4;border:1px solid #E3C8BC;border-radius:10px;padding:24px;">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#A8431F;font-weight:600;">G6</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#B5502E;">the keystone</span></div>
-        <h3 style="font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:1.1875rem;margin:13px 0 9px;color:#A8431F;line-height:1.3;">The obligation outlives the ticket</h3>
-        <p style="font-size:14px;line-height:1.6;color:#7A3A22;margin:0;">A customer dispute reopens it — even if the ticket stays &ldquo;Done&rdquo; forever.</p>
-      </div>
+    <div data-reveal style="margin-top:16px;display:flex;align-items:flex-start;gap:11px;background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:16px 18px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand,#2563EB)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;margin-top:1px" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+      <p style="font-size:14px;line-height:1.55;color:#42505F">Connect each tool with your own <strong style="color:#111827">read-only</strong> API token. Kept reads them to assemble evidence — it never writes back, never moves a ticket, and stores only derived facts, not their contents.</p>
     </div>
   </div>
 </section>
 
-<!-- ============ NUMBERS ============ -->
-<section style="border-top:1px solid #E4DECF;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">05 · The numbers</span>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border-top:1px solid #D2CAB6;border-bottom:1px solid #D2CAB6;margin-top:28px;">
-      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">false closures</div>
+<section id="security" aria-label="Security" style="scroll-margin-top:80px;padding:clamp(60px,8vw,112px) 0;background:linear-gradient(180deg,#EDF2F8,#F3F6FA)">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:720px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--brand,#2563EB)"><span style="width:18px;height:2px;background:var(--brand,#2563EB);border-radius:2px"></span>Security &amp; privacy</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">Built for shared customer channels — without copying your workspace.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Kept verifies commitments while minimizing what it stores. It persists derived facts, not raw Slack message bodies, and keeps humans in control of confirmation and closure.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:14px;margin-top:clamp(32px,4vw,48px)">
+      <div data-reveal data-reveal-delay="0" style="background:#fff;border:1px solid #E1E9F2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16px;color:#111827">Derived facts only</div>
+        <p style="margin-top:6px;font-size:14px;line-height:1.55;color:#42505F">Kept stores structured commitments, owners, due dates, and verdict metadata — not full Slack message bodies.</p>
       </div>
-      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">100<span style="font-size:0.5em;">%</span></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">duplicate-event suppression</div>
+      <div data-reveal data-reveal-delay="80" style="background:#fff;border:1px solid #E1E9F2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 19a6 6 0 0 1 12 0M14 19a4.5 4.5 0 0 1 7-3.6"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16px;color:#111827">Two human gates</div>
+        <p style="margin-top:6px;font-size:14px;line-height:1.55;color:#42505F">Humans confirm the promise and sign the verdict. Nothing closes automatically.</p>
       </div>
-      <div style="padding:34px 24px;border-right:1px solid #E4DECF;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0<span style="font-size:0.5em;">%</span></div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">customer-facing leakage</div>
+      <div data-reveal data-reveal-delay="160" style="background:#fff;border:1px solid #E1E9F2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="7" height="14" rx="1.6"/><rect x="14" y="5" width="7" height="14" rx="1.6"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16px;color:#111827">Tenant isolated</div>
+        <p style="margin-top:6px;font-size:14px;line-height:1.55;color:#42505F">Workspace data and credentials are separated by tenant, end to end.</p>
       </div>
-      <div style="padding:34px 24px;">
-        <div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:clamp(2.5rem,5vw,3.5rem);line-height:1;color:#14503A;letter-spacing:-0.02em;">0</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.8125rem;letter-spacing:0.04em;color:#837C6E;margin-top:12px;">unauthorized customer messages</div>
+      <div data-reveal data-reveal-delay="240" style="background:#fff;border:1px solid #E1E9F2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--brand-tint,#EAF0FE);color:var(--brand,#2563EB);border:1px solid var(--brand-line,#D5E1FB)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16px;color:#111827">Evidence-based</div>
+        <p style="margin-top:6px;font-size:14px;line-height:1.55;color:#42505F">The agent can assemble and propose. Deterministic checks decide whether evidence agrees.</p>
+      </div>
+      <div data-reveal data-reveal-delay="320" style="background:#fff;border:1px solid #E1E9F2;border-radius:16px;padding:22px;box-shadow:0 1px 2px rgba(16,24,40,.03)">
+        <span style="width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accent-tint,#E6F2F0);color:var(--accent,#0F766E);border:1px solid var(--accent-line,#B7DBD5)" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v6a4 4 0 0 0 4 4h6"/></svg></span>
+        <div style="margin-top:15px;font-weight:700;font-size:16px;color:#111827">Thread-native</div>
+        <p style="margin-top:6px;font-size:14px;line-height:1.55;color:#42505F">Closure is posted back where the promise happened, so context is preserved.</p>
       </div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between;margin-top:24px;">
-      <p style="font-size:0.8125rem;line-height:1.6;color:#837C6E;margin:0;max-width:64ch;">Enforced by the deterministic engine and proven across an adversarial test battery — <strong style="color:#1B1A17;font-weight:600;">140 automated tests</strong>, <strong style="color:#1B1A17;font-weight:600;">7 rounds</strong> of adversarial verification, plus live Postgres/Redis integration tests.</p>
-      <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:#0F6E5C;border:1.5px solid #0F6E5C;border-radius:4px;padding:9px 14px;transform:rotate(-3deg);box-shadow:0 0 0 3px #F4F1EA,0 0 0 4px #DCEDE8;">Adversarially&nbsp;verified</span>
-    </div>
-    <a href="https://github.com/kaviyakumar23/kept/blob/main/docs/eval-report.md" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:10px;margin-top:18px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#837C6E;border:1px dashed #D2CAB6;border-radius:6px;padding:9px 13px;text-decoration:none;">
-classifier evaluated on <span style="color:#0F6E5C;">52 labeled messages</span> <span style="color:#A39B8C;">— per-class precision/recall + confusion matrix in the eval report ↗</span>
-    </a>
   </div>
 </section>
 
-<!-- ============ ARCHITECTURE ============ -->
-<section id="architecture" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(56px,9vw,96px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#0F6E5C;">06 · The architecture</span>
-    <h2 style="font-family:'Fraunces',serif;font-weight:600;font-size:clamp(1.75rem,3.5vw,2.25rem);line-height:1.15;letter-spacing:-0.01em;margin:14px 0 0;">Each technology does exactly one job.</h2>
-    <p style="font-size:1.0625rem;color:#46433C;max-width:62ch;margin:14px 0 0;line-height:1.55;">An append-only event store is the backbone. Everything else feeds it or reads from it.</p>
-
-    <div style="display:flex;flex-direction:column;gap:0;margin-top:38px;">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
-        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">SLACK EVENTS API</span>
-        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">The trigger — a message may contain an obligation.</span>
-      </div>
-      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
-        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">RTS</span>
-        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Permission-safe retrieval of related context — prior commitments, the area owner.</span>
-      </div>
-      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
-
-      <div style="border:1.5px solid #0F6E5C;border-radius:12px;padding:24px;background:#DCEDE8;">
-        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5346;letter-spacing:0.03em;font-weight:600;">EVENT STORE · PostgreSQL</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#0F6E5C;">append-only · derived projections · every transition is an event</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:18px;">
-          <div style="background:#FBF9F3;border:1px solid #E4DECF;border-radius:9px;padding:16px 18px;">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#1B1A17;font-weight:500;">Claude · LLM</span>
-            <p style="font-size:13.5px;color:#46433C;line-height:1.55;margin:8px 0 0;">Classification, extraction, drafting <strong style="color:#1B1A17;font-weight:600;">only</strong>. Never decides a transition.</p>
-          </div>
-          <div style="background:#FBF9F3;border:1px solid #B7D7CE;border-radius:9px;padding:16px 18px;">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;font-weight:600;">Guarded FSM · code</span>
-            <p style="font-size:13.5px;color:#46433C;line-height:1.55;margin:8px 0 0;">The only thing that writes state and triggers side effects.</p>
-          </div>
+<section aria-label="Honesty by design" style="padding:clamp(60px,8vw,112px) 0;background:#fff;border-top:1px solid #EEF2F6">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--accent,#0F766E)"><span style="width:18px;height:2px;background:var(--accent,#0F766E);border-radius:2px"></span>Honesty by design</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">Verified means a human signed it.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">Kept is deliberate about what it will and won't do. Evidence goes in, a person signs the verdict, and closure is posted back where the promise was made — nothing is closed on autopilot.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:clamp(32px,4vw,48px)">
+      <div data-reveal style="flex:1 1 340px;min-width:0;background:linear-gradient(180deg,var(--accent-tint,#E6F2F0),#fff 55%);border:1px solid var(--accent-line,#B7DBD5);border-radius:18px;padding:24px">
+        <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;background:var(--accent,#0F766E)"></span><span style="font:600 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--accent,#0F766E)">What Kept does</span></div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Gathers evidence from your delivery tools, read-only</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Requires a human to confirm every commitment</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Requires a human to sign every verdict</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Shows customers only signed verdicts</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Stores derived facts, not message bodies</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#0F766E)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Posts closure back in the original thread</div>
         </div>
       </div>
-      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
-
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
-        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">WORK ITEMS · MCP</span>
-        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Create &amp; link issues over MCP (Linear / Jira); GitHub &amp; deploy fulfillment signals arrive as webhooks.</span>
-      </div>
-      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
-        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#0F6E5C;letter-spacing:0.03em;font-weight:500;">BLOCK KIT + WEB API</span>
-        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Private confirm/verify cards, the App Home ledger, the in-thread closure.</span>
-      </div>
-      <div style="width:2px;height:22px;background:#D2CAB6;margin-left:max(76px,11%);"></div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;background:#FBF9F3;border:1px solid #E4DECF;border-radius:10px;padding:18px 22px;">
-        <span style="flex:none;width:152px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#837C6E;letter-spacing:0.03em;font-weight:500;">REDIS + BULLMQ</span>
-        <span style="font-size:14.5px;color:#46433C;line-height:1.5;">Durable reminders &amp; retries — so a pending promise is never forgotten.</span>
-      </div>
-    </div>
-
-    <div style="margin-top:30px;border-left:3px solid #0F6E5C;background:#FBF9F3;border-radius:0 10px 10px 0;padding:22px 24px;">
-      <p style="font-family:'Fraunces',serif;font-weight:500;font-size:clamp(1.25rem,2.4vw,1.7rem);line-height:1.32;letter-spacing:-0.01em;margin:0;color:#1B1A17;">The model interprets language; <span style="color:#0F6E5C;">code controls state and actions.</span></p>
-    </div>
-  </div>
-</section>
-
-<!-- ============ STACK ============ -->
-<section style="border-top:1px solid #E4DECF;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(44px,7vw,72px) 24px;">
-    <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#A39B8C;">Stack</span>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;">
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">TypeScript</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Slack Bolt</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">PostgreSQL <span style="color:#A39B8C;">(event store)</span></span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Redis + BullMQ</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:9px 13px;">Linear &amp; Jira via MCP</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">GitHub / deploy webhooks</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">Zod</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5346;background:#DCEDE8;border:1px solid #B7D7CE;border-radius:6px;padding:9px 13px;">guarded finite-state machine</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1B1A17;background:#FBF9F3;border:1px solid #E4DECF;border-radius:6px;padding:9px 13px;">provider-agnostic LLM <span style="color:#A39B8C;">(Claude)</span></span>
-    </div>
-  </div>
-</section>
-
-<!-- ============ FOOTER ============ -->
-<!-- ============ INTEGRATIONS / WORKS WITH ============ -->
-<!-- Brand marks are on-brand approximations; for exact fidelity swap in the official SVGs from each brand kit (Slack/Linear/Atlassian). -->
-<section style="border-top:1px solid #E4DECF;background:#F4F1EA;">
-  <div style="max-width:1120px;margin:0 auto;padding:64px 24px;">
-    <p style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#837C6E;margin:0 0 22px;">Works with your stack</p>
-    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:20px 40px;">
-      <span style="display:inline-flex;align-items:center;gap:12px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:20px;color:#1B1A17;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="12.5" y="1.5" width="4" height="11" rx="2" fill="#36C5F0"/><rect x="11.5" y="11.5" width="11" height="4" rx="2" fill="#ECB22E"/><rect x="7.5" y="11.5" width="4" height="11" rx="2" fill="#E01E5A"/><rect x="1.5" y="8.5" width="11" height="4" rx="2" fill="#2EB67D"/></svg>Slack<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#0B5346;background:#DCEDE8;border-radius:5px;padding:3px 8px;">native surface</span></span>
-      <span style="display:inline-flex;align-items:center;gap:10px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:17px;color:#46433C;"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#5E6AD2"/><g stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.92"><line x1="5" y1="14" x2="14" y2="5"/><line x1="8" y1="17" x2="17" y2="8"/><line x1="11" y1="20" x2="20" y2="11"/></g></svg>Linear<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#6E6A62;background:#ECE8DE;border-radius:5px;padding:3px 8px;">via MCP</span></span>
-      <span style="display:inline-flex;align-items:center;gap:10px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:17px;color:#46433C;"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#2684FF"/><path d="M12 4.6l5.4 6.4h-3.1L12 8.2 9.7 11H6.6L12 4.6z" fill="#fff"/><path d="M12 12.0l5.4 6.4h-3.1L12 15.6 9.7 18.4H6.6L12 12.0z" fill="#CFE2FF"/></svg>Jira<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#6E6A62;background:#ECE8DE;border-radius:5px;padding:3px 8px;">via MCP</span></span>
-    </div>
-    <p style="margin:22px 0 0;max-width:62ch;font-family:'IBM Plex Sans',sans-serif;font-size:14.5px;line-height:1.6;color:#46433C;">Slack is the live surface (real Events API + Block Kit). Linear and Jira plug in over <strong style="font-weight:600;color:#1B1A17;">MCP</strong> (Model Context Protocol) behind one swappable <code style="font-family:'IBM Plex Mono',monospace;font-size:13px;background:#ECE8DE;padding:1px 6px;border-radius:4px;">WorkItemAdapter</code> &mdash; the demo runs on an in-process MCP server; the hosted Linear/Atlassian MCP servers plug in with a token.</p>
-  </div>
-</section>
-
-<footer id="demo" style="border-top:1px solid #E4DECF;background:#EFEBE0;">
-  <div style="max-width:1120px;margin:0 auto;padding:clamp(52px,8vw,88px) 24px clamp(36px,5vw,52px);">
-    <div style="display:flex;flex-wrap:wrap;gap:36px;justify-content:space-between;align-items:flex-start;">
-      <div style="max-width:44ch;">
-        <div style="display:flex;align-items:center;gap:11px;">
-          <span style="width:29px;height:29px;border-radius:7px;background:#0F6E5C;display:flex;align-items:center;justify-content:center;color:#F4F1EA;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px;">K</span>
-          <span style="font-family:'Fraunces',serif;font-weight:600;font-size:24px;letter-spacing:-0.01em;">Kept</span>
+      <div data-reveal data-reveal-delay="120" style="flex:1 1 340px;min-width:0;background:linear-gradient(180deg,#F3F6FA,#fff 55%);border:1px solid #E1E9F2;border-radius:18px;padding:24px">
+        <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;border:2px solid #94A0AD"></span><span style="font:600 12px 'Geist Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#5B6672">What Kept never does</span></div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>Close a commitment automatically</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>Write to or change your delivery tools</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>Copy raw Slack message bodies</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>Leak internal sources to a customer view</div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:14.5px;color:#28303B;font-weight:500"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg>Mark anything kept without a human signature</div>
         </div>
-        <p style="font-size:15px;color:#46433C;line-height:1.6;margin:16px 0 0;">Remembers what your company owes every customer — and makes sure the customer hears when it&rsquo;s done.</p>
-      </div>
-      <div style="display:flex;gap:13px;flex-wrap:wrap;">
-        <a href="https://github.com/kaviyakumar23/kept" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;background:#1B1A17;color:#F4F1EA;padding:13px 20px;border-radius:8px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;" style-hover="background:#2E2B25;"><span style="font-family:'IBM Plex Mono',monospace;">&lt;/&gt;</span> GitHub repo ↗</a>
-        <a href="#try-it" style="display:inline-flex;align-items:center;gap:9px;background:transparent;color:#0F6E5C;padding:13px 20px;border-radius:8px;border:1px solid #0F6E5C;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;text-decoration:none;"><span style="width:16px;height:16px;border-radius:50%;border:1px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:7px;">▶</span> Try the walkthrough</a>
+        <p style="margin-top:18px;padding-top:16px;border-top:1px solid #E1E9F2;font-size:13.5px;line-height:1.55;color:#5B6672">The agent assembles and proposes; deterministic code decides and a person signs. That boundary is the whole point — it's why "kept" means something to your customer.</p>
       </div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;margin-top:48px;padding-top:24px;border-top:1px solid #E4DECF;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A39B8C;">
-      <span>github.com/kaviyakumar23/kept &middot; <a href="#try-it" style="color:#0F6E5C;text-decoration:none;">try the live walkthrough &#8593;</a></span>
-      <span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:6px;height:6px;border-radius:1px;background:#0F6E5C;"></span>Built for the New Slack Agent track</span>
+  </div>
+</section>
+
+<section aria-label="After install" style="padding:clamp(60px,8vw,112px) 0;background:#F3F6FA">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div data-reveal style="max-width:680px">
+      <span style="display:inline-flex;align-items:center;gap:9px;font:600 12px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--brand,#2563EB)"><span style="width:18px;height:2px;background:var(--brand,#2563EB);border-radius:2px"></span>After install</span>
+      <h2 style="margin:14px 0 0;font-size:clamp(29px,3.9vw,46px);line-height:1.08;letter-spacing:-.025em;font-weight:700;color:#0B1220;text-wrap:balance">After you add Kept to Slack.</h2>
+      <p style="margin:16px 0 0;font-size:clamp(16px,1.4vw,19px);line-height:1.6;color:#3A4351">No dashboards to babysit. Kept works inside the channels your team already uses.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;margin-top:clamp(32px,4vw,48px)">
+      <div data-reveal data-reveal-delay="0" style="background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--brand,#2563EB);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">1</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">Invite Kept to a shared customer channel.</p></div>
+      <div data-reveal data-reveal-delay="70" style="background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--brand,#2563EB);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">2</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">Kept detects a possible commitment.</p></div>
+      <div data-reveal data-reveal-delay="140" style="background:#fff;border:1px solid var(--accent-line,#B7DBD5);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--accent,#0F766E);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">3</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">A human confirms it.</p></div>
+      <div data-reveal data-reveal-delay="210" style="background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--brand,#2563EB);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">4</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">Kept gathers evidence.</p></div>
+      <div data-reveal data-reveal-delay="280" style="background:#fff;border:1px solid var(--accent-line,#B7DBD5);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--accent,#0F766E);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">5</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">A human signs the verdict.</p></div>
+      <div data-reveal data-reveal-delay="350" style="background:#fff;border:1px solid #E7ECF2;border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.03)"><div style="width:30px;height:30px;border-radius:8px;background:var(--brand,#2563EB);color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px 'Geist Mono',monospace">6</div><p style="margin-top:12px;font-size:14px;line-height:1.5;color:#28303B;font-weight:500">Kept posts closure back to the thread.</p></div>
+    </div>
+  </div>
+</section>
+
+<section aria-label="Get started" style="position:relative;overflow:hidden;padding:clamp(66px,9vw,124px) 0;background:radial-gradient(900px 400px at 78% 8%, color-mix(in srgb,var(--accent,#0F766E) 34%,#0B1220), transparent 62%), radial-gradient(760px 420px at 12% 96%, color-mix(in srgb,var(--brand,#2563EB) 40%,#0B1220), transparent 60%), #0B1220">
+  <div aria-hidden="true" style="position:absolute;inset:0;background-image:linear-gradient(to right, rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.04) 1px, transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(700px 340px at 50% 40%, #000, transparent 76%);mask-image:radial-gradient(700px 340px at 50% 40%, #000, transparent 76%);opacity:.7;pointer-events:none"></div>
+  <div style="position:relative;z-index:1;max-width:820px;margin:0 auto;padding:0 clamp(20px,5vw,40px);text-align:center">
+    <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;background:rgba(255,255,255,.08);color:#CFE0F5;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px 'Geist Mono',monospace;letter-spacing:.05em;text-transform:uppercase"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent,#14B8A6)"></span>Commitments, verified</span>
+    <h2 style="margin:20px 0 0;font-size:clamp(32px,4.6vw,56px);line-height:1.06;letter-spacing:-.028em;font-weight:700;color:#fff;text-wrap:balance">Stop closing promises you haven't verified.</h2>
+    <p style="margin:18px auto 0;max-width:560px;font-size:clamp(16px,1.5vw,19px);line-height:1.6;color:#AEBBCC">Add Kept to Slack and turn customer commitments into evidence-backed verdicts.</p>
+    <div style="margin:30px 0 0;display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+      <a href="/slack/install" style="display:inline-flex;align-items:center;gap:9px;padding:14px 22px;background:var(--brand,#2563EB);color:#fff;border:none;border-radius:12px;font:600 15.5px 'Geist',sans-serif;cursor:pointer;box-shadow:0 2px 10px -2px color-mix(in srgb,var(--brand,#2563EB) 60%,transparent),0 14px 30px -12px color-mix(in srgb,var(--brand,#2563EB) 70%,transparent);transition:transform .15s ease,background .2s ease" style-hover="transform:translateY(-1px);background:color-mix(in srgb,var(--brand,#2563EB) 88%,#fff)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="2"/><rect x="9" y="1" width="6" height="6" rx="2"/><rect x="1" y="9" width="6" height="6" rx="2"/><rect x="9" y="9" width="6" height="6" rx="2"/></g></svg>Add to Slack</a>
+      <a href="#demo" style="display:inline-flex;align-items:center;gap:9px;padding:14px 20px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:12px;font:600 15.5px 'Geist',sans-serif;transition:transform .15s ease,background .2s ease" style-hover="transform:translateY(-1px);background:rgba(255,255,255,.12)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="1.8"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg>Watch demo</a>
+    </div>
+    <div style="margin:28px 0 0;display:flex;flex-wrap:wrap;gap:9px 20px;justify-content:center">
+      <span style="display:inline-flex;align-items:center;gap:7px;font:500 13px 'Geist Mono',monospace;color:#AEBBCC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#14B8A6)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>No raw message body storage</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font:500 13px 'Geist Mono',monospace;color:#AEBBCC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#14B8A6)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Human sign-off required</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font:500 13px 'Geist Mono',monospace;color:#AEBBCC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#14B8A6)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Slack-native workflow</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font:500 13px 'Geist Mono',monospace;color:#AEBBCC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent,#14B8A6)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5 11-12"/></svg>Built for customer-facing teams</span>
+    </div>
+  </div>
+</section>
+
+<footer aria-label="Footer" style="background:#0A0F1A;border-top:1px solid rgba(255,255,255,.07);padding:clamp(44px,6vw,68px) 0 30px">
+  <div style="max-width:1200px;margin:0 auto;padding:0 clamp(20px,5vw,40px)">
+    <div style="display:flex;flex-wrap:wrap;gap:36px 64px;justify-content:space-between">
+      <div style="flex:1 1 280px;max-width:340px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="8" fill="url(#kmF)"/><path d="M8 14.5 L12 18.5 L20 9.5" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="14.5" r="1.9" fill="#fff"/><defs><linearGradient id="kmF" x1="1" y1="1" x2="27" y2="27" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs></svg>
+          <span style="font-weight:700;font-size:19px;letter-spacing:-.02em;color:#fff">Kept</span>
+        </div>
+        <p style="margin-top:14px;font-size:14.5px;line-height:1.6;color:#8695A8;max-width:300px">The verification layer for customer promises made in Slack. Commitments, verified before closure.</p>
+      </div>
+      <div style="flex:0 1 auto">
+        <div style="font:600 11px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#5E6C80">Product</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <a href="#how" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">How it works</a>
+          <a href="#integrations" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Integrations</a>
+          <a href="#demo" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Demo</a>
+          <a href="#security" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Security</a>
+        </div>
+      </div>
+      <div style="flex:0 1 auto">
+        <div style="font:600 11px 'Geist Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#5E6C80">Company</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <a href="#security" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Privacy</a>
+          <a href="/slack/install" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Support</a>
+          <a href="/slack/install" style="font-size:14.5px;color:#AEB9C6" style-hover="color:#fff">Contact</a>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:36px;padding-top:22px;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between">
+      <span style="font:500 12.5px 'Geist Mono',monospace;color:#5E6C80">© 2026 Kept</span>
+      <span style="font:500 12.5px 'Geist Mono',monospace;color:#5E6C80">Customer commitments, verified.</span>
     </div>
   </div>
 </footer>
 
 </div>
-<!-- ============ LEGAL FOOTER ============ -->
-<div style="border-top:1px solid #E4DECF;background:#FBF9F3;">
-  <div style="max-width:1120px;margin:0 auto;padding:26px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;line-height:1.7;color:#837C6E;">
-    Slack, Linear, and Jira are trademarks of their respective owners. Kept is not affiliated with or endorsed by them.<br>
-    <span style="color:#A39C8E;">Built for the New Slack Agent track &middot; <a href="https://github.com/kaviyakumar23/kept" style="color:#0F6E5C;text-decoration:none;">github.com/kaviyakumar23/kept</a></span>
-  </div>
-</div>
 
 <script>
-/* Kept interactive walkthrough — a self-contained, dependency-free replica of the
-   real Block Kit cards. Steps mirror src/demo/storyboard.ts so it stays honest. */
 (function () {
-  var card = document.getElementById('kept-card'), audit = document.getElementById('kept-audit');
-  var g1 = document.getElementById('kept-g1'), g2 = document.getElementById('kept-g2'), tag = document.getElementById('kept-surface-tag');
-  if (!card || !audit) return;
-  var T = ['9:14', '9:15', '11:02', '14:02', '14:06', '14:07', '15:30'];
-  var AMBER = ['#F6EFD9', '#E8D9B0', '#8A6A12'], BLUE = ['#DCE8F5', '#BFD3EC', '#1F5FA6'], PURPLE = ['#ECE4F3', '#D5C5E6', '#6B4E9E'], GREEN = ['#DCEDE8', '#B7D7CE', '#0B5346'], RED = ['#F7E4DC', '#E3C8BC', '#A8431F'];
-  function chip(t, c) { return '<span style="font-size:11px;padding:2px 7px;border-radius:5px;background:' + c[0] + ';border:1px solid ' + c[1] + ';color:' + c[2] + ';">' + t + '</span>'; }
-  function box(border, inner) { return '<div style="background:#FBF9F3;border:1px solid #E4DECF;border-left:3px solid ' + border + ';border-radius:8px;padding:12px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;color:#1B1A17;line-height:1.55;">' + inner + '</div>'; }
-  var STEPS = [
-    { tag: 'private to owner', gates: 0, audit: ['CANDIDATE', AMBER, 'detected in #northwind&harr;acme'], title: 'New obligation detected',
-      body: '<div style="background:#F8F1DF;border:1px solid #E8D9B0;border-radius:8px;padding:12px;font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;color:#1B1A17;line-height:1.6;"><div style="color:#8A6A12;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:8px;">candidate &middot; not yet a commitment</div><div>owes&nbsp;&nbsp; SSO login fix for Acme</div><div>due&nbsp;&nbsp;&nbsp; Fri 2026-06-19</div><div>owner&nbsp; you</div><div style="margin-top:8px;color:#8A6A12;">&#9888; Roadmap conflict — Fri is earlier than the roadmap target (06-30).</div></div>',
-      action: 'Approve commitment', kind: 'primary', note: 'Gate 1 — only the owner can make this real. Nothing is recorded until you confirm.' },
-    { tag: 'private to owner', gates: 1, audit: ['OPEN', BLUE, 'Gate 1 &middot; confirmed &rarr; PROJ-119 created over MCP'], title: 'Commitment confirmed',
-      body: box('#1F5FA6', '<div style="color:#1F5FA6;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">open &middot; tracked</div><div>SSO login fix — Acme</div><div style="margin-top:6px;color:#0B5346;">&#10003; PROJ-119 created over MCP</div>'),
-      action: 'Simulate webhook: PR merged', kind: 'primary', note: 'A merged PR is evidence — but Kept will not open Gate 2 on it alone.' },
-    { tag: 'private to owner', gates: 1, audit: ['IN_PROGRESS', PURPLE, 'PR #449 merged (evidence, not truth)'], title: 'Pull request merged',
-      body: box('#6B4E9E', '<div style="color:#6B4E9E;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">in_progress &middot; evidence in</div><div>&bull; github — PR #449 merged</div><div style="margin-top:4px;color:#A8431F;">Not enough yet — needs production availability.</div>'),
-      action: 'Simulate webhook: production deploy', kind: 'primary', note: 'Merge + production deploy = available → Gate 2 opens.' },
-    { tag: 'private to owner', gates: 1, audit: ['POSSIBLE_FULFILLMENT', PURPLE, 'merge + production deploy reconciled'], title: 'Possible fulfillment — verify?',
-      body: box('#0F6E5C', '<div style="color:#0B5346;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">reconciled evidence</div><div>&bull; github — PR #449 merged</div><div>&bull; deploy — production &middot; 2026.06.19</div>'),
-      action: 'Verify it is available', kind: 'primary', note: 'Evidence opens the gate; a human walks through it.' },
-    { tag: 'private to owner', gates: 2, audit: ['VERIFIED', GREEN, 'Gate 2 &middot; human verified'], title: 'Ready to close the loop',
-      body: box('#0F6E5C', '<div style="margin-bottom:6px;">Draft reply for the original thread:</div><div style="border-left:3px solid #CFC8B8;padding-left:10px;color:#1B1A17;">Quick update on the SSO login issue — it is fixed and live for your team. Thanks for flagging it.</div><div style="margin-top:8px;color:#0B5346;">1 internal item redacted (linear) &middot; Leak-safe &#9989;</div>'),
-      action: 'Approve &amp; send', kind: 'primary', note: 'Internal ticket numbers and roadmap dates are stripped before anything is sent.' },
-    { tag: '#acme-collab (customer)', gates: 2, audit: ['CUSTOMER_NOTIFIED', GREEN, 'sanitized reply posted in the customer thread'], title: 'Customer notified',
-      body: '<div style="background:#F1F7F4;border:1px solid #CDE5DC;border-radius:8px;padding:12px;"><div style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#0B5346;">&#8618; posted in #acme-collab (original thread)</div><div style="font-size:13.5px;color:#1B1A17;margin-top:6px;line-height:1.5;">Quick update on the SSO login issue — it is fixed and live for your team. Thanks for flagging it.</div></div>',
-      action: 'Customer replies: it still fails', kind: 'danger', note: 'The customer finally hears it — sanitized, human-approved.' },
-    { tag: '#acme-collab (customer)', gates: 2, audit: ['REOPENED', RED, 'customer disputes — ticket still Done'], title: 'Reopened',
-      body: box('#A8431F', '<div style="color:#A8431F;text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-bottom:6px;">reopened &middot; disputed</div><div>SSO login fix — Acme</div><div style="margin-top:6px;color:#837C6E;">Linear PROJ-119 still says <strong style="color:#1B1A17;">Done</strong> — the obligation outlives the ticket.</div>'),
-      action: 'Replay &#8635;', kind: 'reset', note: 'A customer dispute reopens it even though the tracker says Done.' }
-  ];
-  var i = 0;
-  function actBtn(s) {
-    var base = 'id="kept-action" class="kept-action" style="border-radius:7px;padding:9px 15px;font-family:\'IBM Plex Sans\',sans-serif;font-weight:600;font-size:13.5px;';
-    if (s.kind === 'danger') return '<button ' + base + 'background:#A8431F;color:#fff;">' + s.action + '</button>';
-    if (s.kind === 'reset') return '<button ' + base + 'background:transparent;color:#0F6E5C;border:1px solid #0F6E5C;">' + s.action + '</button>';
-    return '<button ' + base + 'background:#0F6E5C;color:#fff;">' + s.action + '</button>';
-  }
-  function setGate(el, lit) {
-    if (!el) return;
-    el.style.background = lit ? '#DCEDE8' : 'transparent';
-    el.style.border = '1px solid ' + (lit ? '#B7D7CE' : '#D2CAB6');
-    el.style.color = lit ? '#0B5346' : '#A39B8C';
-    el.style.opacity = lit ? '1' : '.75';
-  }
-  function render() {
-    var s = STEPS[i];
-    card.innerHTML =
-      '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">'
-      + '<span style="flex:none;width:30px;height:30px;border-radius:7px;background:#0F6E5C;color:#F4F1EA;display:flex;align-items:center;justify-content:center;font-family:\'IBM Plex Mono\',monospace;font-weight:600;font-size:14px;">K</span>'
-      + '<div><div style="font-size:13px;"><strong style="font-weight:600;">Kept</strong> <span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#837C6E;">APP &middot; ' + T[i] + '</span></div><div style="font-weight:600;font-size:14.5px;color:#1B1A17;">' + s.title + '</div></div>'
-      + '</div>'
-      + s.body
-      + '<div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' + actBtn(s) + '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#A39B8C;">' + (s.kind === 'reset' ? 'start over' : 'click to continue &rarr;') + '</span></div>'
-      + (s.note ? '<div style="margin-top:10px;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:#837C6E;line-height:1.5;">' + s.note + '</div>' : '');
-    if (tag) tag.innerHTML = s.tag;
-    setGate(g1, s.gates >= 1);
-    setGate(g2, s.gates >= 2);
-    var rows = '';
-    for (var k = 0; k <= i; k++) { var a = STEPS[k].audit; rows += '<div style="display:flex;gap:11px;"><span style="color:#A39B8C;flex:none;">' + T[k] + '</span><div style="min-width:0;">' + chip(a[0], a[1]) + ' <span style="color:#1B1A17;">' + a[2] + '</span></div></div>'; }
-    rows += '<span style="color:#0F6E5C;display:inline-block;width:8px;height:15px;background:#0F6E5C;"></span>';
-    audit.innerHTML = rows;
-    var act = document.getElementById('kept-action');
-    if (act) act.addEventListener('click', function () { i = STEPS[i].kind === 'reset' ? 0 : Math.min(i + 1, STEPS.length - 1); render(); });
-  }
-  render();
+  // Scroll reveal
+  try {
+    var mq = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!(mq && mq.matches) && 'IntersectionObserver' in window) {
+      var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
+      if (nodes.length) {
+        nodes.forEach(function (el) {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(18px)';
+          el.style.transition = 'opacity .7s cubic-bezier(.22,.7,.2,1), transform .7s cubic-bezier(.22,.7,.2,1)';
+          el.style.willChange = 'opacity, transform';
+        });
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) {
+              var el = e.target;
+              var d = parseInt(el.getAttribute('data-reveal-delay') || '0', 10);
+              el.style.transitionDelay = d + 'ms';
+              el.style.opacity = '1';
+              el.style.transform = 'none';
+              io.unobserve(el);
+            }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+        nodes.forEach(function (el) { io.observe(el); });
+      }
+    }
+  } catch (err) {}
+
+  // Hover states (style-hover attribute -> applied inline on pointer/focus)
+  try {
+    Array.prototype.slice.call(document.querySelectorAll('[style-hover]')).forEach(function (el) {
+      var hover = el.getAttribute('style-hover');
+      if (!hover) return;
+      var saved = null;
+      var enter = function () { if (saved === null) { saved = el.getAttribute('style') || ''; el.setAttribute('style', saved + ';' + hover); } };
+      var leave = function () { if (saved !== null) { el.setAttribute('style', saved); saved = null; } };
+      el.addEventListener('mouseenter', enter);
+      el.addEventListener('mouseleave', leave);
+      el.addEventListener('focus', enter);
+      el.addEventListener('blur', leave);
+    });
+  } catch (err) {}
+
+  // Interactive evidence-mismatch illustration (hero)
+  try {
+    var brand = '#2563EB';
+    var flagRow = document.getElementById('flagRow');
+    var flagIcon = document.getElementById('flagIcon');
+    var flagStatus = document.getElementById('flagStatus');
+    var flagPill = document.getElementById('flagPill');
+    var vBox = document.getElementById('verdictBox');
+    var vKick = document.getElementById('verdictKicker');
+    var vTitle = document.getElementById('verdictTitle');
+    var vReason = document.getElementById('verdictReason');
+    var tBtn = document.getElementById('toggleBtn');
+    var sBtn = document.getElementById('signoffBtn');
+    if (flagRow && tBtn && sBtn) {
+      var on = false;
+      var apply = function () {
+        var c = on ? '#0F766E' : '#B91C1C';
+        flagRow.style.background = on ? 'rgba(15,118,110,.06)' : 'rgba(220,38,38,.055)';
+        flagRow.style.borderColor = on ? 'rgba(15,118,110,.28)' : 'rgba(220,38,38,.26)';
+        flagIcon.style.stroke = c;
+        flagStatus.style.color = c;
+        flagStatus.textContent = on ? 'ON' : 'OFF';
+        flagPill.style.background = on ? 'rgba(15,118,110,.12)' : 'rgba(220,38,38,.10)';
+        flagPill.style.color = c;
+        flagPill.style.borderColor = on ? 'rgba(15,118,110,.28)' : 'rgba(220,38,38,.26)';
+        flagPill.textContent = on ? 'Pass' : 'Fail';
+        vBox.style.background = on ? 'rgba(15,118,110,.07)' : 'rgba(220,38,38,.06)';
+        vBox.style.borderColor = on ? 'rgba(15,118,110,.30)' : 'rgba(220,38,38,.24)';
+        vKick.style.color = c;
+        vKick.textContent = on ? 'Gate 2 · Verified' : 'Gate 2 · Blocked';
+        vTitle.style.color = c;
+        vTitle.textContent = on ? 'Ready to close' : 'Not ready to close';
+        vReason.textContent = on ? 'All five signals agree. Awaiting human sign-off.' : 'Evidence mismatch — the feature flag is still off in production.';
+        tBtn.textContent = on ? 'Reset' : 'Enable flag in production';
+        sBtn.disabled = !on;
+        sBtn.style.background = on ? brand : '#EAEEF3';
+        sBtn.style.color = on ? '#ffffff' : '#9AA3AF';
+        sBtn.style.cursor = on ? 'pointer' : 'not-allowed';
+        sBtn.textContent = on ? 'Request sign-off' : 'Sign-off locked';
+      };
+      tBtn.addEventListener('click', function () { on = !on; apply(); });
+      apply();
+    }
+  } catch (err) {}
 })();
 </script>
 </body>
