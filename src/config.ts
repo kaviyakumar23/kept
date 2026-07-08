@@ -5,6 +5,12 @@ dotenv.config();
 export interface KeptConfig {
   llmModel: string;
   anthropicApiKey: string | undefined;
+  /** OpenAI provider (alternative to Anthropic; see selectLlm precedence). */
+  openaiApiKey: string | undefined;
+  /** OpenAI model — overridable via OPENAI_MODEL; defaults to a Structured-Outputs model. */
+  openaiModel: string;
+  /** Optional hard override of provider selection: "openai" | "anthropic" | "mock". */
+  llmProvider: "openai" | "anthropic" | "mock" | undefined;
   databaseUrl: string | undefined;
   redisUrl: string | undefined;
   slack: {
@@ -45,10 +51,18 @@ export interface KeptConfig {
   };
 }
 
+function normalizeLlmProvider(raw: string | undefined): KeptConfig["llmProvider"] {
+  const v = raw?.trim().toLowerCase();
+  return v === "openai" || v === "anthropic" || v === "mock" ? v : undefined;
+}
+
 export function loadConfig(): KeptConfig {
   return {
     llmModel: process.env.KEPT_LLM_MODEL ?? "claude-opus-4-8",
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
+    llmProvider: normalizeLlmProvider(process.env.KEPT_LLM_PROVIDER),
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
     slack: {

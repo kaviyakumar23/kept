@@ -10,8 +10,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { loadConfig } from "../config.js";
-import { AnthropicProvider } from "../llm/anthropic.js";
-import { MockLlmProvider } from "../llm/mock.js";
+import { selectLlm } from "../llm/select.js";
 import { classifyMessage } from "../llm/classify.js";
 import type { LlmProvider } from "../llm/provider.js";
 import { ALL_SIGNALS, type ObligationSignal } from "../domain/signals.js";
@@ -124,9 +123,7 @@ function render(provider: LlmProvider, pairs: Pair[]): string {
 
 async function main() {
   const config = loadConfig();
-  const provider: LlmProvider = config.anthropicApiKey
-    ? new AnthropicProvider({ apiKey: config.anthropicApiKey, model: config.llmModel })
-    : new MockLlmProvider(heuristicResponder);
+  const { provider } = selectLlm(config, heuristicResponder);
   const pairs = await classify(provider);
   const md = render(provider, pairs);
   writeFileSync("docs/eval-report.md", md + "\n", "utf8");

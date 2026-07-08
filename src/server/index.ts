@@ -10,9 +10,7 @@ import { BullmqScheduler } from "../scheduler/bullmqScheduler.js";
 import { PostgresScheduler } from "../scheduler/postgresScheduler.js";
 import type { Scheduler, ReminderHandler } from "../scheduler/scheduler.js";
 import type { Notifier } from "../slack/notifier.js";
-import { AnthropicProvider } from "../llm/anthropic.js";
-import { MockLlmProvider } from "../llm/mock.js";
-import type { LlmProvider } from "../llm/provider.js";
+import { selectLlm } from "../llm/select.js";
 import { LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
@@ -71,9 +69,9 @@ async function main() {
       })()
     : new InMemoryTrustLinkStore();
 
-  const llm: LlmProvider = cfg.anthropicApiKey
-    ? new AnthropicProvider({ apiKey: cfg.anthropicApiKey, model: cfg.llmModel })
-    : new MockLlmProvider(heuristicResponder);
+  // Provider precedence: OPENAI_API_KEY → openai, else ANTHROPIC_API_KEY → anthropic,
+  // else the deterministic mock (KEPT_LLM_PROVIDER can force a specific one). See selectLlm.
+  const { provider: llm, label: llmLabel } = selectLlm(cfg, heuristicResponder);
 
   // Work items go through MCP by default (the hackathon's "MCP server integration").
   // Precedence: Linear MCP > Atlassian/Jira MCP > legacy direct-API adapters >
@@ -255,7 +253,7 @@ async function main() {
     .filter(Boolean)
     .join("+");
   const remindersMode = cfg.redisUrl ? "bullmq" : pgScheduler ? "postgres" : "in-memory";
-  console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llm.name} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode} · proof=${proofMode}`);
+  console.log(`[kept] mode=${oauth ? "oauth-http" : "single-token"} · store=${cfg.databaseUrl ? "postgres" : "memory"} · llm=${llmLabel} · workItems=${workItemsMode} · reminders=${remindersMode} · roadmap=${roadmapMode} · rts=${rtsMode} · proof=${proofMode}`);
 }
 
 main().catch((err) => {

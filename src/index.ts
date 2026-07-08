@@ -41,6 +41,8 @@ export * from "./llm/classify.js";
 export * from "./llm/extract.js";
 export * from "./llm/propose.js";
 export { AnthropicProvider, LlmRefusalError } from "./llm/anthropic.js";
+export { OpenAiProvider } from "./llm/openai.js";
+export { selectLlm, type SelectedLlm } from "./llm/select.js";
 
 // Integrations & adapters
 export * from "./integrations/linear.js";

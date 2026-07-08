@@ -89,5 +89,5 @@ Judges need to reach a *running* instance. Socket Mode needs only **outbound** n
 | App starts but no confirm card | Ensure the bot is invited to the channel; check the terminal logs; the message must read like a request. |
 | Socket Mode "not connected" | `SLACK_APP_TOKEN` missing, or its token lacks the `connections:write` scope. |
 | `/kept` not found | Reinstall the app after creating it from the manifest (slash commands register on install). |
-| Want real Claude classification | Set `ANTHROPIC_API_KEY` (otherwise an offline heuristic runs — still fully functional). |
+| Want real LLM classification | Set `ANTHROPIC_API_KEY` (Claude) or `OPENAI_API_KEY` (OpenAI, default `gpt-4o`). Precedence: OpenAI → Anthropic → offline heuristic (still fully functional). |
 | Driver can't reach the server | `npm start` must be running; the webhook server is on `:3001` (override with `WEBHOOK_BASE`). |

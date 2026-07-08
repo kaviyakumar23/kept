@@ -12,8 +12,7 @@
  * Run: `npm run eval`  (alias: `npm run demo`)
  */
 import { loadConfig } from "../config.js";
-import { AnthropicProvider } from "../llm/anthropic.js";
-import { MockLlmProvider } from "../llm/mock.js";
+import { selectLlm } from "../llm/select.js";
 import { classifyMessage } from "../llm/classify.js";
 import { extractObligation } from "../llm/extract.js";
 import type { LlmProvider } from "../llm/provider.js";
@@ -390,9 +389,7 @@ const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 
 async function main() {
   const config = loadConfig();
-  const provider: LlmProvider = config.anthropicApiKey
-    ? new AnthropicProvider({ apiKey: config.anthropicApiKey, model: config.llmModel })
-    : new MockLlmProvider(heuristicResponder);
+  const { provider } = selectLlm(config, heuristicResponder);
 
   const scenarioGroups = await Promise.all([
     happyPathClosure(),
