@@ -4,9 +4,9 @@
 # command, the App Home ledger, and OAuth HTTP mode (the Marketplace deploy shape, W2).
 #
 # W2 / invariant #6 (Marketplace): production runs HTTP mode (Socket Mode OFF) with
-# multi-workspace OAuth. Replace `kept.example.com` below with your App Runner host, then
-# import the manifest. Bolt serves events, actions AND commands at ONE url: /slack/events;
-# the install page is /slack/install and the OAuth callback is /slack/oauth_redirect.
+# multi-workspace OAuth. URLs below point at the live deploy: https://kept-slack-agent.fly.dev
+# Bolt serves events, actions AND commands at ONE url: /slack/events; the install page is
+# /slack/install and the OAuth callback is /slack/oauth_redirect.
 #
 # LOCAL DEV over Socket Mode instead: set socket_mode_enabled: true, generate an App-Level
 # Token with `connections:write` (SLACK_APP_TOKEN), and leave SLACK_CLIENT_ID unset so the
@@ -42,11 +42,12 @@ features:
       description: Show the obligation ledger for a customer
       usage_hint: "[customer]"
       should_escape: false
+      url: https://kept-slack-agent.fly.dev/slack/events # HTTP mode: Slack POSTs /kept here
 
 oauth_config:
   # W2 — OAuth callback for multi-workspace install (Bolt's default redirect path).
   redirect_urls:
-    - https://kept.example.com/slack/oauth_redirect
+    - https://kept-slack-agent.fly.dev/slack/oauth_redirect
   scopes:
     bot:
       - chat:write # post confirm/verify/closure cards, owner DMs, in-thread closure
@@ -69,7 +70,7 @@ oauth_config:
 settings:
   event_subscriptions:
     # W2 — HTTP mode: Slack POSTs events here (Bolt serves events/actions/commands at /slack/events).
-    request_url: https://kept.example.com/slack/events
+    request_url: https://kept-slack-agent.fly.dev/slack/events
     bot_events:
       - message.channels # new message in a public channel → detect an obligation
       - message.groups # new message in a private / Slack Connect shared channel
@@ -84,7 +85,7 @@ settings:
       - tokens_revoked # bot token revoked → treated as an effective uninstall
   interactivity:
     is_enabled: true # buttons, modals, and view_submission (edit-and-confirm / edit-the-reply)
-    request_url: https://kept.example.com/slack/events # same single endpoint as events
+    request_url: https://kept-slack-agent.fly.dev/slack/events # same single endpoint as events
   socket_mode_enabled: false # W2 / invariant #6 — Marketplace runs HTTP mode
   org_deploy_enabled: false # workspace-level installs only
   token_rotation_enabled: false
