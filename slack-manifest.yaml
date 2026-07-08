@@ -29,10 +29,14 @@ features:
   assistant_view:
     assistant_description: "Ask the obligation ledger: what's overdue, what we owe a customer, or what's waiting on you to verify."
     suggested_prompts:
-      - "What's overdue?"
-      - "What's slipping?"
-      - "What did we promise Acme this week?"
-      - "Anything waiting on me to verify?"
+      - title: "What's overdue?"
+        message: "What's overdue?"
+      - title: "What's slipping?"
+        message: "What's slipping?"
+      - title: "What did we promise Acme?"
+        message: "What did we promise Acme this week?"
+      - title: "Waiting on me to verify?"
+        message: "Anything waiting on me to verify?"
   slash_commands:
     - command: /kept
       description: Show the obligation ledger for a customer
