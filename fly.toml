@@ -4,8 +4,8 @@
 # managed HTTPS URL (https://<app>.fly.dev) with a valid cert — no domain needed.
 #
 # `app` must be globally unique — `flyctl launch --name <you> --region bom` sets it.
-app = "kept-app"
-primary_region = "bom"   # Mumbai; colocate Neon in AWS ap-south-1 (Mumbai)
+app = "kept-slack-agent"
+primary_region = "sin"   # Singapore — bom (Mumbai) lacked volume capacity; sin is nearest well-provisioned region
 
 # Fly builds from the repo's Dockerfile automatically.
 [build]
