@@ -3,7 +3,7 @@
 > **Elevator pitch:** Kept is a Slack-native, human-verified obligation ledger for shared customer channels that never treats a ticket status or a merged PR as truth — it **verifies reality** from proof it gathers itself, and closes the loop back in the original thread only after a human signs.
 
 **Submission track: Slack Agent for _Organizations_ · Slack Marketplace.**
-**App ID:** `<APP_ID_TBD>` · **Judge sandbox:** invited `slackhack@salesforce.com` + `testing@devpost.com` (see *Try it out*).
+**App ID:** `A0BBEJQ2CMC` · **Judge sandbox:** invited `slackhack@salesforce.com` + `testing@devpost.com` (see *Try it out*).
 
 ---
 
@@ -141,7 +141,7 @@ GALLERY: upload docs/architecture.png (architecture diagram) + the Evidence Pack
   and the App Home drift band (docs/slack-cards.png + real Slack screenshots once recorded).
 
 STILL TO FILL BEFORE SUBMITTING:
-  • Slack App ID              — Basic Information → App ID → replace <APP_ID_TBD> above
+  • Slack App ID              — Basic Information → App ID → replace A0BBEJQ2CMC above
   • Demo video URL (≤ 3 min)  — opens on the flag-OFF block (see docs/VIDEO-SCRIPT.md); also replace <your-demo-url> in docs/index.html
   • Judge sandbox access      — invite slackhack@salesforce.com + testing@devpost.com to the workspace + demo channel (see docs/SETUP.md §8)
   • Landing-page URL          — https://kept-iota.vercel.app (live)
