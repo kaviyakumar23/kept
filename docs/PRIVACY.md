@@ -1,6 +1,6 @@
 # Kept — Privacy Policy
 
-_Effective date: 2026-07-05 · Last updated: 2026-07-05_
+_Effective date: 2026-07-05 · Last updated: 2026-07-09_
 
 This policy explains what data the Kept Slack app processes, why, how long it is kept, and how
 to request access or deletion. It is written to be hosted publicly (e.g. on the Kept landing
@@ -63,17 +63,29 @@ automatically — a person on your team must approve every customer-facing messa
 
 We rely on the following third parties to run the service:
 
-- **Amazon Web Services (AWS)** — application hosting (App Runner), database (RDS Postgres),
-  and secrets storage (Secrets Manager). AWS stores the data described above.
-- **Anthropic (Claude API)** — the language model that proposes structured summaries of
-  commitments. It receives message text transiently at inference time; its input/output are
-  not stored by Kept. This provider is optional and can be disabled by the operator, in which
-  case a local heuristic is used instead.
+- **Fly.io** — application hosting (compute) and our self-hosted Postgres database, in Fly's
+  Singapore (`sin`) region. Fly stores all the persisted data described above. This is our
+  primary sub-processor.
+- **OpenAI** — the language model that proposes structured summaries of commitments. It
+  receives message text transiently at inference time; its input and output are **not** stored
+  by Kept. (Anthropic's Claude is a supported alternative provider, selected by the operator
+  via configuration; when no model provider is configured, a local heuristic is used instead.)
 - **Slack** — the platform the app runs on.
-- **GitHub** — used as a live source of completion proof (e.g. workflow run results).
+- **Vercel** — hosts only our static marketing/landing page (`kept-iota.vercel.app`). No
+  customer data flows through it.
 
-Simulated integrations (Linear, Jira, LaunchDarkly, Statuspage) do not receive your data in
-the current build.
+### Integrations / data sources you connect
+
+To gather completion proof, you can connect read-only integrations using **your own API
+credentials**. Kept reads only **derived status facts** from them (for example, whether a
+workflow run passed, a feature flag is on, or an incident is resolved) — it never writes to
+them and never stores their raw content. These are data sources you control, not Kept
+sub-processors:
+
+- **GitHub** (GitHub Actions / API) — a live source of completion proof (e.g. workflow run
+  results).
+- **Linear, Jira, LaunchDarkly, Atlassian Statuspage** — simulated in the current build (real
+  API skeletons exist but are not live), so they receive none of your data today.
 
 ## Data retention
 
@@ -83,7 +95,7 @@ the current build.
   purge automation lands.
 - **Installation / bot-token data** is retained until the app is uninstalled or you request
   deletion.
-- RDS automated backups are retained for 7 days.
+- Fly takes daily volume snapshots of the database (~5-day retention) as a basic safety net.
 
 ## How to access or delete your data
 
@@ -96,9 +108,10 @@ the current build.
 
 ## Security
 
-Data is encrypted in transit (TLS) between Slack, Kept, the database, and third-party APIs.
-Secrets are held in AWS Secrets Manager. See `docs/SECURITY.md` for details, including the
-status of at-rest encryption.
+Data is encrypted in transit (TLS) between Slack, Kept, and third-party APIs; the database is
+reached only over Fly's private, WireGuard-encrypted internal network. Secrets are held as Fly
+encrypted secrets. See `docs/SECURITY.md` for details, including the status of at-rest
+encryption.
 
 ## Changes to this policy
 

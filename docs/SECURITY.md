@@ -1,6 +1,6 @@
 # Kept — Security & Compliance Questionnaire (draft)
 
-_Last reviewed: 2026-07-05. This is a draft for the Slack Marketplace Security & Compliance
+_Last reviewed: 2026-07-09. This is a draft for the Slack Marketplace Security & Compliance
 review; every claim is traceable to a file cited inline. Items marked `<TODO: confirm>` are
 open questions for the operator — do not submit them as answered._
 
@@ -70,8 +70,8 @@ structured command; only the human-confirmed derived fields are ever written.
     separately by `deleteInstallation` (it is keyed by installation id and holds the bot token).
   - Ad-hoc deletion / data-access requests remain available via `docs/SUPPORT.md` (operator
     runs the same team-scoped purge on demand).
-- **Data-access / export requests:** handled manually by the operator against the RDS
-  instance, scoped by `team_id`. See `docs/SUPPORT.md` and `docs/PRIVACY.md`.
+- **Data-access / export requests:** handled manually by the operator against the Fly-hosted
+  Postgres database, scoped by `team_id`. See `docs/SUPPORT.md` and `docs/PRIVACY.md`.
 
 ---
 
@@ -140,46 +140,67 @@ shared customer channel or the customer trust page (CLAUDE.md invariant #5).
 ## 6. Encryption
 
 - **In transit:**
-  - Slack ⇆ Kept: HTTPS/TLS terminated at AWS App Runner (managed certificate; App Runner
-    serves HTTPS by default).
-  - Kept ⇆ RDS Postgres: TLS enforced via `?sslmode=require` in `DATABASE_URL`
-    (`docs/DEPLOY-AWS.md` step 3).
-  - Kept ⇆ Slack API / Anthropic API / GitHub API: HTTPS.
+  - Slack ⇆ Kept: HTTPS/TLS terminated at Fly.io (Fly-managed certificate on
+    `https://<app>.fly.dev`; `force_https = true` in `fly.toml` redirects any HTTP to HTTPS).
+  - Kept ⇆ Postgres: the database is a self-hosted Postgres Machine on Fly, reached only over
+    Fly's **private, WireGuard-encrypted internal network** (`.flycast`/`.internal`) — it is
+    never exposed to the public internet (`docs/DEPLOY-FLY.md` step 2).
+  - Kept ⇆ Slack API / OpenAI API / GitHub API: HTTPS.
 - **At rest:**
-  - RDS storage encryption (KMS) — **enabled.** The `aws rds create-db-instance` command in
-    `docs/DEPLOY-AWS.md` now passes `--storage-encrypted`, which encrypts storage, automated
-    backups, replicas, and snapshots using the account's default AWS-managed KMS key for RDS
-    (`aws/rds`) unless a customer-managed `--kms-key-id` is supplied. Answer: **yes**.
-  - Secrets (DB URL, Slack client secret/signing secret/state secret, GitHub token,
-    optional Anthropic key) are stored in **AWS Secrets Manager** and injected as runtime
-    secrets into App Runner (`docs/DEPLOY-AWS.md` step 4) — never baked into the image or the
+  - Persisted data lives on a **Fly volume** attached to the self-hosted Postgres Machine.
+    Fly encrypts volume data at rest on its host storage. `<TODO: confirm>` the exact scope
+    and algorithm of Fly's at-rest encryption (and whether volume snapshots inherit it)
+    against Fly's current documentation before answering a customer DPA — do **not** overclaim
+    a KMS-style customer-managed key, which Fly's unmanaged Postgres does not provide.
+  - Secrets (DB URL, Slack client secret / signing secret / state secret, optional GitHub
+    token and model-provider API key) are stored as **Fly encrypted secrets**
+    (`flyctl secrets set`, `docs/DEPLOY-FLY.md` step 3) and injected as environment variables
+    into the running Machine at deploy time — never baked into the image or committed to the
     repo.
 
 ---
 
 ## 7. Sub-processors
 
+These are the third parties Kept itself relies on to run the service and that may receive or
+store customer data:
+
 | Sub-processor | Purpose | Data it receives |
 | ------------- | ------- | ---------------- |
-| **Amazon Web Services** (App Runner, RDS Postgres, Secrets Manager) | Application hosting, database, secrets storage | All persisted data (derived facts + refs + bot tokens); transient request payloads |
-| **Anthropic** (Claude API) | LLM that *proposes* structured commands (classification/extraction/NL query routing). Optional — if `ANTHROPIC_API_KEY` is unset, Kept falls back to a local heuristic responder (`src/config.ts`). | Transient message text at inference time. **Nothing from the model is persisted** (zero-copy). |
+| **Fly.io** (compute + self-hosted Postgres) | Application hosting and the Postgres database (region: Singapore, `sin`). This is the primary sub-processor. | **All persisted data** (derived facts + refs + per-tenant bot tokens); transient request payloads |
+| **OpenAI** | LLM that *proposes* structured commands (classification / extraction / NL query routing). Currently deployed provider (model `gpt-5.4-mini`, set via `OPENAI_MODEL`). Anthropic (Claude) is a supported **alternative** provider selected by config; with no provider key, Kept falls back to a local heuristic responder (`src/llm/select.ts`, `src/config.ts`). | Transient message text + context at inference time. **Nothing from the model is persisted** (zero-copy). |
 | **Slack** | The platform Kept runs on | N/A (Slack is the source, not a downstream processor) |
-| **GitHub** (GitHub Actions / API) | Live proof source for completion evidence (invariant #7) | Repo/workflow queries via `GITHUB_TOKEN` |
+| **Vercel** | Hosts only the static marketing/landing page (`kept-iota.vercel.app`). | **None** — no customer data flows through the marketing site |
 
-Linear, Jira, LaunchDarkly, and Atlassian Statuspage are **simulated via an in-process MCP
-server** for the current build (real API skeletons exist but are not live) — they are **not**
-live sub-processors today. Do not represent them as certified live integrations
-(invariant #7).
+### Integrations / data sources you connect (NOT Kept sub-processors)
+
+These are customer-connected data sources used to gather completion proof. The customer
+connects them with **their own read-only API credentials**; Kept reads only **derived status
+facts** (e.g. a workflow run's pass/fail, a flag's state, an incident's status), **never
+writes** to them, and **stores only derived facts** — so they are data sources you control,
+not Kept's own sub-processors.
+
+- **GitHub** (GitHub Actions / API) — a **live** proof source for completion evidence
+  (invariant #7).
+- **Linear, Jira, LaunchDarkly, Atlassian Statuspage** — **simulated via an in-process MCP
+  server** for the current build (real API skeletons exist but are not live). They receive
+  **none** of your data today. Do not represent them as certified live integrations
+  (invariant #7).
 
 ---
 
 ## 8. Availability, logging, incident response
 
-- **Health check:** `GET /healthz` (App Runner-monitored).
-- **Logging:** application logs to stdout (App Runner → CloudWatch). Logs record structured
-  events/ids, not raw message bodies. `<TODO: confirm>` log retention window in CloudWatch.
-- **Backups:** RDS automated backups, `--backup-retention-period 7` (7 days) per
-  `docs/DEPLOY-AWS.md`.
+- **Health check:** `GET /healthz` (Fly health-check monitored; `[[http_service.checks]]` in
+  `fly.toml`, `min_machines_running = 1` so the process is always-on).
+- **Logging:** application logs to stdout (viewable via `flyctl logs`). Logs record structured
+  events/ids, not raw message bodies. `<TODO: confirm>` Fly log retention window and whether
+  logs are shipped to any long-term store.
+- **Backups:** Fly takes **daily volume snapshots (~5-day retention)** as a basic safety net.
+  The self-hosted single-node Postgres has **no managed PITR** and is a single point of
+  failure; `docs/DEPLOY-FLY.md` recommends a Fly Postgres HA pair + off-site `pg_dump` for
+  production. `<TODO: confirm>` whether that hardening is in place before onboarding real
+  customer data.
 - **Incident response / disclosure contact:** see `docs/SUPPORT.md`. `<TODO: confirm>` a
   security-contact address and an SLA for responding to reports.
 
@@ -192,13 +213,14 @@ Resolved in this hardening pass:
 1. ~~Wire `app_uninstalled` / `tokens_revoked` → `deleteInstallation` **and** a per-tenant
    data purge~~ — **done** (Section 2): manifest subscription + Bolt handler +
    `EventStore.purgeTeam`, regression-tested in `tests/dataDeletion.test.ts`.
-2. ~~Enable RDS `--storage-encrypted`~~ — **done** (Section 6).
-3. ~~Team-scope the roadmap read path~~ — **done** (Section 3).
-4. ~~Direct Install must HTTP-302~~ — **done** (`installerOptions.directInstall`, Section 5).
+2. ~~Team-scope the roadmap read path~~ — **done** (Section 3).
+3. ~~Direct Install must HTTP-302~~ — **done** (`installerOptions.directInstall`, Section 5).
 
 Still open for the operator:
 
+4. Confirm the exact scope/wording of **Fly volume at-rest encryption** (Section 6) before
+   answering a customer DPA — do not overclaim.
 5. Define & (if required) implement a data-**retention** policy (time-based purge/TTL is
    still absent; deletion-on-uninstall is now automatic — Section 2).
-6. Confirm `KEPT_WEBHOOK_SECRET`, `KEPT_RTS`, CloudWatch log retention, and a security
-   contact (Sections 3/5/8).
+6. Confirm `KEPT_WEBHOOK_SECRET`, `KEPT_RTS`, **Fly log retention**, database backup/HA
+   hardening, and a security contact (Sections 3/5/8).
