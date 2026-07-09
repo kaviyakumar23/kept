@@ -64,7 +64,7 @@ ticket can be Done and the code deployed, but if the flag is OFF the capability 
 so Kept blocks the close. Adapter: `LaunchDarklyProofAdapter` in `src/integrations/launchDarkly.ts`.
 
 **Preferred — hosted LaunchDarkly MCP** (`https://mcp.launchdarkly.com/mcp/launchdarkly`). The
-adapter calls the flag-read tool (default `get-feature-flag`) and reads `environments.<env>.on`:
+adapter calls the flag-read tool (default `get-flag`) and reads `environments.<env>.on`:
 
 | Env var | Required | Where to get it |
 | --- | --- | --- |
@@ -72,7 +72,7 @@ adapter calls the flag-read tool (default `get-feature-flag`) and reads `environ
 | `LAUNCHDARKLY_MCP_URL` | no | Defaults to `https://mcp.launchdarkly.com/mcp/launchdarkly`. |
 | `LAUNCHDARKLY_PROJECT_KEY` | yes | LaunchDarkly → Projects (e.g. `default`). Passed to the tool. |
 | `LAUNCHDARKLY_ENVIRONMENT` | no (default `production`) | The environment **key** to read `on` from. |
-| `LAUNCHDARKLY_MCP_FLAG_TOOL` | no | Override the flag-read tool name (defaults to `get-feature-flag`); hosted tool names aren't pinned. |
+| `LAUNCHDARKLY_MCP_FLAG_TOOL` | no | Override the flag-read tool name (defaults to `get-flag`); hosted tool names aren't pinned. |
 
 **Fallback — LaunchDarkly REST** (`GET /api/v2/flags/{project}/{flag}?env={env}`), used when
 `LAUNCHDARKLY_MCP_TOKEN` is unset:

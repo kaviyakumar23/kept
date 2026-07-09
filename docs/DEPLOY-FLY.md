@@ -47,12 +47,14 @@ flyctl secrets set --app <your-unique-name> \
   SLACK_CLIENT_ID="…" SLACK_CLIENT_SECRET="…" SLACK_SIGNING_SECRET="…" \
   SLACK_STATE_SECRET="$(openssl rand -hex 32)" \
   KEPT_PUBLIC_URL="https://<your-app>.fly.dev"
-# optional — flip proof sources from simulated fallback to live (docs/INTEGRATIONS.md):
+# optional — flip proof sources from the simulated MCP fallback to live (docs/INTEGRATIONS.md):
+#   GitHub Actions = live CI conclusions · Jira = work items + proof over the hosted Atlassian MCP
+#   LaunchDarkly = live flag state over LaunchDarkly's hosted MCP (LAUNCHDARKLY_MCP_TOKEN is a
+#   LaunchDarkly API access token used as the MCP Bearer; LAUNCHDARKLY_MCP_URL is optional and
+#   defaults to https://mcp.launchdarkly.com/mcp/launchdarkly).
 flyctl secrets set --app <your-unique-name> GITHUB_TOKEN=… \
-  LAUNCHDARKLY_API_TOKEN=… LAUNCHDARKLY_PROJECT_KEY=… \
-  STATUSPAGE_API_KEY=… STATUSPAGE_PAGE_ID=… \
   ATLASSIAN_MCP_TOKEN=… ATLASSIAN_MCP_URL=… JIRA_CLOUD_ID=… \
-  LINEAR_MCP_TOKEN=… LINEAR_MCP_URL=…
+  LAUNCHDARKLY_MCP_TOKEN=… LAUNCHDARKLY_MCP_URL=…
 ```
 
 ## 4. Deploy + smoke test

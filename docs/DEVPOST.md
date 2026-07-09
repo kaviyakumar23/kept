@@ -34,8 +34,8 @@ The improvement isn't a nicer inbox. It's a **different definition of "done"** �
 Kept maintains a human-verified, **event-sourced obligation ledger** for shared customer channels — capturing what your company owes each customer and the commitments your team makes back. One obligation's journey:
 
 1. **Capture.** A customer message lands in a shared channel. Kept's LLM layer classifies and *proposes* a candidate obligation. Nothing is committed — it enters as `CANDIDATE`.
-2. **Gate 1 — Confirm (human).** The owner gets a private card: what we think you committed to, prior commitments to this customer (pulled from the ledger), and a roadmap-conflict warning if the promised date beats the roadmap. Only on **Confirm** does it become `OPEN` — and *only then* does Kept create the work item over MCP (a Linear/Jira tool call that *code*, not the model, decides to make).
-3. **Track & collect proof.** Ticket status, PR merges, and deploys arrive as webhooks. Then the agent **autonomously assembles Proof-of-Done** — it queries a feature flag's production state, a CI run's conclusion, a status page's health — over MCP, and proposes each as evidence.
+2. **Gate 1 — Confirm (human).** The owner gets a private card: what we think you committed to, prior commitments to this customer (pulled from the ledger), and a roadmap-conflict warning if the promised date beats the roadmap. Only on **Confirm** does it become `OPEN` — and *only then* does Kept create the work item over MCP (a Jira tool call over the hosted Atlassian MCP that *code*, not the model, decides to make).
+3. **Track & collect proof.** Ticket status, PR merges, and deploys arrive as webhooks. Then the agent **autonomously assembles Proof-of-Done** — it queries a feature flag's production state (LaunchDarkly over MCP) and a CI run's conclusion (GitHub Actions, live) — and proposes each as evidence.
 4. **Reconcile — Proof-of-Done.** Ticket-Done alone is *never* enough. `assessFulfillment` resolves to exactly two sufficiency lanes: a merged PR **and** a production deploy, or a direct customer confirmation — and it refuses forged or non-production evidence. **The flag-OFF case blocks here.**
 5. **Gate 2 — Verify (human).** When proof is sufficient, the owner gets a **verify card listing the Evidence Packet**. The agent did 95%; the human signs. Evidence opens the gate — it does not walk through it.
 6. **Close the loop.** Kept drafts a **sanitized, leak-checked, customer-safe** closure, the owner approves (or edits) it, and it posts back into the **original thread**. The customer finally hears it's done.
@@ -53,7 +53,7 @@ Ten lifecycle states, two mandatory human gates, one source of truth that lives 
 ## The three qualifying technologies (all genuine)
 
 1. **Slack AI Assistant.** A conversational Assistant pane over the ledger (*"what's overdue?", "what did we promise Acme this week?"*). The LLM only **routes the question into a fixed intent grammar**; deterministic code runs the read — the same LLM-proposes/code-decides discipline as the rest of Kept.
-2. **Model Context Protocol (MCP).** Kept is a **deterministic MCP client** used two ways: to *create* work items (Linear / Atlassian), and to *gather proof* (feature-flag state, CI conclusion, status-page health). The model never selects a tool — **code picks the tool and arguments**; the model interprets language only. The demo + tests run a real MCP client↔server round-trip against an in-process server; hosted Linear/Atlassian MCP plug in with a token.
+2. **Model Context Protocol (MCP).** Kept is a **deterministic MCP client** used two ways: to *create* work items (Jira, via the hosted **Atlassian MCP**), and to *gather proof* (feature-flag state via **LaunchDarkly's hosted MCP**, plus CI conclusion). The model never selects a tool — **code picks the tool and arguments**; the model interprets language only. The demo + tests run a real MCP client↔server round-trip against an in-process server; in production the **two highest-value calls both run over real hosted MCP** — Jira work-item creation over the Atlassian MCP, and the money proof source (LaunchDarkly flag state) over LaunchDarkly's hosted MCP (its API access token used as the Bearer). A token is all it takes to swap the simulated server for the live one.
 3. **Real-Time Search API.** Cross-channel context on a new message via `assistant.search.context`, using a **bot token + the event's `action_token`** and **granular scopes** (`search:read.public/.files/.users`) — never the blanket `search:read`, which is **banned in the Marketplace**. Results are ephemeral (a "related discussion lives in #…" note; the raw content is never read into the log). *Honest note:* the Real-Time Search API is allowlisted/gated, so the retriever is **fault-isolated** — a `LedgerRtsRetriever` sources prior commitments from the ledger Kept already owns, and the app works with or without RTS enabled.
 
 ## Built for organizations (Marketplace shape)
@@ -76,9 +76,9 @@ Kept is TypeScript (ESM, Node 20+), four deterministic layers around a pure engi
 
 **Gate-before-side-effect ordering.** The orchestrator dispatches the gate command *first* and only creates a work item or posts to the customer thread `if (status === "applied")`. A deduped race returns `suppressed`, not `applied`, so two concurrent Confirm clicks can never create two tickets — no locks.
 
-**Substrate that upgrades by environment.** Set `DATABASE_URL` and the in-memory store becomes a real `PostgresEventStore` (transactional `ON CONFLICT DO NOTHING`); `REDIS_URL` moves reminders to BullMQ; `ANTHROPIC_API_KEY` switches to real Claude; `LINEAR_MCP_TOKEN` / `ATLASSIAN_MCP_TOKEN` route work items to the hosted MCP servers.
+**Substrate that upgrades by environment.** Set `DATABASE_URL` and the in-memory store becomes a real `PostgresEventStore` (transactional `ON CONFLICT DO NOTHING`); `REDIS_URL` moves reminders to BullMQ; `ANTHROPIC_API_KEY` switches to real Claude; `ATLASSIAN_MCP_TOKEN` routes Jira work items over the hosted Atlassian MCP; `LAUNCHDARKLY_MCP_TOKEN` reads live flag state over LaunchDarkly's hosted MCP; `GITHUB_TOKEN` reads live GitHub Actions CI conclusions.
 
-**Honesty framing (a credibility beat, invariant #7).** **Slack is the real, live surface.** **GitHub Actions is a genuine live proof source** (a real workflow-run `conclusion` fetched from the GitHub REST API). Work items (Linear/Jira) and the other proof sources (**LaunchDarkly** flags, **Atlassian Statuspage**) are **simulated over an in-process MCP server with real API skeletons** — a token swaps in the live one. Postgres + Redis/BullMQ are real and exercised by the live integration suite. We never imply a certified live integration for a simulated one — the honesty *is* the credibility.
+**Honesty framing (a credibility beat, invariant #7).** **Slack is the real, live surface.** **GitHub Actions is a genuine live proof source** (a real workflow-run `conclusion` fetched from the GitHub REST API). **Jira** connects over the **hosted Atlassian MCP** (work-item creation + status proof; REST fallback). **LaunchDarkly — the flag-OFF money proof source — is live over MCP**: the adapter reads flag state from LaunchDarkly's hosted MCP (`https://mcp.launchdarkly.com/mcp/launchdarkly`), with a LaunchDarkly API access token used as the Bearer (`LAUNCHDARKLY_MCP_TOKEN`), and a REST fallback. When those tokens are absent, everything degrades cleanly to an **in-process simulated MCP proof server with real API skeletons** — the same server the offline demo and hermetic tests run against. Postgres + Redis/BullMQ are real and exercised by the live integration suite. We never imply a certified live integration for a simulated one — the honesty *is* the credibility.
 
 ## Challenges we ran into
 
@@ -106,9 +106,9 @@ Kept is TypeScript (ESM, Node 20+), four deterministic layers around a pure engi
 
 ## What's next for Kept
 
-- Complete OAuth for the hosted Linear/Atlassian **MCP** servers (the streamable-HTTP client is wired; live use needs credentials) and swap the simulated LaunchDarkly/Statuspage adapters for live tokens behind the same `query()` contract.
+- Harden the hosted-**MCP** connections (Atlassian for Jira, LaunchDarkly for flag state) with full OAuth token refresh + per-tenant credential storage, behind the same deterministic `query()` contract.
 - Per-source webhook HMAC verification, replacing the shared-secret stand-in.
-- Richer reconciliation lanes (CRM account context, changelog/status-page evidence) behind the same consistency checks, with per-team sufficiency policy.
+- Richer reconciliation lanes (CRM account context, changelog evidence) behind the same consistency checks, with per-team sufficiency policy.
 - Enterprise Grid org-wide install, broader proactive drift nudges, and ledger analytics (time-to-fulfillment, at-risk forecasting) — all derivable from the existing event log.
 
 <!-- ─────────────────────────────────────────────────────────────────────────
@@ -123,14 +123,14 @@ ELEVATOR PITCH (Devpost's short pitch field, ~200 char max — pick one):
 
 BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Slack OAuth, Block Kit, Slack Events API,
   Slack AI Assistant, App Home, Real-Time Search API (assistant.search.context), Model Context Protocol (MCP),
-  PostgreSQL, Redis, BullMQ, Anthropic Claude, claude-opus-4-8, Zod, Linear, Atlassian/Jira, LaunchDarkly,
-  Atlassian Statuspage, GitHub Actions, event sourcing, finite-state-machine, Vitest
+  PostgreSQL, Redis, BullMQ, Anthropic Claude, claude-opus-4-8, Zod, Atlassian/Jira, LaunchDarkly,
+  GitHub Actions, event sourcing, finite-state-machine, Vitest
 
 TRY IT OUT (Devpost links field):
   • GitHub repo:   https://github.com/kaviyakumar23/kept
   • Landing page:  https://kept-iota.vercel.app   (live on Vercel)
   • Run it:        npm install → npm test (179 hermetic tests) → npm run demo (full-lifecycle storyboard incl. the flag-OFF block) → npm start (Bolt OAuth app + webhook server)
-                   Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, LINEAR_MCP_TOKEN / ATLASSIAN_MCP_TOKEN, GITHUB_TOKEN.
+                   Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, ATLASSIAN_MCP_TOKEN (Jira over hosted MCP), LAUNCHDARKLY_MCP_TOKEN (live flag state over LaunchDarkly's hosted MCP), GITHUB_TOKEN (live CI).
 
 SUBMISSION TRACK: Slack Agent for Organizations
 

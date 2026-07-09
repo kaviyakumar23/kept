@@ -28,7 +28,7 @@ import type { McpQueryClient, McpStructured } from "./mcp.js";
 export interface LaunchDarklyOptions {
   /** MCP: a read client bound to the hosted LaunchDarkly MCP server (built in proofSources.ts). */
   mcp?: McpQueryClient;
-  /** MCP: the flag-read tool name (uncertain across server versions; overridable). Defaults to `get-feature-flag`. */
+  /** MCP: the flag-read tool name (verified against LaunchDarkly's hosted MCP; overridable). Defaults to `get-flag`. */
   mcpFlagTool?: string;
   /** LaunchDarkly REST API access token. Falls back to LAUNCHDARKLY_API_TOKEN. */
   apiToken?: string;
@@ -100,11 +100,11 @@ export class LaunchDarklyProofAdapter implements McpQueryClient {
 
   private async viaMcp(flag: string, env: string): Promise<McpStructured> {
     try {
-      const tool = this.opts.mcpFlagTool ?? process.env.LAUNCHDARKLY_MCP_FLAG_TOOL ?? "get-feature-flag";
+      const tool = this.opts.mcpFlagTool ?? process.env.LAUNCHDARKLY_MCP_FLAG_TOOL ?? "get-flag";
       const project = this.opts.projectKey ?? process.env.LAUNCHDARKLY_PROJECT_KEY;
-      // CODE picks the tool + args. LaunchDarkly's hosted MCP `get-feature-flag` returns the flag
-      // resource with `environments.<env>.on`; arg names aren't pinned across versions, so we pass
-      // the common aliases (redundant keys the server ignores) — same discipline as the Jira MCP path.
+      // CODE picks the tool + args. LaunchDarkly's hosted MCP `get-flag` returns the flag resource
+      // with `environments.<env>.on` (verified live: args projectKey + flagKey + env). Arg names
+      // aren't pinned across versions, so we pass common aliases (the server ignores extras).
       const sc = await this.opts.mcp!.query(tool, {
         flagKey: flag,
         key: flag,

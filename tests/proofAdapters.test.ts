@@ -36,12 +36,12 @@ describe("LaunchDarklyProofAdapter (real feature-flag state — MCP preferred, R
       },
       close: async () => undefined,
     };
-    const ld = new LaunchDarklyProofAdapter({ mcp, projectKey: "default", mcpFlagTool: "get-feature-flag" });
+    const ld = new LaunchDarklyProofAdapter({ mcp, projectKey: "default", mcpFlagTool: "get-flag" });
     expect(ld.configured()).toBe(true); // MCP path is "configured" without REST creds
     const sc = await ld.query("get_flag_state", { flag_key: "sso_login", environment: "production" });
     expect(sc).toEqual({ enabled: true, environment: "production" });
     // CODE picked the tool + args; the flag key + environment + project are passed through.
-    expect(seen[0].name).toBe("get-feature-flag");
+    expect(seen[0].name).toBe("get-flag");
     expect(seen[0].args.flagKey).toBe("sso_login");
     expect(seen[0].args.environmentKey).toBe("production");
     expect(seen[0].args.projectKey).toBe("default");

@@ -2,7 +2,7 @@
 
 Get the live Slack demo running (no public tunnel needed) and submit on Devpost. Budget ~30–45 min.
 
-> The whole demo runs over **Socket Mode** (Slack) + a **local** webhook server, so you need **no public URL / tunnel**. The work-item side runs over an **in-process MCP server** by default — no Linear/Jira account required.
+> The whole demo runs over **Socket Mode** (Slack) + a **local** webhook server, so you need **no public URL / tunnel**. The work-item side runs over an **in-process MCP server** by default — no Jira account required.
 
 ---
 
@@ -28,7 +28,7 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_SIGNING_SECRET=...
 SLACK_APP_TOKEN=xapp-...
 ```
-Everything else can stay blank for the demo (store = in-memory, work items = in-process simulated MCP, LLM = offline heuristic). Optional upgrades: `ANTHROPIC_API_KEY` (real classification), `DATABASE_URL` + `REDIS_URL` (real Postgres/BullMQ), `LINEAR_MCP_TOKEN` / `ATLASSIAN_MCP_TOKEN` (hosted MCP servers).
+Everything else can stay blank for the demo (store = in-memory, work items = in-process simulated MCP, LLM = offline heuristic). Optional upgrades: `ANTHROPIC_API_KEY` (real classification), `DATABASE_URL` + `REDIS_URL` (real Postgres/BullMQ), `ATLASSIAN_MCP_TOKEN` (Jira work items + proof over the hosted Atlassian MCP), `LAUNCHDARKLY_MCP_TOKEN` + optional `LAUNCHDARKLY_MCP_URL` (live LaunchDarkly flag state over LaunchDarkly's hosted MCP), and `GITHUB_TOKEN` (live GitHub Actions CI conclusions).
 
 ## 4. Invite the bot and run
 1. In Slack, pick/create a channel (e.g. `#acme-collab`) → `/invite @Kept`.
@@ -48,7 +48,7 @@ Everything else can stay blank for the demo (store = in-memory, work items = in-
 - Follow [`VIDEO-SCRIPT.md`](VIDEO-SCRIPT.md) for the voiceover + shot timing.
 
 ## 6. (Optional) Real provider webhooks via a tunnel
-You don't need this for the demo — the driver simulates Linear/GitHub/deploy locally. For real events: expose `:3001` (`cloudflared tunnel --url http://localhost:3001` or `ngrok http 3001`), point Linear/GitHub webhooks at `https://<tunnel>/webhooks/{linear,github}`, set `KEPT_WEBHOOK_SECRET`, and send it as the `x-kept-secret` header.
+You don't need this for the demo — the driver simulates the ticket/GitHub/deploy events locally. For real events: expose `:3001` (`cloudflared tunnel --url http://localhost:3001` or `ngrok http 3001`), point Jira/GitHub webhooks at `https://<tunnel>/webhooks/{jira,github}`, set `KEPT_WEBHOOK_SECRET`, and send it as the `x-kept-secret` header.
 
 ## 7. Landing page — already live on Vercel (free)
 Deployed via the Vercel CLI (static, no build) — **live at <https://kept-iota.vercel.app>** (the `kept` name was taken, so Vercel assigned `kept-iota`). The `og:*`/`twitter:image` meta + the repo homepage point there.
