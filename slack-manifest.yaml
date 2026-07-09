@@ -13,8 +13,20 @@
 # app boots the single-token path.
 display_information:
   name: Kept
-  description: Human-verified, event-sourced obligation ledger for shared customer channels.
-  background_color: "#1f2d3d"
+  description: Verify customer promises before you say they're done — Kept gathers proof and requires a human sign-off.
+  background_color: "#0B1220"
+  long_description: >-
+    Kept is the verification layer for the promises your team makes to customers in Slack. When
+    someone says "we'll ship the SSO fix by Friday" in a shared channel, Kept captures it as a
+    tracked commitment, then gathers proof from the systems that actually ship the work — Jira,
+    GitHub Actions, LaunchDarkly, Statuspage and more — before anyone tells the customer it's
+    done. If the ticket says Done but the feature flag is still off in production, Kept blocks the
+    close and shows why. Every closure is signed by a human, and Kept stores only derived facts —
+    never your raw Slack message bodies. Built for shared customer channels, with per-workspace
+    tenant isolation.
+# NOTE: the app ICON is NOT set here — Slack has no manifest field for it. Upload it manually at
+# api.slack.com/apps -> your app -> Basic Information -> Display Information -> App icon
+# (512x512 PNG). Source logo: docs/assets/kept-icon.svg (export to a 512x512 PNG first).
 
 features:
   bot_user:
