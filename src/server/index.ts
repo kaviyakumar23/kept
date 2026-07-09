@@ -11,7 +11,7 @@ import { PostgresScheduler } from "../scheduler/postgresScheduler.js";
 import type { Scheduler, ReminderHandler } from "../scheduler/scheduler.js";
 import type { Notifier } from "../slack/notifier.js";
 import { selectLlm } from "../llm/select.js";
-import { LinearApiAdapter, type WorkItemAdapter } from "../integrations/linear.js";
+import type { WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { buildProofCollector } from "../integrations/proofSources.js";
@@ -74,30 +74,24 @@ async function main() {
   const { provider: llm, label: llmLabel } = selectLlm(cfg, heuristicResponder);
 
   // Work items go through MCP by default (the hackathon's "MCP server integration").
-  // Precedence: Linear MCP > Atlassian/Jira MCP > legacy direct-API adapters >
-  // an in-process SIMULATED MCP server (real client↔server round-trip, no network).
+  // Precedence: Atlassian/Jira MCP > Jira REST > an in-process SIMULATED MCP server (real
+  // client↔server round-trip, no network).
   let workItemsMode: string;
   let workItems: WorkItemAdapter;
-  if (process.env.LINEAR_MCP_TOKEN) {
-    workItems = McpWorkItemAdapter.linear({ token: process.env.LINEAR_MCP_TOKEN, url: process.env.LINEAR_MCP_URL, teamId: process.env.LINEAR_TEAM_ID, toolName: process.env.KEPT_MCP_TOOL });
-    workItemsMode = "mcp:linear";
-  } else if (process.env.ATLASSIAN_MCP_TOKEN) {
+  if (process.env.ATLASSIAN_MCP_TOKEN) {
     workItems = McpWorkItemAdapter.atlassian({ token: process.env.ATLASSIAN_MCP_TOKEN, url: process.env.ATLASSIAN_MCP_URL, cloudId: process.env.JIRA_CLOUD_ID, projectKey: process.env.JIRA_PROJECT_KEY, toolName: process.env.KEPT_MCP_TOOL });
     workItemsMode = "mcp:atlassian";
   } else if (process.env.JIRA_BASE_URL && process.env.JIRA_EMAIL && process.env.JIRA_API_TOKEN && process.env.JIRA_PROJECT_KEY) {
     workItems = new JiraApiAdapter({ baseUrl: process.env.JIRA_BASE_URL, email: process.env.JIRA_EMAIL, apiToken: process.env.JIRA_API_TOKEN, projectKey: process.env.JIRA_PROJECT_KEY });
     workItemsMode = "jira-rest";
-  } else if (process.env.LINEAR_API_KEY && process.env.LINEAR_TEAM_ID) {
-    workItems = new LinearApiAdapter({ apiKey: process.env.LINEAR_API_KEY, teamId: process.env.LINEAR_TEAM_ID });
-    workItemsMode = "linear-graphql";
   } else {
     workItems = await createSimulatedMcpWorkItems();
     workItemsMode = "mcp:simulated";
   }
 
-  // W4 — Proof-of-Done collector. Each source (LaunchDarkly / Statuspage / Jira / Linear /
-  // GitHub Actions) upgrades to its REAL adapter when configured, else the collector routes to
-  // the in-process simulated MCP proof server. Null when nothing is configured (no proof step).
+  // W4 — Proof-of-Done collector. Each source (LaunchDarkly / Jira / GitHub Actions) upgrades to
+  // its REAL adapter when configured, else the collector routes to the in-process simulated MCP
+  // proof server. Null when nothing is configured (no proof step).
   const builtProof = await buildProofCollector(cfg);
   const proofCollector = builtProof?.collector;
   const proofMode = builtProof ? (builtProof.liveSources.length ? `live(${builtProof.liveSources.join(",")})` : "simulated") : "off";

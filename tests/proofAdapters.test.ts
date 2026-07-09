@@ -3,9 +3,7 @@ import { writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LaunchDarklyProofAdapter } from "../src/integrations/launchDarkly.js";
-import { StatuspageProofAdapter } from "../src/integrations/statuspage.js";
 import { JiraProofAdapter } from "../src/integrations/jira.js";
-import { LinearProofAdapter } from "../src/integrations/linear.js";
 import { ProofCollector } from "../src/integrations/proofCollector.js";
 import { createSimulatedProofServer, type McpQueryClient, type McpStructured } from "../src/integrations/mcp.js";
 import { buildProofCollector } from "../src/integrations/proofSources.js";
@@ -14,8 +12,8 @@ import type { Obligation } from "../src/domain/obligation.js";
 
 /**
  * W4 — REAL Proof-of-Done adapters. Each unit test feeds a CANNED HTTP/MCP response (no real
- * network) and asserts the derived structured fact; each also asserts the missing-creds path
- * returns undefined (so the collector proposes nothing and the simulated server answers upstream).
+ * network) and asserts the derived structured fact; each also asserts the missing-creds / error
+ * path returns undefined (so the collector proposes nothing and the simulated server answers upstream).
  */
 
 /** A fetch stub that records the URL/headers it was called with and returns a canned JSON body. */
@@ -28,8 +26,54 @@ function stubFetch(body: unknown, init: { ok?: boolean; status?: number } = {}) 
   return { impl, calls };
 }
 
-describe("LaunchDarklyProofAdapter (real feature-flag state)", () => {
-  it("parses environments.<env>.on into { enabled, environment } and hits the flag endpoint", async () => {
+describe("LaunchDarklyProofAdapter (real feature-flag state — MCP preferred, REST fallback)", () => {
+  it("MCP: reads environments.<env>.on from the injected client → { enabled, environment }", async () => {
+    const seen: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const mcp: McpQueryClient = {
+      query: async (name, args): Promise<McpStructured> => {
+        seen.push({ name, args });
+        return { key: "sso_login", environments: { production: { on: true }, staging: { on: false } } };
+      },
+      close: async () => undefined,
+    };
+    const ld = new LaunchDarklyProofAdapter({ mcp, projectKey: "default", mcpFlagTool: "get-feature-flag" });
+    expect(ld.configured()).toBe(true); // MCP path is "configured" without REST creds
+    const sc = await ld.query("get_flag_state", { flag_key: "sso_login", environment: "production" });
+    expect(sc).toEqual({ enabled: true, environment: "production" });
+    // CODE picked the tool + args; the flag key + environment + project are passed through.
+    expect(seen[0].name).toBe("get-feature-flag");
+    expect(seen[0].args.flagKey).toBe("sso_login");
+    expect(seen[0].args.environmentKey).toBe("production");
+    expect(seen[0].args.projectKey).toBe("default");
+  });
+
+  it("MCP: an OFF flag drives the blocking-negative (enabled:false), same evidence as REST", async () => {
+    const mcp: McpQueryClient = {
+      query: async (): Promise<McpStructured> => ({ environments: { production: { on: false } } }),
+      close: async () => undefined,
+    };
+    const ld = new LaunchDarklyProofAdapter({ mcp });
+    expect(await ld.query("get_flag_state", { flag_key: "f" })).toEqual({ enabled: false, environment: "production" });
+  });
+
+  it("MCP: a configured client that ERRORS (or returns garbage) proposes nothing — never a fake state", async () => {
+    const erroring: McpQueryClient = {
+      query: async (): Promise<McpStructured> => {
+        throw new Error("mcp down");
+      },
+      close: async () => undefined,
+    };
+    const ldErr = new LaunchDarklyProofAdapter({ mcp: erroring });
+    expect(ldErr.configured()).toBe(true);
+    expect(await ldErr.query("get_flag_state", { flag_key: "f" })).toBeUndefined();
+    // An unparseable result (no environments / no on) also yields nothing, not a fabricated OFF.
+    const garbage: McpQueryClient = { query: async () => ({ foo: "bar" }), close: async () => undefined };
+    expect(await new LaunchDarklyProofAdapter({ mcp: garbage }).query("get_flag_state", { flag_key: "f" })).toBeUndefined();
+    // Wrong tool short-circuits before touching the client.
+    expect(await new LaunchDarklyProofAdapter({ mcp: erroring }).query("other", {})).toBeUndefined();
+  });
+
+  it("REST fallback (no MCP client): parses environments.<env>.on and hits the flag endpoint with raw-token auth", async () => {
     const { impl, calls } = stubFetch({ environments: { production: { on: true } } });
     const ld = new LaunchDarklyProofAdapter({ apiToken: "api-xyz", projectKey: "default", fetchImpl: impl });
     expect(ld.configured()).toBe(true);
@@ -40,7 +84,7 @@ describe("LaunchDarklyProofAdapter (real feature-flag state)", () => {
     expect(calls[0].headers.authorization).toBe("api-xyz"); // raw token, no Bearer
   });
 
-  it("reports enabled:false when the flag is OFF (drives the blocking-negative)", async () => {
+  it("REST fallback: reports enabled:false when the flag is OFF (drives the blocking-negative)", async () => {
     const { impl } = stubFetch({ environments: { production: { on: false } } });
     const ld = new LaunchDarklyProofAdapter({ apiToken: "t", projectKey: "p", fetchImpl: impl });
     expect(await ld.query("get_flag_state", { flag_key: "f" })).toEqual({ enabled: false, environment: "production" });
@@ -53,23 +97,6 @@ describe("LaunchDarklyProofAdapter (real feature-flag state)", () => {
     expect(await new LaunchDarklyProofAdapter({ apiToken: "t", projectKey: "p", fetchImpl: impl }).query("other", {})).toBeUndefined();
     expect(await new LaunchDarklyProofAdapter({ apiToken: "t", projectKey: "p", fetchImpl: impl }).query("get_flag_state", { flag_key: "f" })).toBeUndefined();
     expect(calls.length).toBe(1); // only the non-ok case reached fetch (missing-creds + wrong-tool short-circuit)
-  });
-});
-
-describe("StatuspageProofAdapter (real component status)", () => {
-  it("parses status into { component_status } via the component endpoint with OAuth auth", async () => {
-    const { impl, calls } = stubFetch({ status: "degraded_performance" });
-    const sp = new StatuspageProofAdapter({ apiKey: "sp-key", pageId: "page1", fetchImpl: impl });
-    expect(sp.configured()).toBe(true);
-    expect(await sp.query("get_status_page", { component: "comp7" })).toEqual({ component_status: "degraded_performance" });
-    expect(calls[0].url).toContain("/v1/pages/page1/components/comp7");
-    expect(calls[0].headers.authorization).toBe("OAuth sp-key");
-  });
-
-  it("missing creds → undefined; wrong tool → undefined", async () => {
-    const { impl } = stubFetch({ status: "operational" });
-    expect(await new StatuspageProofAdapter({ fetchImpl: impl }).query("get_status_page", { component: "c" })).toBeUndefined();
-    expect(await new StatuspageProofAdapter({ apiKey: "k", pageId: "p", fetchImpl: impl }).query("get_flag_state", {})).toBeUndefined();
   });
 });
 
@@ -106,40 +133,9 @@ describe("JiraProofAdapter (real issue status)", () => {
   });
 });
 
-describe("LinearProofAdapter (real issue status)", () => {
-  it("GraphQL: normalizes a completed state type to 'Done'", async () => {
-    const { impl, calls } = stubFetch({ data: { issue: { state: { name: "Merged", type: "completed" } } } });
-    const linear = new LinearProofAdapter({ apiKey: "lin_key", fetchImpl: impl });
-    expect(linear.configured()).toBe(true);
-    expect(await linear.query("get_issue_status", { key: "ENG-3" })).toEqual({ status: "Done", state_type: "completed" });
-    expect(calls[0].url).toContain("api.linear.app/graphql");
-    expect(calls[0].headers.authorization).toBe("lin_key");
-  });
-
-  it("GraphQL: a started state keeps the display name", async () => {
-    const { impl } = stubFetch({ data: { issue: { state: { name: "In Progress", type: "started" } } } });
-    const linear = new LinearProofAdapter({ apiKey: "k", fetchImpl: impl });
-    expect(await linear.query("get_issue_status", { key: "ENG-4" })).toEqual({ status: "In Progress", state_type: "started" });
-  });
-
-  it("MCP: delegates to the injected read client and extracts a nested state", async () => {
-    const mcp: McpQueryClient = {
-      query: async (): Promise<McpStructured> => ({ state: { name: "Done", type: "completed" } }),
-      close: async () => undefined,
-    };
-    const linear = new LinearProofAdapter({ mcp });
-    expect(await linear.query("get_issue_status", { key: "ENG-5" })).toEqual({ status: "Done" });
-  });
-
-  it("no path configured → undefined", async () => {
-    expect(new LinearProofAdapter({}).configured()).toBe(false);
-    expect(await new LinearProofAdapter({}).query("get_issue_status", { key: "E-1" })).toBeUndefined();
-  });
-});
-
 describe("ProofCollector — work target → ticket_status evidence (via get_issue_status)", () => {
   it("reads a linked issue's status over the simulated proof server and proposes ticket_status", async () => {
-    const proof = await createSimulatedProofServer({ flags: {}, statuses: {}, issues: { "ENG-7": { status: "Done" } } });
+    const proof = await createSimulatedProofServer({ flags: {}, issues: { "ENG-7": { status: "Done" } } });
     const collector = new ProofCollector({
       proof,
       targetsFor: () => ({ work: { system: "linear", key: "ENG-7" } }),
@@ -158,9 +154,8 @@ describe("ProofCollector — work target → ticket_status evidence (via get_iss
 describe("buildProofCollector — real-vs-simulated selection", () => {
   const SAVED: Record<string, string | undefined> = {};
   const KEYS = [
-    "GITHUB_TOKEN", "LAUNCHDARKLY_API_TOKEN", "LAUNCHDARKLY_PROJECT_KEY", "STATUSPAGE_API_KEY", "STATUSPAGE_PAGE_ID",
-    "ATLASSIAN_MCP_TOKEN", "ATLASSIAN_MCP_URL", "JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN",
-    "LINEAR_MCP_TOKEN", "LINEAR_MCP_URL", "LINEAR_API_KEY", "KEPT_PROOF_TARGETS_FILE",
+    "GITHUB_TOKEN", "LAUNCHDARKLY_MCP_TOKEN", "LAUNCHDARKLY_MCP_URL", "LAUNCHDARKLY_API_TOKEN", "LAUNCHDARKLY_PROJECT_KEY",
+    "ATLASSIAN_MCP_TOKEN", "ATLASSIAN_MCP_URL", "JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_API_TOKEN", "KEPT_PROOF_TARGETS_FILE",
   ];
   beforeEach(() => {
     for (const k of KEYS) { SAVED[k] = process.env[k]; delete process.env[k]; }
@@ -173,7 +168,7 @@ describe("buildProofCollector — real-vs-simulated selection", () => {
     expect(await buildProofCollector(loadConfig())).toBeNull();
   });
 
-  it("goes live for LaunchDarkly when its creds are present", async () => {
+  it("goes live for LaunchDarkly via REST when its API creds are present", async () => {
     process.env.LAUNCHDARKLY_API_TOKEN = "api-x";
     process.env.LAUNCHDARKLY_PROJECT_KEY = "default";
     const built = await buildProofCollector(loadConfig());
@@ -182,7 +177,15 @@ describe("buildProofCollector — real-vs-simulated selection", () => {
     await (built!.collector as unknown as { d: { proof: McpQueryClient } }).d.proof.close();
   });
 
-  it("wires a collector when only a targets file is present (flag/status/ci mapping), no creds needed", async () => {
+  it("goes live for LaunchDarkly via MCP when LAUNCHDARKLY_MCP_TOKEN is set (MCP-preferred selection)", async () => {
+    process.env.LAUNCHDARKLY_MCP_TOKEN = "ld-access-token"; // a LaunchDarkly API token used as the hosted-MCP Bearer
+    const built = await buildProofCollector(loadConfig());
+    expect(built).not.toBeNull();
+    expect(built!.liveSources).toContain("launchdarkly"); // configured() is true in MCP mode too
+    await (built!.collector as unknown as { d: { proof: McpQueryClient } }).d.proof.close();
+  });
+
+  it("wires a collector when only a targets file is present (flag/ci mapping), no creds needed", async () => {
     const file = join(tmpdir(), `kept-targets-${Date.now()}.json`);
     writeFileSync(file, JSON.stringify({ SSO_LOGIN_BUG: { flag: { key: "sso_login" } } }));
     process.env.KEPT_PROOF_TARGETS_FILE = file;

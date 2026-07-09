@@ -92,12 +92,11 @@ async function main() {
   // in-process simulated MCP server) — Kept's deterministic MCP client, no network.
   const workItems = await createSimulatedMcpWorkItems({ startAt: 118 });
 
-  // W4 — Proof-of-Done. LaunchDarkly + Statuspage are honestly SIMULATED over an
-  // in-process MCP server (GitHub Actions is the one genuine live source). The flag
-  // starts OFF in production, so "ticket Done" won't be enough to close the loop.
+  // W4 — Proof-of-Done. LaunchDarkly is honestly SIMULATED over an in-process MCP server
+  // (GitHub Actions is the one genuine live source). The flag starts OFF in production, so
+  // "ticket Done" won't be enough to close the loop.
   const proofState: SimulatedProofState = {
     flags: { sso_login: { enabled: false, environment: "production" } },
-    statuses: {},
   };
   const proof = await createSimulatedProofServer(proofState);
   // Proof-check instants advance independently of the fixed engine clock, so a genuine

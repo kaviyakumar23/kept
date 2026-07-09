@@ -6,8 +6,8 @@ import type { McpQueryClient } from "./mcp.js";
  * W4 — the agent proof-collector (CLAUDE.md invariants #1 & #3).
  *
  * Given an obligation's linked refs, it gathers Proof-of-Done from real proof sources
- * over MCP — a feature flag's production state, a status page's health, a CI run's
- * conclusion, a linked Jira/Linear issue's status — and returns proposed `Evidence[]`.
+ * over MCP — a feature flag's production state, a CI run's conclusion, a linked
+ * Jira/Linear issue's status — and returns proposed `Evidence[]`.
  * It ONLY proposes: the orchestrator
  * dispatches each as RECORD_FULFILLMENT_SIGNAL, and `assessFulfillment` + Gate 2 decide.
  * The agent never mutates state, never verifies, never chooses a tool the way an
@@ -22,8 +22,6 @@ import type { McpQueryClient } from "./mcp.js";
 export interface ProofTarget {
   /** A feature flag gating the capability (queried via get_flag_state). */
   flag?: { key: string; environment?: string };
-  /** A status-page component whose health corroborates availability (get_status_page). */
-  status?: { component: string };
   /** A GitHub Actions workflow run whose conclusion proves the build passed (get_workflow_run). */
   ci?: { owner: string; repo: string; runId: number | string };
   /** A linked Jira/Linear issue whose real status we read (get_issue_status → ticket_status evidence). */
@@ -32,9 +30,9 @@ export interface ProofTarget {
 
 export interface ProofCollectorDeps {
   /**
-   * MCP client exposing get_flag_state + get_status_page + get_issue_status. In the offline
-   * demo/tests this is the simulated proof server; in production it's the routing client from
-   * proofSources.ts (real LaunchDarkly / Statuspage / Jira / Linear where configured, else sim).
+   * MCP client exposing get_flag_state + get_issue_status. In the offline demo/tests this is
+   * the simulated proof server; in production it's the routing client from proofSources.ts
+   * (real LaunchDarkly / Jira where configured, else sim).
    */
   proof?: McpQueryClient;
   /** The live GitHub Actions source (its own get_workflow_run under the same query() contract). */
@@ -90,23 +88,6 @@ export class ProofCollector {
           accessible_to_user: true,
           data: { enabled, environment },
           proves: enabled ? "feature flag is ON in production" : "feature flag is OFF in production",
-        });
-      }
-    }
-
-    if (target.status && this.d.proof) {
-      const sc = await safe(() => this.d.proof!.query("get_status_page", { component: target.status!.component }));
-      if (sc) {
-        const status = cap(sc.component_status, "unknown");
-        out.push({
-          id: `status_page:${target.status.component}:${at}`,
-          source: "status_page",
-          kind: "status_page",
-          ref: `${target.status.component}@${at}`,
-          at,
-          accessible_to_user: true,
-          data: { component_status: status },
-          proves: status === "operational" ? "status page component operational" : "status page component not operational",
         });
       }
     }

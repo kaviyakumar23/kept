@@ -3,9 +3,9 @@ import type { McpQueryClient, McpStructured } from "./mcp.js";
 /**
  * W4 — the ONE genuine live proof source (honesty framing, CLAUDE.md invariant #7).
  *
- * Flags (LaunchDarkly) and status pages (Atlassian Statuspage) are honestly SIMULATED
- * for the demo; a real GitHub Actions workflow-run `conclusion` is fetched here from the
- * live GitHub REST API. It implements the same `query()` contract as the simulated proof
+ * Feature flags (LaunchDarkly) are honestly SIMULATED for the demo; a real GitHub Actions
+ * workflow-run `conclusion` is fetched here from the live GitHub REST API. It implements the
+ * same `query()` contract as the simulated proof
  * client, so the proof-collector treats every source uniformly — CODE picks the tool and
  * arguments; the model is never in the loop.
  *

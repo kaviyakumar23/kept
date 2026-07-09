@@ -4,9 +4,7 @@ import type { Obligation } from "../domain/obligation.js";
 import { McpProofClient, createSimulatedProofServer, type McpQueryClient, type McpStructured } from "./mcp.js";
 import { GitHubActionsProofAdapter } from "./githubActions.js";
 import { LaunchDarklyProofAdapter } from "./launchDarkly.js";
-import { StatuspageProofAdapter } from "./statuspage.js";
 import { JiraProofAdapter } from "./jira.js";
-import { LinearProofAdapter } from "./linear.js";
 import { ProofCollector, type ProofTarget } from "./proofCollector.js";
 
 /**
@@ -43,12 +41,11 @@ class RoutingProofClient implements McpQueryClient {
   }
 }
 
-/** Optional per-subject proof targets (flag/status/ci), loaded from KEPT_PROOF_TARGETS_FILE. */
+/** Optional per-subject proof targets (flag/ci), loaded from KEPT_PROOF_TARGETS_FILE. */
 type TargetsMap = Record<
   string,
   {
     flag?: { key: string; environment?: string };
-    status?: { component: string };
     ci?: { owner: string; repo: string; runId: number | string };
   }
 >;
@@ -84,39 +81,36 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
   const targets = loadTargetsFile(p.targetsFile);
 
   // Real adapters (constructed only when their creds are present so `configured()` is true).
-  const ld = new LaunchDarklyProofAdapter({
-    apiToken: p.launchDarkly.apiToken,
-    projectKey: p.launchDarkly.projectKey,
-    environment: p.launchDarkly.environment,
-    baseUrl: p.launchDarkly.baseUrl,
-  });
-  const sp = new StatuspageProofAdapter({
-    apiKey: p.statuspage.apiKey,
-    pageId: p.statuspage.pageId,
-    baseUrl: p.statuspage.baseUrl,
-  });
+  // MCP-preferred (matches the Jira precedence): when a LaunchDarkly MCP token+url are set the
+  // adapter reads flag state over the hosted LaunchDarkly MCP server, else via the REST API.
+  const ld = new LaunchDarklyProofAdapter(
+    p.launchDarkly.mcpToken && p.launchDarkly.mcpUrl
+      ? {
+          mcp: McpProofClient.hosted({ token: p.launchDarkly.mcpToken, url: p.launchDarkly.mcpUrl, label: "mcp(launchdarkly-proof)" }),
+          mcpFlagTool: p.launchDarkly.mcpFlagTool,
+          projectKey: p.launchDarkly.projectKey,
+          environment: p.launchDarkly.environment,
+        }
+      : {
+          apiToken: p.launchDarkly.apiToken,
+          projectKey: p.launchDarkly.projectKey,
+          environment: p.launchDarkly.environment,
+          baseUrl: p.launchDarkly.baseUrl,
+        },
+  );
   const jira = new JiraProofAdapter({
     ...(p.jira.mcpToken && p.jira.mcpUrl
       ? { mcp: McpProofClient.hosted({ token: p.jira.mcpToken, url: p.jira.mcpUrl, label: "mcp(atlassian-proof)" }), mcpStatusTool: p.jira.mcpStatusTool, cloudId: p.jira.cloudId }
       : { baseUrl: p.jira.baseUrl, email: p.jira.email, apiToken: p.jira.apiToken }),
   });
-  const linear = new LinearProofAdapter({
-    ...(p.linear.mcpToken && p.linear.mcpUrl
-      ? { mcp: McpProofClient.hosted({ token: p.linear.mcpToken, url: p.linear.mcpUrl, label: "mcp(linear-proof)" }), mcpStatusTool: p.linear.mcpStatusTool }
-      : { apiKey: p.linear.apiKey }),
-  });
 
   const ldLive = ld.configured();
-  const spLive = sp.configured();
   const jiraLive = jira.configured();
-  const linearLive = linear.configured();
 
   const liveSources: string[] = [];
   if (process.env.GITHUB_TOKEN) liveSources.push("github");
   if (ldLive) liveSources.push("launchdarkly");
-  if (spLive) liveSources.push("statuspage");
   if (jiraLive) liveSources.push("jira");
-  if (linearLive) liveSources.push("linear");
 
   const haveTargets = Object.keys(targets).length > 0;
   // Nothing to do: no real source and no per-subject targets → don't wire a collector at all.
@@ -127,9 +121,7 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
 
   const routes: ProofRoute[] = [];
   if (ldLive) routes.push({ match: (n) => n === "get_flag_state", client: ld });
-  if (spLive) routes.push({ match: (n) => n === "get_status_page", client: sp });
   if (jiraLive) routes.push({ match: (n, a) => n === "get_issue_status" && a.system === "jira", client: jira });
-  if (linearLive) routes.push({ match: (n, a) => n === "get_issue_status" && a.system === "linear", client: linear });
 
   const proof = new RoutingProofClient(routes, fallback);
   const ci = new GitHubActionsProofAdapter();
@@ -139,16 +131,14 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
     ci,
     now: opts.now,
     // CODE decides which proof to read for an obligation: the linked work item's live status
-    // (only when a real Jira/Linear proof source is configured), plus any per-subject
-    // flag/status/ci targets from the optional targets file.
+    // (only when the Jira proof source is configured), plus any per-subject flag/ci targets
+    // from the optional targets file.
     targetsFor: (o: Obligation): ProofTarget | null => {
       const t: ProofTarget = {};
       const wi = o.work_item;
       if (wi && wi.system === "jira" && jiraLive) t.work = { system: "jira", key: wi.ref };
-      if (wi && wi.system === "linear" && linearLive) t.work = { system: "linear", key: wi.ref };
       const mapped = targets[o.subject_canonical];
       if (mapped?.flag) t.flag = mapped.flag;
-      if (mapped?.status) t.status = mapped.status;
       if (mapped?.ci) t.ci = mapped.ci;
       return Object.keys(t).length > 0 ? t : null;
     },

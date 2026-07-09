@@ -35,18 +35,17 @@ export interface KeptConfig {
    * token straight from GITHUB_TOKEN inside GitHubActionsProofAdapter.
    */
   proof: {
-    /** LaunchDarkly REST (feature-flag production state). */
-    launchDarkly: { apiToken: string | undefined; projectKey: string | undefined; environment: string; baseUrl: string | undefined };
-    /** Atlassian Statuspage REST (component operational health). */
-    statuspage: { apiKey: string | undefined; pageId: string | undefined; baseUrl: string | undefined };
+    /** LaunchDarkly feature-flag production state — hosted LaunchDarkly MCP (preferred) or REST. */
+    launchDarkly: {
+      mcpToken: string | undefined; mcpUrl: string; mcpFlagTool: string | undefined;
+      apiToken: string | undefined; projectKey: string | undefined; environment: string; baseUrl: string | undefined;
+    };
     /** Jira issue status — hosted Atlassian MCP (preferred) or Jira Cloud REST. */
     jira: {
       mcpToken: string | undefined; mcpUrl: string | undefined; cloudId: string | undefined; mcpStatusTool: string | undefined;
       baseUrl: string | undefined; email: string | undefined; apiToken: string | undefined;
     };
-    /** Linear issue status — hosted Linear MCP (preferred) or Linear GraphQL. */
-    linear: { mcpToken: string | undefined; mcpUrl: string | undefined; mcpStatusTool: string | undefined; apiKey: string | undefined };
-    /** Optional JSON file mapping subject_canonical → { flag, status, ci } proof targets. */
+    /** Optional JSON file mapping subject_canonical → { flag, ci } proof targets. */
     targetsFile: string | undefined;
   };
 }
@@ -77,15 +76,15 @@ export function loadConfig(): KeptConfig {
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
     proof: {
       launchDarkly: {
+        // MCP-preferred: LAUNCHDARKLY_MCP_TOKEN is a LaunchDarkly API access token used as the
+        // hosted-MCP Bearer; when set, the adapter reads flag state over MCP, else via REST.
+        mcpToken: process.env.LAUNCHDARKLY_MCP_TOKEN,
+        mcpUrl: process.env.LAUNCHDARKLY_MCP_URL ?? "https://mcp.launchdarkly.com/mcp/launchdarkly",
+        mcpFlagTool: process.env.LAUNCHDARKLY_MCP_FLAG_TOOL,
         apiToken: process.env.LAUNCHDARKLY_API_TOKEN,
         projectKey: process.env.LAUNCHDARKLY_PROJECT_KEY,
         environment: process.env.LAUNCHDARKLY_ENVIRONMENT ?? "production",
         baseUrl: process.env.LAUNCHDARKLY_BASE_URL,
-      },
-      statuspage: {
-        apiKey: process.env.STATUSPAGE_API_KEY,
-        pageId: process.env.STATUSPAGE_PAGE_ID,
-        baseUrl: process.env.STATUSPAGE_BASE_URL,
       },
       jira: {
         mcpToken: process.env.ATLASSIAN_MCP_TOKEN,
@@ -95,12 +94,6 @@ export function loadConfig(): KeptConfig {
         baseUrl: process.env.JIRA_BASE_URL,
         email: process.env.JIRA_EMAIL,
         apiToken: process.env.JIRA_API_TOKEN,
-      },
-      linear: {
-        mcpToken: process.env.LINEAR_MCP_TOKEN,
-        mcpUrl: process.env.LINEAR_MCP_URL,
-        mcpStatusTool: process.env.LINEAR_MCP_STATUS_TOOL,
-        apiKey: process.env.LINEAR_API_KEY,
       },
       targetsFile: process.env.KEPT_PROOF_TARGETS_FILE,
     },

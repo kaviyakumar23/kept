@@ -30,7 +30,6 @@ async function makeProofOrch(flagEnabled: boolean) {
   const notifier = new RecordingNotifier();
   const proofState: SimulatedProofState = {
     flags: { sso_login: { enabled: flagEnabled, environment: "production" } },
-    statuses: {},
   };
   const proof = await createSimulatedProofServer(proofState);
   // Proof-check instants advance independently of the fixed engine clock, so a genuine
@@ -112,10 +111,9 @@ describe("W4 — Proof-of-Done (flag OFF blocks the close)", () => {
     expect(flags.length).toBe(2);
   });
 
-  it("(c) reads flag + status over a real simulated-MCP round-trip via query()", async () => {
+  it("(c) reads the flag state over a real simulated-MCP round-trip via query()", async () => {
     const state: SimulatedProofState = {
       flags: { billing_v2: { enabled: false, environment: "production" } },
-      statuses: { api: { component_status: "operational" } },
     };
     const proof = await createSimulatedProofServer(state);
 
@@ -127,12 +125,9 @@ describe("W4 — Proof-of-Done (flag OFF blocks the close)", () => {
     const on = await proof.query("get_flag_state", { flag_key: "billing_v2" });
     expect(on).toEqual({ enabled: true, environment: "production" });
 
-    const status = await proof.query("get_status_page", { component: "api" });
-    expect(status).toEqual({ component_status: "operational" });
-
-    // Unknown component defaults to operational; the round-trip really goes over MCP.
-    const unknown = await proof.query("get_status_page", { component: "nope" });
-    expect(unknown).toEqual({ component_status: "operational" });
+    // An unknown flag defaults to OFF; the round-trip really goes over MCP.
+    const unknown = await proof.query("get_flag_state", { flag_key: "nope" });
+    expect(unknown).toEqual({ enabled: false, environment: "production" });
 
     await proof.close();
   });

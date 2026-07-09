@@ -8,8 +8,7 @@
  * call a specific MCP tool with computed arguments. The LLM never selects the
  * tool — MCP is a governed action transport, not an agent free-for-all.
  *
- *   - Real servers: Linear (https://mcp.linear.app/mcp) and Atlassian/Jira
- *     (https://mcp.atlassian.com/v1/mcp) — both streamable-HTTP + OAuth/Bearer.
+ *   - Real server: Atlassian/Jira (https://mcp.atlassian.com/v1/mcp) — streamable-HTTP + OAuth/Bearer.
  *   - Offline: an in-process simulated MCP server over an in-memory transport, so
  *     the demo and the hermetic tests exercise a REAL MCP client↔server round
  *     trip (listTools + callTool) with no network or OAuth.
@@ -144,22 +143,6 @@ export class McpWorkItemAdapter implements WorkItemAdapter {
     if (this.client) await this.client.close();
   }
 
-  /** Linear's hosted MCP server (streamable HTTP + Bearer token / OAuth). */
-  static linear(opts: { token: string; url?: string; teamId?: string; toolName?: string }): McpWorkItemAdapter {
-    const url = new URL(opts.url ?? "https://mcp.linear.app/mcp");
-    return new McpWorkItemAdapter({
-      system: "linear",
-      label: "mcp(linear)",
-      transport: () => new StreamableHTTPClientTransport(url, { requestInit: { headers: { Authorization: `Bearer ${opts.token}` } } }),
-      toolName: opts.toolName,
-      buildArguments: (input) => ({
-        title: input.title,
-        ...(input.description ? { description: input.description } : {}),
-        ...(opts.teamId ? { team: opts.teamId, teamId: opts.teamId } : {}),
-      }),
-    });
-  }
-
   /** Atlassian's hosted Remote MCP server for Jira (streamable HTTP + OAuth/Bearer). */
   static atlassian(opts: { token: string; url?: string; cloudId?: string; projectKey?: string; toolName?: string }): McpWorkItemAdapter {
     const url = new URL(opts.url ?? "https://mcp.atlassian.com/v1/mcp");
@@ -284,23 +267,20 @@ export class McpProofClient implements McpQueryClient {
 export interface SimulatedProofState {
   /** flag key → its production state. Flip `enabled` to simulate an OFF→ON toggle. */
   flags: Record<string, { enabled: boolean; environment?: string }>;
-  /** component name → its Statuspage health (defaults to "operational" when absent). */
-  statuses: Record<string, { component_status: string }>;
   /** issue key → its work-item status (defaults to "unknown" when absent). Backs get_issue_status. */
   issues?: Record<string, { status: string }>;
 }
 
 /**
- * In-process simulated proof MCP server (LaunchDarkly `get_flag_state` + Atlassian
- * Statuspage `get_status_page` + Jira/Linear `get_issue_status`) wired to a real MCP
- * client over an in-memory transport. Mirrors createSimulatedMcpWorkItems: a REAL
- * client↔server round-trip, no network/OAuth, so the demo and hermetic tests exercise the
+ * In-process simulated proof MCP server (LaunchDarkly `get_flag_state` + Jira `get_issue_status`)
+ * wired to a real MCP client over an in-memory transport. Mirrors createSimulatedMcpWorkItems: a
+ * REAL client↔server round-trip, no network/OAuth, so the demo and hermetic tests exercise the
  * actual MCP query path. This is the FALLBACK the real proof adapters (launchDarkly /
- * statuspage / JiraProofAdapter / LinearProofAdapter) degrade to when their credentials
- * aren't configured — GitHub Actions is the one always-live proof source.
+ * JiraProofAdapter) degrade to when their credentials aren't configured — GitHub Actions is the
+ * one always-live proof source.
  */
 export async function createSimulatedProofServer(
-  state: SimulatedProofState = { flags: {}, statuses: {} },
+  state: SimulatedProofState = { flags: {} },
 ): Promise<McpProofClient> {
   const server = new McpServer({ name: "kept-sim-proof", version: "0.1.0" });
   server.registerTool(
@@ -318,22 +298,6 @@ export async function createSimulatedProofServer(
       return {
         content: [{ type: "text", text: `flag ${flag_key} @ ${env}: ${enabled ? "ON" : "OFF"}` }],
         structuredContent: { enabled, environment: env },
-      };
-    },
-  );
-  server.registerTool(
-    "get_status_page",
-    {
-      title: "Get status-page component health",
-      description: "Return the operational status of a status-page component.",
-      inputSchema: { component: z.string() },
-      outputSchema: { component_status: z.string() },
-    },
-    async ({ component }) => {
-      const component_status = state.statuses[component]?.component_status ?? "operational";
-      return {
-        content: [{ type: "text", text: `component ${component}: ${component_status}` }],
-        structuredContent: { component_status },
       };
     },
   );

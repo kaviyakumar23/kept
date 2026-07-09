@@ -1,16 +1,15 @@
 # Kept — Proof-of-Done integrations
 
-Kept verifies real availability from proof it gathers (Proof-of-Done). There are **five**
+Kept verifies real availability from proof it gathers (Proof-of-Done). There are **three**
 proof sources. Each is a REAL integration: it makes actual API/MCP calls and returns only
 **derived structured facts** (zero-copy — never a raw body). When a source's credentials are
 **not** configured, the collector transparently routes that read to an in-process **simulated
 MCP proof server**, so `npm run demo` and the hermetic tests run offline with no credentials.
 
 > Honesty framing (CLAUDE.md invariant #7): Slack is the live surface; GitHub Actions is the
-> always-live proof source. LaunchDarkly, Statuspage, Jira, and Linear are now **genuine**
-> integrations too — each upgrades from simulated to live the moment you add its credentials.
-> The agent only ever *proposes* structured evidence; `assessFulfillment` + the human gate
-> decide (invariant #1).
+> always-live proof source. LaunchDarkly and Jira are **genuine** integrations too — each
+> upgrades from simulated to live the moment you add its credentials. The agent only ever
+> *proposes* structured evidence; `assessFulfillment` + the human gate decide (invariant #1).
 
 ## How real-vs-simulated selection works
 
@@ -27,17 +26,16 @@ work-item precedence in `src/server/index.ts`:
 
 Which target Kept reads for an obligation is decided by CODE, not the model:
 
-- **Jira / Linear issue status** is derived automatically from the obligation's linked work
-  item (`work_item.system` + `work_item.ref`) — no extra config once Jira/Linear is connected.
-- **Flag / Statuspage component / CI run** targets come from an optional JSON file
-  (`KEPT_PROOF_TARGETS_FILE`) mapping `subject_canonical` → `{ flag, status, ci }`, e.g.:
+- **Jira issue status** is derived automatically from the obligation's linked work item
+  (`work_item.system` + `work_item.ref`) — no extra config once Jira is connected.
+- **Flag / CI run** targets come from an optional JSON file (`KEPT_PROOF_TARGETS_FILE`)
+  mapping `subject_canonical` → `{ flag, ci }`, e.g.:
 
   ```json
   {
     "SSO_LOGIN_BUG": {
-      "flag":   { "key": "sso_login", "environment": "production" },
-      "status": { "component": "8kp1q2r3s4t5" },
-      "ci":     { "owner": "acme", "repo": "app", "runId": 123456789 }
+      "flag": { "key": "sso_login", "environment": "production" },
+      "ci":   { "owner": "acme", "repo": "app", "runId": 123456789 }
     }
   }
   ```
@@ -59,34 +57,35 @@ No token → CI proof is simply skipped.
 
 ---
 
-## LaunchDarkly — feature-flag production state (REST)
+## LaunchDarkly — feature-flag production state (MCP-preferred, REST fallback)
 
 Reads a flag's `environments.<env>.on`. This powers the **flag-OFF blocking negative**: the
 ticket can be Done and the code deployed, but if the flag is OFF the capability isn't reachable,
-so Kept blocks the close. Adapter: `src/integrations/launchDarkly.ts`. Endpoint:
-`GET /api/v2/flags/{project}/{flag}?env={env}`.
+so Kept blocks the close. Adapter: `LaunchDarklyProofAdapter` in `src/integrations/launchDarkly.ts`.
+
+**Preferred — hosted LaunchDarkly MCP** (`https://mcp.launchdarkly.com/mcp/launchdarkly`). The
+adapter calls the flag-read tool (default `get-feature-flag`) and reads `environments.<env>.on`:
 
 | Env var | Required | Where to get it |
 | --- | --- | --- |
-| `LAUNCHDARKLY_API_TOKEN` | yes | LaunchDarkly → **Account settings → Authorization → Access tokens**. A read-only token is sufficient. Sent as the raw `Authorization` header (no `Bearer`). |
-| `LAUNCHDARKLY_PROJECT_KEY` | yes | LaunchDarkly → Projects (e.g. `default`). |
+| `LAUNCHDARKLY_MCP_TOKEN` | yes (MCP path) | A LaunchDarkly **API access token** — the *same* value you'd use for `LAUNCHDARKLY_API_TOKEN`. Sent as the hosted-MCP `Authorization: Bearer <token>`. Setting it selects the MCP path. |
+| `LAUNCHDARKLY_MCP_URL` | no | Defaults to `https://mcp.launchdarkly.com/mcp/launchdarkly`. |
+| `LAUNCHDARKLY_PROJECT_KEY` | yes | LaunchDarkly → Projects (e.g. `default`). Passed to the tool. |
+| `LAUNCHDARKLY_ENVIRONMENT` | no (default `production`) | The environment **key** to read `on` from. |
+| `LAUNCHDARKLY_MCP_FLAG_TOOL` | no | Override the flag-read tool name (defaults to `get-feature-flag`); hosted tool names aren't pinned. |
+
+**Fallback — LaunchDarkly REST** (`GET /api/v2/flags/{project}/{flag}?env={env}`), used when
+`LAUNCHDARKLY_MCP_TOKEN` is unset:
+
+| Env var | Required | Where to get it |
+| --- | --- | --- |
+| `LAUNCHDARKLY_API_TOKEN` | yes (REST path) | LaunchDarkly → **Account settings → Authorization → Access tokens**. A read-only token is sufficient. Sent as the raw `Authorization` header (no `Bearer`). |
+| `LAUNCHDARKLY_PROJECT_KEY` | yes (REST path) | LaunchDarkly → Projects (e.g. `default`). |
 | `LAUNCHDARKLY_ENVIRONMENT` | no (default `production`) | The environment **key** to read `on` from. |
 | `LAUNCHDARKLY_BASE_URL` | no | Override for federal/self-hosted; defaults to `https://app.launchdarkly.com`. |
 
----
-
-## Atlassian Statuspage — component operational health (REST)
-
-Reads a component's `status` (`operational` / `degraded_performance` / …). Adapter:
-`src/integrations/statuspage.ts`. Endpoint: `GET /v1/pages/{page}/components/{id}`.
-
-| Env var | Required | Where to get it |
-| --- | --- | --- |
-| `STATUSPAGE_API_KEY` | yes | Statuspage → **Your account → API info → API key**. Sent as `Authorization: OAuth <key>`. |
-| `STATUSPAGE_PAGE_ID` | yes | Statuspage → API info (the Page ID). |
-| `STATUSPAGE_BASE_URL` | no | Defaults to `https://api.statuspage.io`. |
-
-The proof target's `component` value is the **component id** (from the components API / URL).
+Both paths emit the **same** `{ enabled, environment }` evidence, so `projection` / `reconciliation`
+and the flag-OFF blocking-negative are identical regardless of which path is live.
 
 ---
 
@@ -117,39 +116,18 @@ Reads the linked issue's status, normalizing any Jira **"done" status category**
 
 ---
 
-## Linear — issue status (MCP-preferred, GraphQL fallback)
-
-Reads the linked issue's workflow state, normalizing Linear's **`completed`** state type to
-`Done`. Adapter: `LinearProofAdapter` in `src/integrations/linear.ts`.
-
-**Preferred — hosted Linear MCP** (`https://mcp.linear.app/mcp`):
-
-| Env var | Required | Where to get it |
-| --- | --- | --- |
-| `LINEAR_MCP_TOKEN` | yes (MCP path) | A Linear token/OAuth grant for the hosted MCP server. |
-| `LINEAR_MCP_URL` | yes (MCP path) | `https://mcp.linear.app/mcp`. |
-| `LINEAR_MCP_STATUS_TOOL` | no | Override the issue-read tool name (defaults to `get_issue`). |
-
-**Fallback — Linear GraphQL** (`issue(id){ state { name type } }`):
-
-| Env var | Required | Where to get it |
-| --- | --- | --- |
-| `LINEAR_API_KEY` | yes (GraphQL path) | Linear → **Settings → Security & access → Personal API keys**. Sent as the raw `Authorization` header. |
-
-(Same var the Linear work-item creation adapter uses.)
-
----
-
 ## MCP vs REST at a glance
 
 | Source | Real path | Fact returned |
 | --- | --- | --- |
 | GitHub Actions | REST (always live) | `{ conclusion, status }` → `ci_run` |
-| LaunchDarkly | REST | `{ enabled, environment }` → `feature_flag` |
-| Statuspage | REST | `{ component_status }` → `status_page` |
+| LaunchDarkly | **MCP** preferred, else REST | `{ enabled, environment }` → `feature_flag` |
 | Jira | **MCP** preferred, else REST | `{ status }` → `ticket_status` |
-| Linear | **MCP** preferred, else GraphQL | `{ status }` → `ticket_status` |
 
 All facts are single-line, ≤1000 chars, and pass `assertNoRawContent`. Each observation encodes
 its check instant in the evidence `ref`, so a genuine state change (e.g. a flag OFF→ON toggle)
 lands as a new fact instead of being deduped.
+
+> Linear and Statuspage were removed as configured integrations. Linear remains a domain
+> `WorkSystem` (and the offline simulated work-item stand-in), and `status_page` remains an
+> evidence kind with a reconciliation lane — both are inert unless re-added as an integration.
