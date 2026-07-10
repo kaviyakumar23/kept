@@ -130,6 +130,9 @@ export function assertProductionOAuth(cfg: KeptConfig, nodeEnv: string | undefin
 export const SLACK_BOT_SCOPES: string[] = [
   "chat:write",
   "im:write",
+  // conversations.open({users}) — how the Gate-1 confirm DM to the owner is opened — requires
+  // mpim:write under granular scopes (im:write alone is insufficient for that call).
+  "mpim:write",
   "im:history",
   "assistant:write",
   "commands",

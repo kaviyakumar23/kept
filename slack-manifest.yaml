@@ -64,6 +64,7 @@ oauth_config:
     bot:
       - chat:write # post confirm/verify/closure cards, owner DMs, in-thread closure
       - im:write # open a DM with the owner for private cards (conversations.open)
+      - mpim:write # conversations.open({users}) requires mpim:write under granular scopes (im:write alone is insufficient for that call)
       - im:history # read the user's messages in the AI Assistant thread
       - assistant:write # the AI Assistant pane: setStatus / setSuggestedPrompts / say
       - commands # the /kept slash command
