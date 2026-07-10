@@ -6,6 +6,8 @@ import { GitHubActionsProofAdapter } from "./githubActions.js";
 import { LaunchDarklyProofAdapter } from "./launchDarkly.js";
 import { JiraProofAdapter } from "./jira.js";
 import { ProofCollector, type ProofTarget } from "./proofCollector.js";
+import { createHash } from "node:crypto";
+import type { TenantConfigStore } from "../store/tenantConfigStore.js";
 
 /**
  * W4 — production wiring for the Proof-of-Done sources.
@@ -72,13 +74,24 @@ export interface BuiltProofCollector {
  * no proof collection. When at least one source is live (or a targets file is present), the
  * collector runs, using real adapters where configured and the simulated server elsewhere.
  */
-export function buildProofCollector(cfg: KeptConfig, opts: { now?: () => number } = {}): Promise<BuiltProofCollector | null> {
-  return build(cfg, opts);
+/** A fully-resolved proof configuration (global env, or a tenant's own) that {@link build} turns into a collector. */
+export interface ResolvedProofConfig {
+  launchDarkly: Partial<KeptConfig["proof"]["launchDarkly"]>;
+  jira: Partial<KeptConfig["proof"]["jira"]>;
+  targetsFile?: string;
+  /** Inline proof targets (per-tenant Connections config); merged OVER any targetsFile entries. */
+  targets?: TargetsMap;
+  /** GitHub token for the live CI source (a tenant's own, or the global GITHUB_TOKEN). */
+  githubToken?: string;
 }
 
-async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<BuiltProofCollector | null> {
-  const p = cfg.proof;
-  const targets = loadTargetsFile(p.targetsFile);
+/** Build the global-env collector (operator config / single-token / demo path). */
+export function buildProofCollector(cfg: KeptConfig, opts: { now?: () => number } = {}): Promise<BuiltProofCollector | null> {
+  return build({ ...cfg.proof, githubToken: process.env.GITHUB_TOKEN }, opts);
+}
+
+async function build(p: ResolvedProofConfig, opts: { now?: () => number }): Promise<BuiltProofCollector | null> {
+  const targets = { ...loadTargetsFile(p.targetsFile), ...(p.targets ?? {}) };
 
   // Real adapters (constructed only when their creds are present so `configured()` is true).
   // MCP-preferred (matches the Jira precedence): when a LaunchDarkly MCP token+url are set the
@@ -108,7 +121,7 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
   const jiraLive = jira.configured();
 
   const liveSources: string[] = [];
-  if (process.env.GITHUB_TOKEN) liveSources.push("github");
+  if (p.githubToken) liveSources.push("github");
   if (ldLive) liveSources.push("launchdarkly");
   if (jiraLive) liveSources.push("jira");
 
@@ -124,7 +137,7 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
   if (jiraLive) routes.push({ match: (n, a) => n === "get_issue_status" && a.system === "jira", client: jira });
 
   const proof = new RoutingProofClient(routes, fallback);
-  const ci = new GitHubActionsProofAdapter();
+  const ci = new GitHubActionsProofAdapter({ token: p.githubToken });
 
   const collector = new ProofCollector({
     proof,
@@ -148,4 +161,54 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
   });
 
   return { collector, liveSources };
+}
+
+/**
+ * Per-tenant proof collector provider (invariant #4). Resolves EACH workspace's own Connections
+ * config (LaunchDarkly / Jira / GitHub / proof-targets) from `tenant_config`, falling back to the
+ * global operator env only where the tenant hasn't configured that provider, and builds + caches a
+ * collector per team (keyed by a config fingerprint so a Connections change rebuilds on next read).
+ * Returns null when neither the tenant nor the operator has any real source or targets.
+ */
+export function makeProofCollectorProvider(
+  store: TenantConfigStore,
+  cfg: KeptConfig,
+  opts: { now?: () => number } = {},
+): (teamId: string) => Promise<ProofCollector | null> {
+  const cache = new Map<string, { hash: string; collector: ProofCollector | null }>();
+  return async (teamId: string): Promise<ProofCollector | null> => {
+    const resolved = await resolveTenantProof(store, teamId, cfg);
+    const hash = createHash("sha256").update(JSON.stringify(resolved)).digest("hex");
+    const hit = cache.get(teamId);
+    if (hit && hit.hash === hash) return hit.collector;
+    const built = await build(resolved, opts);
+    const collector = built?.collector ?? null;
+    cache.set(teamId, { hash, collector });
+    return collector;
+  };
+}
+
+const LD_DEFAULTS = { mcpUrl: "https://mcp.launchdarkly.com/mcp/launchdarkly", environment: "production" };
+
+/**
+ * Merge a workspace's stored proof config over the operator env fallback. A tenant that has
+ * configured a provider uses ITS OWN credentials in isolation (never borrows the operator's token
+ * for the same provider); providers it hasn't configured fall back to the operator env.
+ */
+async function resolveTenantProof(store: TenantConfigStore, teamId: string, cfg: KeptConfig): Promise<ResolvedProofConfig> {
+  const [ld, jira, gh, tgt] = await Promise.all([
+    store.get(teamId, "launchdarkly"),
+    store.get(teamId, "jira"),
+    store.get(teamId, "github"),
+    store.get(teamId, "proof_targets"),
+  ]);
+  const ldConfigured = !!(ld && (ld.mcpToken || (ld.apiToken && ld.projectKey)));
+  const jiraConfigured = !!(jira && (jira.mcpToken || (jira.apiToken && jira.email && jira.baseUrl)));
+  return {
+    launchDarkly: ldConfigured ? { ...LD_DEFAULTS, ...ld } : cfg.proof.launchDarkly,
+    jira: jiraConfigured ? { ...jira } : cfg.proof.jira,
+    githubToken: gh?.token ?? process.env.GITHUB_TOKEN,
+    targetsFile: cfg.proof.targetsFile,
+    targets: tgt ?? undefined,
+  };
 }

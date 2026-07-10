@@ -46,7 +46,7 @@ async function makeProofOrch(flagEnabled: boolean) {
     workItems: await createSimulatedMcpWorkItems(),
     rts: new MockRtsRetriever(),
     notifier,
-    proofCollector,
+    proofCollectorFor: async () => proofCollector,
     clock: () => NOW,
     currentDate: () => "2026-06-16",
     fallbackOwner: "U_AM",

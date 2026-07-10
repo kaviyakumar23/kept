@@ -14,7 +14,8 @@ import { selectLlm } from "../llm/select.js";
 import type { WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
-import { buildProofCollector } from "../integrations/proofSources.js";
+import { buildProofCollector, makeProofCollectorProvider } from "../integrations/proofSources.js";
+import { InMemoryTenantConfigStore, PostgresTenantConfigStore, type TenantConfigStore } from "../store/tenantConfigStore.js";
 import { WebClient } from "@slack/web-api";
 import {
   LedgerRtsRetriever,
@@ -96,8 +97,15 @@ async function main() {
   // its REAL adapter when configured, else the collector routes to the in-process simulated MCP
   // proof server. Null when nothing is configured (no proof step).
   const builtProof = await buildProofCollector(cfg);
-  const proofCollector = builtProof?.collector;
   const proofMode = builtProof ? (builtProof.liveSources.length ? `live(${builtProof.liveSources.join(",")})` : "simulated") : "off";
+
+  // Per-tenant integration config (the Connections UI): each workspace's own proof sources,
+  // encrypted at rest and scoped by team_id. The proof collector is resolved PER acting team from
+  // it, falling back to the operator env so the single-workspace/demo path is unchanged.
+  const tenantConfig: TenantConfigStore = cfg.databaseUrl
+    ? await (async (url: string) => { const t = new PostgresTenantConfigStore({ connectionString: url }); await t.init(); return t; })(cfg.databaseUrl)
+    : new InMemoryTenantConfigStore();
+  const proofCollectorFor = makeProofCollectorProvider(tenantConfig, cfg);
 
   const fallbackOwner = process.env.KEPT_DEFAULT_OWNER ?? "U_ACCOUNT_MANAGER";
 
@@ -194,6 +202,8 @@ async function main() {
       const summary = await store.purgeTeam(teamId);
       console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify(summary)}`);
     },
+    // Per-tenant Connections config — the App Home "Connections" UI reads/writes it (scoped by team).
+    tenantConfig,
     makeOrchestrator: (notifier) => {
       notifierRef.n = notifier;
       // Ledger-backed RTS (prior commitments + owner) is the ALWAYS-ON fallback — a real,
@@ -229,7 +239,7 @@ async function main() {
         retrievers.push(new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }));
       }
       const rts = retrievers.length === 1 ? retrievers[0] : new CompositeRtsRetriever(retrievers);
-      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks, proofCollector });
+      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks, proofCollectorFor });
     },
   });
   orchHolder.orch = orch;

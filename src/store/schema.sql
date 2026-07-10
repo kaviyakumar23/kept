@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS slack_installations (
 );
 CREATE INDEX IF NOT EXISTS idx_slack_installations_team ON slack_installations (team_id);
 
+-- Per-tenant integration config: each installed workspace connects ITS OWN proof sources
+-- (LaunchDarkly / Jira / GitHub) + proof-target mapping via the App Home "Connections" UI.
+-- One row per (team_id, provider). `config_enc` is the AES-256-GCM ciphertext (base64) of the
+-- provider config JSON (which holds API tokens). Like `slack_installations`, this legitimately
+-- stores secrets and is NOT an obligation event log, so it is not subject to the zero-copy guard.
+-- Isolation (invariant #4, P0): every read is keyed by team_id — a config row is only ever
+-- resolved for the acting workspace; there is no unscoped read path.
+CREATE TABLE IF NOT EXISTS tenant_config (
+  team_id     TEXT NOT NULL,
+  provider    TEXT NOT NULL,
+  config_enc  TEXT NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (team_id, provider)
+);
+
 -- W6 — customer trust page capability tokens. An opaque, unguessable, revocable
 -- per-(team, customer) capability: the token IS the authorization (no login), and
 -- `GET /trust/:token` resolves it to exactly one (team_id, customer). Tenant isolation

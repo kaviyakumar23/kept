@@ -5,6 +5,13 @@ import type { Classification } from "../llm/schemas.js";
 import type { FulfillmentAssessment } from "../engine/reconciliation.js";
 import type { ClosureDraft } from "../policy/audience.js";
 import type { RtsContext } from "./rts.js";
+import type {
+  GithubTenantConfig,
+  IntegrationProvider,
+  JiraTenantConfig,
+  LaunchDarklyTenantConfig,
+  ProofTargetsConfig,
+} from "../store/tenantConfigStore.js";
 import { analytics } from "../app/analytics.js";
 import { driftRadar, type DriftBucket } from "../app/drift.js";
 
@@ -22,15 +29,35 @@ export const ACTIONS = {
   approveSend: "kept_approve_send",
   editDraft: "kept_edit_draft",
   history: "kept_history",
+  // App Home "Connections" surface — the provider rides in the action_id suffix + `value`.
+  connect: "kept_connect",
+  addMapping: "kept_add_mapping",
 } as const;
 
 /** Modal callback ids + input block/action ids (read back on view_submission). */
-export const CALLBACKS = { editObligation: "kept_edit_obligation", editDraft: "kept_edit_draft_modal" } as const;
+export const CALLBACKS = {
+  editObligation: "kept_edit_obligation",
+  editDraft: "kept_edit_draft_modal",
+  connectProvider: "kept_connect_provider",
+  addMapping: "kept_add_mapping_modal",
+} as const;
 export const FIELDS = {
   outcome: { block: "b_outcome", action: "i_outcome" },
   due: { block: "b_due", action: "i_due" },
   owner: { block: "b_owner", action: "i_owner" },
   draft: { block: "b_draft", action: "i_draft" },
+  // Connections modals (one input per field; token fields never carry an initial value).
+  ldToken: { block: "b_ld_token", action: "i_ld_token" },
+  ldProject: { block: "b_ld_project", action: "i_ld_project" },
+  ldEnv: { block: "b_ld_env", action: "i_ld_env" },
+  jiraBaseUrl: { block: "b_jira_base", action: "i_jira_base" },
+  jiraEmail: { block: "b_jira_email", action: "i_jira_email" },
+  jiraToken: { block: "b_jira_token", action: "i_jira_token" },
+  jiraCloudId: { block: "b_jira_cloud", action: "i_jira_cloud" },
+  ghToken: { block: "b_gh_token", action: "i_gh_token" },
+  mapKey: { block: "b_map_key", action: "i_map_key" },
+  mapFlag: { block: "b_map_flag", action: "i_map_flag" },
+  mapEnv: { block: "b_map_env", action: "i_map_env" },
 } as const;
 
 export const actionId = (action: string, obligationId: string): string => `${action}:${obligationId}`;
@@ -235,14 +262,53 @@ export function reminderMessage(o: Obligation, kind: "AT_RISK" | "OVERDUE"): { t
 }
 
 // --- App Home (live ledger dashboard) --------------------------------------
+/** Provider display metadata for the App Home "Connections" rows. */
+const CONNECT_PROVIDERS: { provider: Extract<IntegrationProvider, "launchdarkly" | "jira" | "github">; label: string }[] = [
+  { provider: "launchdarkly", label: "LaunchDarkly" },
+  { provider: "jira", label: "Jira" },
+  { provider: "github", label: "GitHub" },
+];
+
+/**
+ * The "🔌 Connections" surface — each workspace connects ITS OWN proof sources. `configured`
+ * is the acting team's `tenantConfig.listConfigured(teamId)` result (tenant-scoped, invariant #4).
+ * Undefined = no tenant-config store wired (single-token / dev path) → the section is omitted.
+ */
+function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
+  if (!configured) return [];
+  const on = new Set(configured);
+  const blocks: SlackBlock[] = [
+    divider,
+    header("🔌 Connections"),
+    context("Connect this workspace's own proof sources. Kept reads them only for your team."),
+  ];
+  for (const { provider, label } of CONNECT_PROVIDERS) {
+    const connected = on.has(provider);
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*${label}* — ${connected ? "Connected ✓" : "Not connected"}` },
+      accessory: connected
+        ? button("Manage", ACTIONS.connect, provider)
+        : button("Connect", ACTIONS.connect, provider, "primary"),
+    });
+  }
+  blocks.push({
+    type: "section",
+    text: { type: "mrkdwn", text: `*Proof-target mapping* — ${on.has("proof_targets") ? "Configured ✓" : "None yet"}` },
+    accessory: button("Add mapping", ACTIONS.addMapping, "proof_targets"),
+  });
+  return blocks;
+}
+
 /** The App Home tab — every customer's request-and-commitment ledger, with drill-in. */
-export function appHomeView(obligations: Obligation[], now: number = Date.now()): SlackView {
+export function appHomeView(obligations: Obligation[], now: number = Date.now(), configured?: IntegrationProvider[]): SlackView {
   const blocks: SlackBlock[] = [
     header("Kept · the obligation ledger"),
     context("Everything your team committed to — and everything customers asked for."),
   ];
   if (obligations.length === 0) {
     blocks.push(section("_No obligations yet. Kept will surface them as they're made._"));
+    blocks.push(...connectionsBlocks(configured));
     return { type: "home", blocks };
   }
   // Insight band (flag/state-derived → deterministic): what needs attention right now.
@@ -291,6 +357,7 @@ export function appHomeView(obligations: Obligation[], now: number = Date.now())
       });
     }
   }
+  blocks.push(...connectionsBlocks(configured));
   return { type: "home", blocks };
 }
 
@@ -307,10 +374,19 @@ function modal(callbackId: string, title: string, blocks: SlackBlock[], submit: 
   };
 }
 
-function inputBlock(blockId: string, label: string, actionId: string, initial: string, opts: { multiline?: boolean; optional?: boolean } = {}): SlackBlock {
+function inputBlock(
+  blockId: string,
+  label: string,
+  actionId: string,
+  initial: string,
+  opts: { multiline?: boolean; optional?: boolean; placeholder?: string; hint?: string } = {},
+): SlackBlock {
   const element: Record<string, unknown> = { type: "plain_text_input", action_id: actionId, multiline: opts.multiline ?? false };
   if (initial) element.initial_value = initial;
-  return { type: "input", block_id: blockId, optional: opts.optional ?? false, label: { type: "plain_text", text: label }, element };
+  if (opts.placeholder) element.placeholder = { type: "plain_text", text: opts.placeholder };
+  const block: Record<string, unknown> = { type: "input", block_id: blockId, optional: opts.optional ?? false, label: { type: "plain_text", text: label }, element };
+  if (opts.hint) block.hint = { type: "plain_text", text: opts.hint };
+  return block;
 }
 
 /** Read-only audit history rendered as a modal (opened from the home "History" button). */
@@ -351,4 +427,84 @@ export function editDraftModal(o: Obligation, draftText: string): SlackView {
     "Approve & send",
     o.id,
   );
+}
+
+// --- Connections modals ----------------------------------------------------
+// Non-secret fields prefill from the stored config; token fields NEVER carry an initial
+// value (a saved secret must never be echoed back into a modal). private_metadata = provider,
+// so the view_submission handler knows which config to build (team is resolved from `body`).
+const KEEP_TOKEN_HINT = "Leave blank to keep the saved token.";
+
+/** "Connect"/"Manage" per proof source. `config` is the acting team's stored config (or null). */
+export function connectModal(
+  provider: "launchdarkly" | "jira" | "github",
+  config: LaunchDarklyTenantConfig | JiraTenantConfig | GithubTenantConfig | null,
+): SlackView {
+  if (provider === "launchdarkly") {
+    const c = (config ?? {}) as LaunchDarklyTenantConfig;
+    return modal(
+      CALLBACKS.connectProvider,
+      "Connect LaunchDarkly",
+      [
+        inputBlock(FIELDS.ldToken.block, "API access token", FIELDS.ldToken.action, "", {
+          optional: true,
+          placeholder: c.mcpToken ? "•••••• saved — leave blank to keep" : "api-xxxxxxxx",
+          hint: KEEP_TOKEN_HINT,
+        }),
+        inputBlock(FIELDS.ldProject.block, "Project key", FIELDS.ldProject.action, c.projectKey ?? "", { optional: true }),
+        inputBlock(FIELDS.ldEnv.block, "Environment", FIELDS.ldEnv.action, c.environment ?? "production", { optional: true }),
+      ],
+      "Save",
+      provider,
+    );
+  }
+  if (provider === "jira") {
+    const c = (config ?? {}) as JiraTenantConfig;
+    return modal(
+      CALLBACKS.connectProvider,
+      "Connect Jira",
+      [
+        inputBlock(FIELDS.jiraBaseUrl.block, "Base URL", FIELDS.jiraBaseUrl.action, c.baseUrl ?? "", {
+          optional: true,
+          placeholder: "https://your-org.atlassian.net",
+        }),
+        inputBlock(FIELDS.jiraEmail.block, "Email", FIELDS.jiraEmail.action, c.email ?? "", { optional: true }),
+        inputBlock(FIELDS.jiraToken.block, "API token", FIELDS.jiraToken.action, "", {
+          optional: true,
+          placeholder: c.apiToken ? "•••••• saved — leave blank to keep" : "",
+          hint: KEEP_TOKEN_HINT,
+        }),
+        inputBlock(FIELDS.jiraCloudId.block, "Cloud ID (optional)", FIELDS.jiraCloudId.action, c.cloudId ?? "", { optional: true }),
+      ],
+      "Save",
+      provider,
+    );
+  }
+  const c = (config ?? {}) as GithubTenantConfig;
+  return modal(
+    CALLBACKS.connectProvider,
+    "Connect GitHub",
+    [
+      inputBlock(FIELDS.ghToken.block, "Personal access token", FIELDS.ghToken.action, "", {
+        optional: true,
+        placeholder: c.token ? "•••••• saved — leave blank to keep" : "ghp_xxxxxxxx",
+        hint: KEEP_TOKEN_HINT,
+      }),
+    ],
+    "Save",
+    provider,
+  );
+}
+
+/** "Add mapping" → map a customer / subject key to the LaunchDarkly flag that proves it shipped. */
+export function addMappingModal(config: ProofTargetsConfig): SlackView {
+  const existing = Object.keys(config ?? {});
+  const blocks: SlackBlock[] = [section("Map a *customer or subject key* to the LaunchDarkly flag that proves it shipped.")];
+  if (existing.length) blocks.push(context(`Already mapped: ${existing.map(escapeMrkdwn).join(", ")}`));
+  blocks.push(
+    inputBlock(FIELDS.mapKey.block, "Customer or subject key", FIELDS.mapKey.action, "", { placeholder: "Acme  ·  a subject key  ·  or *" }),
+    inputBlock(FIELDS.mapFlag.block, "LaunchDarkly flag key", FIELDS.mapFlag.action, ""),
+    inputBlock(FIELDS.mapEnv.block, "Environment (default production)", FIELDS.mapEnv.action, "production", { optional: true }),
+  );
+  return modal(CALLBACKS.addMapping, "Add proof-target mapping", blocks, "Save mapping", "proof_targets");
 }

@@ -7,6 +7,7 @@ import type { LlmProvider } from "../llm/provider.js";
 import { SlackNotifier, type ClientForTeam } from "./slackNotifier.js";
 import type { SlackClientLike } from "./slackNotifier.js";
 import { buildKeptAssistant } from "./assistant.js";
+import type { TenantConfigStore } from "../store/tenantConfigStore.js";
 import {
   ACTIONS,
   CALLBACKS,
@@ -17,6 +18,8 @@ import {
   auditModal,
   editObligationModal,
   editDraftModal,
+  connectModal,
+  addMappingModal,
 } from "../slack/blocks.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -60,6 +63,8 @@ export interface SlackAppDeps {
   makeOrchestrator: (notifier: Notifier) => KeptOrchestrator;
   /** LLM provider for the Assistant's NL query router (the engine still runs the read). */
   llm: LlmProvider;
+  /** Per-tenant integration config — the App Home "Connections" surface reads/writes it, scoped by team. */
+  tenantConfig?: TenantConfigStore;
   /**
    * W2 (invariant #4) — full per-tenant data deletion on uninstall. Invoked by the
    * `app_uninstalled` / bot-token-revoked handler AFTER `deleteInstallation`, to purge
@@ -146,8 +151,11 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   const obligationOf = (action: any): string => parseActionId(action.action_id).obligationId;
   const republishHome = async (client: any, userId: string, teamId: string) => {
     try {
-      // W1 — App Home shows ONLY the acting workspace's obligations.
-      await client.views.publish({ user_id: userId, view: appHomeView(await orch.allObligations(teamId)) });
+      // W1 (invariant #4) — App Home shows ONLY the acting workspace's obligations AND its own
+      // configured connections; both reads are scoped to `teamId`. Undefined store (single-token /
+      // dev path) → no Connections section is rendered.
+      const configured = deps.tenantConfig ? await deps.tenantConfig.listConfigured(teamId) : undefined;
+      await client.views.publish({ user_id: userId, view: appHomeView(await orch.allObligations(teamId), undefined, configured) });
     } catch {
       /* App Home publish is best-effort */
     }
@@ -226,10 +234,10 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     });
   }
 
-  // App Home — the live obligation-ledger dashboard (scoped to the opener's workspace).
+  // App Home — the live obligation-ledger dashboard + Connections (scoped to the opener's workspace).
   app.event("app_home_opened", async ({ event, body, client }: any) => {
     if (event.tab && event.tab !== "home") return;
-    await client.views.publish({ user_id: event.user, view: appHomeView(await orch.allObligations(body.team_id)) });
+    await republishHome(client, event.user, body.team_id);
   });
 
   // --- gate actions (each enforces acting team == obligation team) ---
@@ -323,6 +331,30 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     await ack();
   });
 
+  // --- Connections surface (App Home) — per-tenant proof-source config (invariant #4/#6) ---
+  // The provider rides in the button `value`; every read/write below is scoped to the ACTING
+  // team resolved from the signature-verified payload — never a constant or another team's id.
+  // TODO(admin-gate): optionally restrict "manage connections" to workspace admins via a
+  // `users.info(is_admin)` check — deferred (extra scope + call; not trivially available here).
+  app.action(new RegExp(`^${ACTIONS.connect}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    if (!deps.tenantConfig) return; // single-token / dev path: no Connections surface
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    const provider = action.value;
+    if (provider !== "launchdarkly" && provider !== "jira" && provider !== "github") return;
+    const config = await deps.tenantConfig.get(team, provider);
+    await client.views.open({ trigger_id: body.trigger_id, view: connectModal(provider, config) });
+  });
+  app.action(new RegExp(`^${ACTIONS.addMapping}:`), async ({ ack, body, client }: any) => {
+    await ack();
+    if (!deps.tenantConfig) return;
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    const config = (await deps.tenantConfig.get(team, "proof_targets")) ?? {};
+    await client.views.open({ trigger_id: body.trigger_id, view: addMappingModal(config) });
+  });
+
   // --- modal submissions ---
   app.view(CALLBACKS.editObligation, async ({ ack, body, view, client }: any) => {
     const v = view.state.values;
@@ -358,6 +390,74 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     } else {
       await ack();
     }
+  });
+
+  // --- Connections modal submissions — write the acting team's own provider config ---
+  // teamId is resolved from `body` (same fail-CLOSED path as the other view handlers); the
+  // provider is stashed in `private_metadata` when the modal is opened. A blank token input
+  // KEEPS the saved token (never overwrite a secret with empty). Tokens are never logged/echoed.
+  app.view(CALLBACKS.connectProvider, async ({ ack, body, view, client }: any) => {
+    const provider = view.private_metadata;
+    const v = view.state.values;
+    // On a team-less submission, keep the modal open with an inline error rather than write unscoped.
+    const errBlock = provider === "jira" ? FIELDS.jiraBaseUrl.block : provider === "github" ? FIELDS.ghToken.block : FIELDS.ldToken.block;
+    let team: string;
+    try {
+      team = requireTeam(body);
+    } catch {
+      await ack({ response_action: "errors", errors: { [errBlock]: "Couldn't determine your workspace — action blocked." } });
+      return;
+    }
+    await ack();
+    if (!deps.tenantConfig) return;
+    const tc = deps.tenantConfig;
+    const str = (b: { block: string; action: string }): string | undefined => (v[b.block]?.[b.action]?.value ?? "").trim() || undefined;
+    if (provider === "launchdarkly") {
+      const cur = await tc.get(team, "launchdarkly"); // keep the saved token if the input is blank
+      await tc.set(team, "launchdarkly", {
+        mcpToken: str(FIELDS.ldToken) ?? cur?.mcpToken,
+        projectKey: str(FIELDS.ldProject),
+        environment: str(FIELDS.ldEnv),
+      });
+    } else if (provider === "jira") {
+      const cur = await tc.get(team, "jira");
+      await tc.set(team, "jira", {
+        baseUrl: str(FIELDS.jiraBaseUrl),
+        email: str(FIELDS.jiraEmail),
+        apiToken: str(FIELDS.jiraToken) ?? cur?.apiToken,
+        cloudId: str(FIELDS.jiraCloudId),
+      });
+    } else if (provider === "github") {
+      const cur = await tc.get(team, "github");
+      await tc.set(team, "github", { token: str(FIELDS.ghToken) ?? cur?.token });
+    } else {
+      return; // unknown provider — ignore
+    }
+    await republishHome(client, body.user.id, team);
+  });
+  app.view(CALLBACKS.addMapping, async ({ ack, body, view, client }: any) => {
+    const v = view.state.values;
+    const val = (b: { block: string; action: string }): string => (v[b.block]?.[b.action]?.value ?? "").trim();
+    const key = val(FIELDS.mapKey);
+    const flag = val(FIELDS.mapFlag);
+    const environment = val(FIELDS.mapEnv) || "production";
+    let team: string;
+    try {
+      team = requireTeam(body);
+    } catch {
+      await ack({ response_action: "errors", errors: { [FIELDS.mapKey.block]: "Couldn't determine your workspace — action blocked." } });
+      return;
+    }
+    if (!key || !flag) {
+      await ack({ response_action: "errors", errors: { [!key ? FIELDS.mapKey.block : FIELDS.mapFlag.block]: "Required." } });
+      return;
+    }
+    await ack();
+    if (!deps.tenantConfig) return;
+    // Load → merge the new entry into the existing proof-target map → save (never clobber prior keys).
+    const current = (await deps.tenantConfig.get(team, "proof_targets")) ?? {};
+    await deps.tenantConfig.set(team, "proof_targets", { ...current, [key]: { flag: { key: flag, environment } } });
+    await republishHome(client, body.user.id, team);
   });
 
   // /kept <customer>            → the two-sided ledger (scoped to the invoking workspace)

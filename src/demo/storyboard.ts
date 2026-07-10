@@ -124,7 +124,7 @@ async function main() {
     roadmap: [{ customer: "Acme", subject_canonical: "SSO_LOGIN_BUG", targetDate: "2026-06-30" }],
     notifier,
     scheduler,
-    proofCollector,
+    proofCollectorFor: async () => proofCollector,
     // W6 — capability store for the customer trust page (in-memory for the offline demo).
     trustLinks: new InMemoryTrustLinkStore(),
     clock: () => NOW,

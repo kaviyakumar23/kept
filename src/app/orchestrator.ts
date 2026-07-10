@@ -43,7 +43,8 @@ export interface OrchestratorDeps {
    * evidence. Optional and config-gated: when unset (default) proof collection is a no-op,
    * so production stays deterministic and the demo/tests can drive a simulated proof server.
    */
-  proofCollector?: ProofCollector;
+  /** Per-tenant proof collector: resolves the acting workspace's own Connections config (invariant #4). */
+  proofCollectorFor?: (teamId: string) => Promise<ProofCollector | null>;
   /**
    * W6 — capability store for the customer trust page. When set, the acting team can mint
    * a per-(team, customer) trust link, and `GET /trust/:token` resolves it to a scoped,
@@ -370,10 +371,12 @@ export class KeptOrchestrator {
    * and a genuine toggle (later instant) lands as a new fact.
    */
   private async collectProof(o: Obligation): Promise<Obligation> {
-    if (!this.d.proofCollector || o.state !== "POSSIBLE_FULFILLMENT") return o;
+    if (!this.d.proofCollectorFor || o.state !== "POSSIBLE_FULFILLMENT") return o;
+    const collector = await this.d.proofCollectorFor(o.team); // invariant #4 — the acting team's own config
+    if (!collector) return o;
     let proposed: Evidence[];
     try {
-      proposed = await this.d.proofCollector.collect(o);
+      proposed = await collector.collect(o);
     } catch {
       return o;
     }
