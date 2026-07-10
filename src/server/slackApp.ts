@@ -233,13 +233,19 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
 
   // --- gate actions (each enforces acting team == obligation team) ---
-  app.action(new RegExp(`^${ACTIONS.confirm}:`), async ({ ack, body, action, client }: any) => {
+  app.action(new RegExp(`^${ACTIONS.confirm}:`), async ({ ack, body, action, client, respond }: any) => {
     await ack();
     const team = await resolveTeam(client, body);
     if (!team) return;
     try {
       await orch.confirmCommitment(obligationOf(action), body.user.id, undefined, team);
       await republishHome(client, body.user.id, team);
+      // Lock the card so its buttons can't be re-clicked — swap it to a confirmed state.
+      await respond({
+        replace_original: true,
+        text: "Commitment confirmed — now tracked.",
+        blocks: [{ type: "section", text: { type: "mrkdwn", text: ":white_check_mark: *Confirmed* — now tracked. Kept will gather proof from Jira, GitHub Actions, and LaunchDarkly before you verify." } }],
+      }).catch(() => undefined);
     } catch (err) {
       if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);

@@ -128,8 +128,17 @@ async function main() {
   const reminderHandler: ReminderHandler = async (job) => {
     const o = await service.getObligation(job.obligationId);
     if (!o || ["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state) || !notifierRef.n) return;
+    // A nudge is a DM to a real user; a time-triggered reminder has no sender to fall back to, so
+    // if the owner isn't a valid Slack user id (e.g. an LLM-guessed name or the U_ACCOUNT_MANAGER
+    // placeholder) there's simply no one to DM — skip quietly rather than fail the poll loop.
+    const owner = o.owner ?? fallbackOwner;
+    if (!/^[UW][A-Z0-9]{2,}$/.test(owner)) return;
     const { text, blocks } = reminderMessage(o, job.kind);
-    await notifierRef.n.sendPrivate(o.owner ?? fallbackOwner, { text, blocks }, o.team);
+    try {
+      await notifierRef.n.sendPrivate(owner, { text, blocks }, o.team);
+    } catch {
+      /* best-effort nudge — a failed DM must never crash the scheduler poll loop */
+    }
   };
 
   // Scheduler precedence: Redis/BullMQ if configured → Postgres (single-datastore, no
