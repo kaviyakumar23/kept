@@ -46,6 +46,12 @@ export interface LedgerAnalytics {
   byOwner: OwnerStat[];
   byCustomer: CustomerStat[];
   aging: { oldestOpenDays: number; buckets: AgingBucket[] };
+  /**
+   * The differentiator, quantified: how many promises Kept blocked from a FALSE close because a
+   * proof source reported not-actually-done (flag OFF in prod / CI failing / status degraded).
+   * Every one is a broken promise a ticket-only tool would have shipped to the customer as "Done".
+   */
+  blockedCatches: number;
 }
 
 const daysBetween = (a: number, b: number): number => Math.max(0, Math.floor((a - b) / DAY_MS));
@@ -97,6 +103,17 @@ export function analytics(obligations: Obligation[], now: number): LedgerAnalyti
     { label: ">30d", count: ages.filter((d) => d > 30).length },
   ];
 
+  // A promise Kept caught: any proof source in its history reported not-actually-done, so the close
+  // was blocked before it could reach the customer (cumulative — counts ones later fixed + closed too).
+  const blockedCatches = obligations.filter((o) =>
+    o.evidence.some(
+      (e) =>
+        (e.kind === "feature_flag" && e.data.enabled === false) ||
+        (e.kind === "ci_run" && e.data.conclusion !== undefined && e.data.conclusion !== "success") ||
+        (e.kind === "status_page" && e.data.component_status !== undefined && e.data.component_status !== "operational"),
+    ),
+  ).length;
+
   return {
     counts: { total: obligations.length, open: open.length, byState },
     overdue,
@@ -108,6 +125,7 @@ export function analytics(obligations: Obligation[], now: number): LedgerAnalyti
     byCustomer,
     // reduce (not Math.max(...spread)) — a 125k+ open ledger would blow the arg limit.
     aging: { oldestOpenDays: ages.reduce((m, d) => (d > m ? d : m), 0), buckets },
+    blockedCatches,
   };
 }
 

@@ -73,8 +73,9 @@ describe("Block Kit builders", () => {
       evt({ type: "COMMITMENT_CONFIRMED", outcome: "o", due: null, owner: "U_ENG" }, { approved_by: "U_AM" }),
     ];
     const json = JSON.stringify(auditHistoryView(mkObl("OPEN"), events));
-    expect(json).toContain("REQUEST_DETECTED");
-    expect(json).toContain("COMMITMENT_CONFIRMED");
+    expect(json).toContain("Promise captured"); // REQUEST_DETECTED → human-readable receipt
+    expect(json).toContain("Confirmed"); // COMMITMENT_CONFIRMED → human-readable receipt
+    expect(json).toContain("<@U_AM>"); // signed by the approver
   });
 
   it("reminder message is owner-facing", () => {
@@ -116,6 +117,6 @@ describe("Block Kit builders", () => {
   it("audit modal wraps the history view", () => {
     const view = auditModal(mkObl("OPEN"), [evt({ type: "REQUEST_DETECTED", team: "T_ACME", direction: "TEAM_OWES_CUSTOMER", signal: "CUSTOMER_REQUEST", customer: "Acme", subject_canonical: "X", outcome: "o", due: null, owner: null, conditions: [] })]) as { type: string };
     expect(view.type).toBe("modal");
-    expect(JSON.stringify(view)).toContain("REQUEST_DETECTED");
+    expect(JSON.stringify(view)).toContain("Promise captured"); // receipts timeline (REQUEST_DETECTED humanized)
   });
 });

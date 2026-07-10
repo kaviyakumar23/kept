@@ -247,17 +247,56 @@ export function ledgerView(customer: string, obligations: Obligation[]): SlackBl
 }
 
 /** Full audit-history panel for one obligation — every transition, explainable. */
+/** One human-readable "receipt" line per event — plain language + the key detail, not the raw type. */
+function receiptLine(e: ObligationEvent): string {
+  switch (e.type) {
+    case "REQUEST_DETECTED": return "📥 *Promise captured* in Slack";
+    case "COMMITMENT_CONFIRMED": return "✅ *Confirmed* — Gate 1 (human signed)";
+    case "DISMISSED": return "🚫 *Dismissed* — not a request";
+    case "CLARIFICATION_FLAGGED": return "❓ *Needs clarification*";
+    case "CLARIFICATION_CLEARED": return "❔ *Clarified*";
+    case "WORK_ITEM_LINKED": return `🔗 *Work item linked* — ${escapeMrkdwn(e.work_system)}:${escapeMrkdwn(e.work_ref)}`;
+    case "WORK_STARTED": return "🛠️ *Work started*";
+    case "DUE_DATE_CHANGED": return `📅 *Due changed* — ${escapeMrkdwn(e.from ?? "—")} → ${escapeMrkdwn(e.to ?? "—")}`;
+    case "SCOPE_CHANGED": return `✏️ *Scope changed* — ${escapeMrkdwn(e.note)}`;
+    case "FULFILLMENT_SIGNAL_DETECTED": return fulfillmentReceipt(e.evidence);
+    case "INTERNALLY_VERIFIED": return "☑️ *Verified* — Gate 2 (proof reconciled, human signed)";
+    case "VERIFICATION_FAILED": return `⛔ *Close blocked* — ${escapeMrkdwn(e.reason)}`;
+    case "CUSTOMER_NOTIFIED": return "📣 *Sanitized closure posted* to the customer thread";
+    case "CUSTOMER_CONFIRMED": return "🎉 *Customer confirmed* — loop closed";
+    case "REOPENED": return `↩️ *Reopened* — ${escapeMrkdwn(e.reason)}`;
+    case "CANCELLED": return `🗑️ *Cancelled* — ${escapeMrkdwn(e.reason)}`;
+    default: return `*${(e as { type: string }).type}*`;
+  }
+}
+
+/** The proof-evidence detail for a fulfillment signal (this is where "flag OFF ✗" lands). */
+function fulfillmentReceipt(ev: Evidence): string {
+  switch (ev.kind) {
+    case "feature_flag": return ev.data.enabled === true ? "🟢 *Production flag ON* — feature reachable" : "🔴 *Production flag OFF* — not actually shipped (close blocked)";
+    case "ci_run": return ev.data.conclusion === "success" ? "🟢 *CI passed*" : `🔴 *CI ${escapeMrkdwn(String(ev.data.conclusion ?? "?"))}*`;
+    case "status_page": return ev.data.component_status === "operational" ? "🟢 *Status operational*" : `🔴 *Status ${escapeMrkdwn(String(ev.data.component_status ?? "?"))}*`;
+    case "ticket_status": return `🎫 *Ticket ${escapeMrkdwn(String(ev.data.status ?? "updated"))}*`;
+    case "pr_merged": return ev.data.merged === true ? "🔀 *PR merged*" : "🔀 *PR update*";
+    case "deploy": return `🚀 *Deployed* — ${escapeMrkdwn(String(ev.data.environment ?? "?"))}`;
+    default: return `📎 *${escapeMrkdwn(ev.kind)}*`;
+  }
+}
+
+/** "Show receipts" — the append-only event log rendered as a human-readable timeline. Proves the
+ *  event-sourcing claim without a word of explanation: every state change, signed, in order. */
 export function auditHistoryView(o: Obligation, events: ObligationEvent[]): SlackBlock[] {
   const lines = events.map((e) => {
-    const approver = e.approved_by ? ` · approved by <@${e.approved_by}>` : "";
-    const src = e.source.system !== "system" ? ` · ${e.source.system}` : "";
-    return `\`${e.at.slice(0, 19).replace("T", " ")}\`  *${e.type}*${src}${approver}`;
+    const ts = `\`${e.at.slice(0, 16).replace("T", " ")}\``;
+    const who = e.approved_by ? ` · <@${e.approved_by}>` : "";
+    return `${ts}  ${receiptLine(e)}${who}`;
   });
   return [
-    header(`Audit history · ${o.outcome}`),
-    section(`*${o.customer}* — current state: *${o.state}* (v${o.state_version}, ${o.history_count} events)`),
+    header("🧾 Receipts — the full ledger"),
+    section(`*${o.customer}* — ${o.outcome}\nCurrent state: *${o.state}* · ${o.history_count} events, append-only & human-signed at both gates`),
     divider,
     section(lines.join("\n") || "_no events_"),
+    context("Event-sourced: this is the actual immutable log Kept decides from — nothing here is reconstructed after the fact."),
   ];
 }
 
@@ -375,6 +414,11 @@ export function appHomeView(
       { type: "mrkdwn", text: `:eyes: *Awaiting verify:* ${a.awaitingVerify.length}` },
     ],
   });
+  // The differentiator, quantified. Every one is a broken promise a ticket-only tool would have
+  // shipped to the customer as "Done". Shown once Kept has actually caught one.
+  if (a.blockedCatches > 0) {
+    blocks.push(section(`🛡️ *Closes blocked before reaching the customer: ${a.blockedCatches}* — promises that read "Done" but weren't actually shipped (flag off / CI red / status degraded).`));
+  }
   // W5 — promise-drift radar band (certainty-decay derived → deterministic): which
   // commitments are softening / slipping / going silent. Rendered only when something drifts.
   const radar = driftRadar(obligations, now);
@@ -406,7 +450,7 @@ export function appHomeView(
       blocks.push({
         type: "section",
         text: { type: "mrkdwn", text: ledgerLine(o) },
-        accessory: button("History", ACTIONS.history, o.id),
+        accessory: button("🧾 Receipts", ACTIONS.history, o.id),
       });
     }
   }
