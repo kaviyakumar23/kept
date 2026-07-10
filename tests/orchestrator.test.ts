@@ -110,7 +110,10 @@ describe("KeptOrchestrator — the full loop on top of the engine", () => {
     const a = await orch.ingestMessage(msg("Can you get the SSO bug fixed by Friday?", "100"));
     const b = await orch.ingestMessage(msg("any update on that login issue?", "200"));
     expect(a.kind).toBe("confirm_card_sent");
-    expect(b.kind).toBe("deduped");
+    // A follow-up on a still-unconfirmed (CANDIDATE) promise RE-SURFACES the Gate-1 confirm
+    // instead of dropping silently — so a confirm that never reached its owner can recover —
+    // while still attaching to the SAME obligation (the real dedupe invariant: no duplicate).
+    expect(b.kind).toBe("confirm_card_sent");
     expect((await store.getAllObligationIds("T")).length).toBe(1);
   });
 

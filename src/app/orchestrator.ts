@@ -180,8 +180,17 @@ export class KeptOrchestrator {
       slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
     });
 
-    if (result.status === "deduped") return { kind: "deduped", obligationId: result.obligation.id };
-    if (result.status !== "created") return { kind: "skipped", signal: proposal.classification.signal };
+    // Re-send the Gate-1 confirm when a promise is re-posted but its obligation is still a
+    // CANDIDATE — i.e. created earlier yet never confirmed (e.g. the first confirm DM failed to
+    // send). Without this, a stuck CANDIDATE can never surface its card: every repeat dedupes and
+    // returns silently. A deduped obligation already past CANDIDATE (OPEN+) is left untouched.
+    const isNew = result.status === "created";
+    const isUnconfirmedDup = result.status === "deduped" && result.obligation.state === "CANDIDATE";
+    if (!isNew && !isUnconfirmedDup) {
+      return result.status === "deduped"
+        ? { kind: "deduped", obligationId: result.obligation.id }
+        : { kind: "skipped", signal: proposal.classification.signal };
+    }
 
     // Secondary beat: warn (privately, on the card) if the committed date contradicts the roadmap.
     // W1 — scope the roadmap read to the acting workspace (invariant #4).
