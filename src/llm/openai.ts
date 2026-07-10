@@ -34,7 +34,9 @@ export class OpenAiProvider implements LlmProvider {
 
     const completion = await this.client.beta.chat.completions.parse({
       model: req.model ?? this.model,
-      max_tokens: req.maxTokens ?? 1024,
+      // Newer OpenAI models (gpt-5.x and later) reject `max_tokens` and require
+      // `max_completion_tokens`; the newer name is also accepted by gpt-4o, so use it uniformly.
+      max_completion_tokens: req.maxTokens ?? 1024,
       messages: [
         { role: "system", content: req.system },
         { role: "user", content: req.user },
