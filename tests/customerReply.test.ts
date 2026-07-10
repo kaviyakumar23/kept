@@ -68,12 +68,14 @@ describe("customer reply closes the loop (CUSTOMER_NOTIFIED → CLOSED)", () => 
     expect((await service.getObligation(id))!.state).toBe("CLOSED");
   });
 
-  it("never auto-messages the customer (invariant #3) — the reply only changes state", async () => {
-    const { orch, notifier, id } = await makeNotifiedOrch();
-    const before = notifier.calls.length;
+  it("notifies the OWNER privately but never the customer channel (invariant #3)", async () => {
+    const { orch, notifier } = await makeNotifiedOrch();
+    const threadBefore = notifier.calls.filter((c) => c.kind === "thread").length;
     await orch.ingestMessage(reply("works great, thanks!"));
-    // No NEW send of any kind resulted from the customer's confirmation.
-    expect(notifier.calls.length).toBe(before);
+    // A private owner notice IS sent (internal feedback, not a customer message)...
+    expect(notifier.calls.some((c) => c.kind === "private" && /confirmed/i.test(c.text))).toBe(true);
+    // ...and NOTHING new is posted to the customer thread.
+    expect(notifier.calls.filter((c) => c.kind === "thread").length).toBe(threadBefore);
   });
 
   it("a customer 'still fails' reply reopens the obligation", async () => {

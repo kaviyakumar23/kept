@@ -248,12 +248,31 @@ export class KeptOrchestrator {
     );
     if (!o) return null;
     if (/\b(still|again)\b.*(fail|broke|broken|not working|does ?n'?t work)/i.test(msg.text)) {
-      return this.reopen(o.id, "customer reports it still fails");
+      const reopened = await this.reopen(o.id, "customer reports it still fails");
+      if (reopened) await this.notifyOwnerOfReply(reopened, `:warning: *${reopened.customer}* says "${reopened.outcome}" still isn't working — I reopened it.`);
+      return reopened;
     }
     if (/\b(works|working|resolved|fixed|confirmed|looks good|all good)\b/i.test(msg.text)) {
-      return this.recordCustomerConfirmation(o.id);
+      const closed = await this.recordCustomerConfirmation(o.id);
+      if (closed) await this.notifyOwnerOfReply(closed, `:white_check_mark: *${closed.customer}* confirmed "${closed.outcome}" is working — closed. Nice work.`);
+      return closed;
     }
     return null; // matched the thread but not a clear confirm/deny → let normal handling proceed
+  }
+
+  /**
+   * Private, owner-only notice that a customer replied (confirmed → closed, or reopened). Internal
+   * feedback so the loop doesn't close silently — NEVER the customer channel (invariant #3), and
+   * best-effort (a failed DM must not undo the state change).
+   */
+  private async notifyOwnerOfReply(o: Obligation, text: string): Promise<void> {
+    const owner = this.owner(o, EMPTY_RTS);
+    if (!/^[UW][A-Z0-9]{2,}$/.test(owner)) return; // no valid owner to DM
+    try {
+      await this.d.notifier.sendPrivate(owner, { text }, o.team);
+    } catch {
+      /* best-effort feedback */
+    }
   }
 
   // --- Gate 1: account owner confirms --------------------------------------
