@@ -17,7 +17,9 @@ import { NOW, heuristicResponder, ticketDone, prMerged, prodDeploy } from "../sr
  * reply only changes state.
  */
 const TEAM = "T_ACME";
-const root = (text: string) => ({ team: TEAM, channel: "C_ACME", threadTs: "100", ts: "100", userId: "U_PM", text, permalink: "p" });
+// userId is a real-shaped Slack id (no underscore) so it passes the owner-id validation the
+// confirm DM + owner notice use — U_PM-style placeholders would (correctly) be rejected as non-users.
+const root = (text: string) => ({ team: TEAM, channel: "C_ACME", threadTs: "100", ts: "100", userId: "U0PM0001", text, permalink: "p" });
 const reply = (text: string, team = TEAM, ts = "200") => ({ team, channel: "C_ACME", threadTs: "100", ts, userId: "U_CUST", text, permalink: "r" });
 
 /** Drive a fresh obligation all the way to CUSTOMER_NOTIFIED (flag ON so verify applies). */
