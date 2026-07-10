@@ -200,7 +200,10 @@ async function main() {
     // logged so "data is deleted on uninstall" is provable in the operator's logs.
     purgeTenant: async (teamId: string) => {
       const summary = await store.purgeTeam(teamId);
-      console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify(summary)}`);
+      // Invariant #4 — the uninstall purge must also delete the workspace's stored proof-source
+      // SECRETS (LaunchDarkly/Jira/GitHub tokens), not just its ledger.
+      const tenantConfigRows = await tenantConfig.purgeTeam(teamId);
+      console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify({ ...summary, tenantConfig: tenantConfigRows })}`);
     },
     // Per-tenant Connections config — the App Home "Connections" UI reads/writes it (scoped by team).
     tenantConfig,

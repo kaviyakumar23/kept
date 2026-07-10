@@ -31,6 +31,7 @@ export const ACTIONS = {
   history: "kept_history",
   // App Home "Connections" surface — the provider rides in the action_id suffix + `value`.
   connect: "kept_connect",
+  disconnect: "kept_disconnect",
   addMapping: "kept_add_mapping",
 } as const;
 
@@ -287,10 +288,14 @@ function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
     blocks.push({
       type: "section",
       text: { type: "mrkdwn", text: `*${label}* — ${connected ? "Connected ✓" : "Not connected"}` },
-      accessory: connected
-        ? button("Manage", ACTIONS.connect, provider)
-        : button("Connect", ACTIONS.connect, provider, "primary"),
+      ...(connected ? {} : { accessory: button("Connect", ACTIONS.connect, provider, "primary") }),
     });
+    if (connected) {
+      blocks.push({
+        type: "actions",
+        elements: [button("Manage", ACTIONS.connect, provider), button("Disconnect", ACTIONS.disconnect, provider, "danger")],
+      });
+    }
   }
   blocks.push({
     type: "section",

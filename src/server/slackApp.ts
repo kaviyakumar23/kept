@@ -346,6 +346,19 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     const config = await deps.tenantConfig.get(team, provider);
     await client.views.open({ trigger_id: body.trigger_id, view: connectModal(provider, config) });
   });
+
+  // Disconnect a provider — team-scoped delete of the stored secret (right-to-deletion without
+  // uninstalling). The per-team collector rebuilds on the next read via its config fingerprint.
+  app.action(new RegExp(`^${ACTIONS.disconnect}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    if (!deps.tenantConfig) return;
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    const provider = action.value;
+    if (provider !== "launchdarkly" && provider !== "jira" && provider !== "github") return;
+    await deps.tenantConfig.remove(team, provider);
+    await republishHome(client, body.user.id, team);
+  });
   app.action(new RegExp(`^${ACTIONS.addMapping}:`), async ({ ack, body, client }: any) => {
     await ack();
     if (!deps.tenantConfig) return;
