@@ -172,11 +172,12 @@ export class KeptOrchestrator {
     const result = await this.d.service.detectRequest({
       ...proposal.detectInput,
       team: msg.team,
-      // Default the owner to the message SENDER (a real, valid user in this workspace) when the
-      // proposer/RTS don't name one — never a placeholder. The Gate-1 confirm is a DM to the
-      // owner, so an unresolvable owner (e.g. the old U_ACCOUNT_MANAGER default) makes
-      // conversations.open fail and the card never lands. Every fresh install hits this.
-      owner: proposal.detectInput.owner ?? rts.suggestedOwner ?? msg.userId,
+      // Owner must be a real Slack user id. The proposer/RTS can hand back an LLM-guessed NAME (or
+      // a placeholder like U_ACCOUNT_MANAGER — the underscore isn't a valid id), which then poisons
+      // both the Gate-1 DM (conversations.open rejects it) and the card's <@owner> mention. Accept a
+      // proposed owner only if it's a valid id; otherwise default to the message SENDER, who made
+      // the promise and is always a valid in-workspace user.
+      owner: [proposal.detectInput.owner, rts.suggestedOwner].find((o): o is string => !!o && /^[UW][A-Z0-9]{2,}$/.test(o)) ?? msg.userId,
       slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
     });
 

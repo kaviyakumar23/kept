@@ -70,7 +70,7 @@ export function confirmCard(o: Obligation, classification: Classification, rts: 
       type: "section",
       fields: [
         { type: "mrkdwn", text: dueLabel(o.due) },
-        { type: "mrkdwn", text: `*Owner:* ${o.owner ? `<@${o.owner}>` : "—"}` },
+        { type: "mrkdwn", text: `*Owner:* ${o.owner && /^[UW][A-Z0-9]{2,}$/.test(o.owner) ? `<@${o.owner}>` : "—"}` },
         { type: "mrkdwn", text: `*Customer:* ${o.customer}` },
         { type: "mrkdwn", text: `*Confidence:* ${(classification.confidence * 100).toFixed(0)}%` },
       ],
