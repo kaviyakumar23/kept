@@ -17,6 +17,7 @@ import type { LlmProvider } from "../llm/provider.js";
 import { proposeFromMessage } from "../llm/propose.js";
 import type { WorkItemAdapter, CreatedWorkItem } from "../integrations/linear.js";
 import type { ProofCollector } from "../integrations/proofCollector.js";
+import { usagePeriod, type UsageStore } from "../store/usageStore.js";
 import type { RtsRetriever } from "../slack/rts.js";
 import { EMPTY_RTS, type RtsContext } from "../slack/rts.js";
 import type { Notifier, SentMessage } from "../slack/notifier.js";
@@ -45,6 +46,10 @@ export interface OrchestratorDeps {
    */
   /** Per-tenant proof collector: resolves the acting workspace's own Connections config (invariant #4). */
   proofCollectorFor?: (teamId: string) => Promise<ProofCollector | null>;
+  /** "Pilot" metering: monthly LLM-classification counter per workspace (with pilotLimitFor, caps AI spend). */
+  usage?: UsageStore;
+  /** Resolves a workspace's monthly LLM-classification cap (per-tenant plan override, else the env default). */
+  pilotLimitFor?: (teamId: string) => Promise<number>;
   /**
    * W6 — capability store for the customer trust page. When set, the acting team can mint
    * a per-(team, customer) trust link, and `GET /trust/:token` resolves it to a scoped,
@@ -149,6 +154,14 @@ export class KeptOrchestrator {
     // LLM call) and return before new-commitment detection.
     const reply = await this.tryCustomerReply(msg);
     if (reply) return { kind: "customer_reply", obligationId: reply.id, state: reply.state };
+    // "Pilot" free-tier guardrail: cap LLM classifications per workspace per month so a busy/abusive
+    // tenant can't run up an unbounded AI bill. The counter increments per message; over the cap we
+    // stop classifying (no further AI spend). Thread replies above never reach here (no LLM call).
+    if (this.d.usage && this.d.pilotLimitFor) {
+      const used = await this.d.usage.bump(msg.team, usagePeriod(this.now()));
+      const limit = await this.d.pilotLimitFor(msg.team);
+      if (used > limit) return { kind: "skipped", signal: "pilot_llm_limit" };
+    }
     const at = new Date(this.now()).toISOString();
     const proposal = await proposeFromMessage(
       this.d.llm,

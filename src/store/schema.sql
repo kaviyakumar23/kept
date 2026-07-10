@@ -66,6 +66,18 @@ CREATE TABLE IF NOT EXISTS tenant_config (
   PRIMARY KEY (team_id, provider)
 );
 
+-- Per-tenant usage metering — the "pilot" free-tier guardrail. Kept's dominant variable cost is
+-- the LLM classification run on every ingested message; this caps those calls per workspace per
+-- month (period = YYYY-MM). Read/incremented only for the acting team (invariant #4). Holds no
+-- message content, so it is not subject to the zero-copy guard.
+CREATE TABLE IF NOT EXISTS usage_counters (
+  team_id     TEXT NOT NULL,
+  period      TEXT NOT NULL,
+  count       INTEGER NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (team_id, period)
+);
+
 -- W6 — customer trust page capability tokens. An opaque, unguessable, revocable
 -- per-(team, customer) capability: the token IS the authorization (no login), and
 -- `GET /trust/:token` resolves it to exactly one (team_id, customer). Tenant isolation

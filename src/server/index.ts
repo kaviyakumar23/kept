@@ -16,6 +16,7 @@ import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { buildProofCollector, makeProofCollectorProvider } from "../integrations/proofSources.js";
 import { InMemoryTenantConfigStore, PostgresTenantConfigStore, type TenantConfigStore } from "../store/tenantConfigStore.js";
+import { InMemoryUsageStore, PostgresUsageStore, type UsageStore } from "../store/usageStore.js";
 import { WebClient } from "@slack/web-api";
 import {
   LedgerRtsRetriever,
@@ -106,6 +107,18 @@ async function main() {
     ? await (async (url: string) => { const t = new PostgresTenantConfigStore({ connectionString: url }); await t.init(); return t; })(cfg.databaseUrl)
     : new InMemoryTenantConfigStore();
   const proofCollectorFor = makeProofCollectorProvider(tenantConfig, cfg);
+
+  // "Pilot" free-tier metering: monthly LLM-classification counter per workspace + the cap resolver
+  // (a per-tenant plan override wins; else the env default KEPT_PILOT_LLM_LIMIT). Caps AI spend.
+  const usage: UsageStore = cfg.databaseUrl
+    ? await (async (url: string) => { const u = new PostgresUsageStore({ connectionString: url }); await u.init(); return u; })(cfg.databaseUrl)
+    : new InMemoryUsageStore();
+  const pilotLimitFor = async (teamId: string): Promise<number> => {
+    const plan = await tenantConfig.get(teamId, "plan");
+    if (plan && plan.llmLimit === null) return Number.POSITIVE_INFINITY; // paid workspace → unlimited
+    if (plan && typeof plan.llmLimit === "number") return plan.llmLimit;
+    return cfg.pilotLlmLimit;
+  };
 
   const fallbackOwner = process.env.KEPT_DEFAULT_OWNER ?? "U_ACCOUNT_MANAGER";
 
@@ -203,7 +216,8 @@ async function main() {
       // Invariant #4 — the uninstall purge must also delete the workspace's stored proof-source
       // SECRETS (LaunchDarkly/Jira/GitHub tokens), not just its ledger.
       const tenantConfigRows = await tenantConfig.purgeTeam(teamId);
-      console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify({ ...summary, tenantConfig: tenantConfigRows })}`);
+      const usageRows = await usage.purgeTeam(teamId);
+      console.log(`[kept] purged tenant ${teamId}: ${JSON.stringify({ ...summary, tenantConfig: tenantConfigRows, usage: usageRows })}`);
     },
     // Per-tenant Connections config — the App Home "Connections" UI reads/writes it (scoped by team).
     tenantConfig,
@@ -242,7 +256,7 @@ async function main() {
         retrievers.push(new SlackRtsRetriever({ clientFor: (token) => new WebClient(token) as unknown as SlackSearchClient }));
       }
       const rts = retrievers.length === 1 ? retrievers[0] : new CompositeRtsRetriever(retrievers);
-      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks, proofCollectorFor });
+      return new KeptOrchestrator({ service, llm, workItems, rts, notifier, scheduler, fallbackOwner, roadmapSource, trustLinks, proofCollectorFor, usage, pilotLimitFor });
     },
   });
   orchHolder.orch = orch;

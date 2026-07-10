@@ -28,6 +28,8 @@ export interface KeptConfig {
   /** Public HTTPS origin the deployed app is reachable at (for docs/manifest wiring). */
   publicUrl: string | undefined;
   riskWindowMs: number;
+  /** "Pilot" free-tier cap: max LLM classifications per workspace per month (per-tenant override wins). */
+  pilotLlmLimit: number;
   /**
    * W4 — Proof-of-Done sources. Each is REAL when its credentials are present, else the
    * proof-collector routes to the in-process simulated MCP proof server (so the offline
@@ -74,6 +76,7 @@ export function loadConfig(): KeptConfig {
     },
     publicUrl: process.env.KEPT_PUBLIC_URL,
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
+    pilotLlmLimit: Number(process.env.KEPT_PILOT_LLM_LIMIT ?? 500),
     proof: {
       launchDarkly: {
         // MCP-preferred: LAUNCHDARKLY_MCP_TOKEN is a LaunchDarkly API access token used as the
