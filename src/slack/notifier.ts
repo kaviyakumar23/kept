@@ -22,6 +22,12 @@ export interface SentMessage {
  */
 export interface Notifier {
   sendPrivate(userId: string, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<SentMessage>;
+  /**
+   * Owner-only ephemeral, in a channel the owner is in — the audience-safe fallback for the
+   * internal card when a real DM can't be opened (token lacks mpim:write). Visible ONLY to
+   * `userId`; never seen by the rest of the channel.
+   */
+  postEphemeral(channel: string, userId: string, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<SentMessage>;
   postInThread(msg: { channel: string; threadTs: string; text: string }, team?: string): Promise<SentMessage>;
   update(ref: SentMessage, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<void>;
 }
@@ -43,6 +49,11 @@ export class RecordingNotifier implements Notifier {
   async sendPrivate(userId: string, msg: { text: string; blocks?: SlackBlock[] }): Promise<SentMessage> {
     this.calls.push({ kind: "private", to: userId, text: msg.text, blocks: msg.blocks });
     return { ref: `priv_${this.seq++}`, channel: userId };
+  }
+  async postEphemeral(channel: string, userId: string, msg: { text: string; blocks?: SlackBlock[] }): Promise<SentMessage> {
+    // Owner-only ephemeral — recorded as private (never customer-facing text).
+    this.calls.push({ kind: "private", to: userId, channel, text: msg.text, blocks: msg.blocks });
+    return { ref: `ephem_${this.seq++}`, channel };
   }
   async postInThread(msg: { channel: string; threadTs: string; text: string }): Promise<SentMessage> {
     this.calls.push({ kind: "thread", channel: msg.channel, threadTs: msg.threadTs, text: msg.text });

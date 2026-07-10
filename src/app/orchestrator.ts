@@ -198,10 +198,20 @@ export class KeptOrchestrator {
     const warning = roadmap.length ? checkRoadmapConflict(result.obligation, roadmap) : null;
 
     const owner = this.owner(result.obligation, rts);
-    const sent = await this.d.notifier.sendPrivate(owner, {
+    const card = {
       text: `New obligation: ${result.obligation.customer} — ${result.obligation.outcome}`,
       blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined),
-    }, result.obligation.team);
+    };
+    let sent;
+    try {
+      sent = await this.d.notifier.sendPrivate(owner, card, result.obligation.team);
+    } catch {
+      // A real DM couldn't be opened (e.g. the installed token lacks mpim:write, so
+      // conversations.open throws). Fall back to an ephemeral card visible ONLY to the owner in the
+      // origin channel — audience-safe (no one else sees it) and needs only chat:write — so the
+      // Gate-1 confirm still reaches them. The owner defaults to the sender, who is in-channel.
+      sent = await this.d.notifier.postEphemeral(msg.channel, owner, card, result.obligation.team);
+    }
     return { kind: "confirm_card_sent", obligationId: result.obligation.id, owner, sent };
   }
 

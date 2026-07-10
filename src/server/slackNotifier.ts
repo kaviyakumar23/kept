@@ -5,6 +5,7 @@ import type { SlackBlock } from "../slack/blocks.js";
 export interface SlackClientLike {
   chat: {
     postMessage(args: { channel: string; text: string; blocks?: unknown; thread_ts?: string }): Promise<{ ts?: string; channel?: string }>;
+    postEphemeral(args: { channel: string; user: string; text: string; blocks?: unknown }): Promise<{ message_ts?: string }>;
     update(args: { channel: string; ts: string; text: string; blocks?: unknown }): Promise<unknown>;
   };
   conversations: {
@@ -38,20 +39,22 @@ export class SlackNotifier implements Notifier {
 
   async sendPrivate(userId: string, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<SentMessage> {
     const client = await this.resolve(team);
-    // Resolve the owner's DM channel. Canonical path is conversations.open, but under Slack's
-    // granular scopes conversations.open({users}) requires mpim:write; if that scope isn't granted
-    // it throws missing_scope. Fall back to posting straight to the user id — Slack resolves it to
-    // the 1:1 DM using only chat:write + im:write — so the owner confirm still lands without a
-    // mpim:write grant (no reinstall needed).
-    let channel = userId;
-    try {
-      const opened = await client.conversations.open({ users: userId });
-      channel = opened.channel?.id ?? userId;
-    } catch {
-      channel = userId;
-    }
+    const opened = await client.conversations.open({ users: userId });
+    const channel = opened.channel?.id ?? userId;
     const res = await client.chat.postMessage({ channel, text: msg.text, blocks: msg.blocks });
     return { ref: `${channel}:${res.ts ?? ""}`, channel, ts: res.ts };
+  }
+
+  /**
+   * Ephemeral fallback for the internal owner card when a real DM can't be opened (e.g. the token
+   * lacks mpim:write, so conversations.open throws). Posts the card visible ONLY to `userId` in a
+   * channel they're in — audience-safe (no one else sees it) and needs only chat:write. Not
+   * updatable in place, so used strictly as a delivery fallback.
+   */
+  async postEphemeral(channel: string, userId: string, msg: { text: string; blocks?: SlackBlock[] }, team?: string): Promise<SentMessage> {
+    const client = await this.resolve(team);
+    const res = await client.chat.postEphemeral({ channel, user: userId, text: msg.text, blocks: msg.blocks });
+    return { ref: `${channel}:${res.message_ts ?? ""}`, channel, ts: res.message_ts };
   }
 
   async postInThread(msg: { channel: string; threadTs: string; text: string }, team?: string): Promise<SentMessage> {
