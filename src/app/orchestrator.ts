@@ -197,7 +197,12 @@ export class KeptOrchestrator {
     const roadmap = this.d.roadmapSource ? await this.d.roadmapSource.list(result.obligation.team) : (this.d.roadmap ?? []);
     const warning = roadmap.length ? checkRoadmapConflict(result.obligation, roadmap) : null;
 
-    const owner = this.owner(result.obligation, rts);
+    // The confirm must target a REAL Slack user in the origin channel. A resolved owner can be a
+    // placeholder ("U_ACCOUNT_MANAGER" — the underscore fails Slack's user-id regex) or an
+    // LLM-proposed name; both are rejected by conversations.open / chat.postEphemeral. Fall back to
+    // the message SENDER, who made the promise and is guaranteed a valid in-channel user.
+    const resolved = this.owner(result.obligation, rts);
+    const owner = /^[UW][A-Z0-9]{2,}$/.test(resolved) ? resolved : msg.userId;
     const card = {
       text: `New obligation: ${result.obligation.customer} — ${result.obligation.outcome}`,
       blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined),
