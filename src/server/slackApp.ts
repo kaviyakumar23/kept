@@ -65,6 +65,8 @@ export interface SlackAppDeps {
   llm: LlmProvider;
   /** Per-tenant integration config — the App Home "Connections" surface reads/writes it, scoped by team. */
   tenantConfig?: TenantConfigStore;
+  /** Judge-demo tenant (team id): App Home shows the Demo Controls panel for this workspace only. */
+  demoTeam?: string;
   /**
    * W2 (invariant #4) — full per-tenant data deletion on uninstall. Invoked by the
    * `app_uninstalled` / bot-token-revoked handler AFTER `deleteInstallation`, to purge

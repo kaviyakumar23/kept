@@ -221,6 +221,7 @@ async function main() {
     },
     // Per-tenant Connections config — the App Home "Connections" UI reads/writes it (scoped by team).
     tenantConfig,
+    demoTeam: cfg.demoTeam,
     makeOrchestrator: (notifier) => {
       notifierRef.n = notifier;
       // Ledger-backed RTS (prior commitments + owner) is the ALWAYS-ON fallback — a real,

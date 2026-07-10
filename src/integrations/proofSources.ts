@@ -8,6 +8,7 @@ import { JiraProofAdapter } from "./jira.js";
 import { ProofCollector, type ProofTarget } from "./proofCollector.js";
 import { createHash } from "node:crypto";
 import type { TenantConfigStore } from "../store/tenantConfigStore.js";
+import { getDemoCollector } from "../demo/demoRuntime.js";
 
 /**
  * W4 — production wiring for the Proof-of-Done sources.
@@ -177,6 +178,10 @@ export function makeProofCollectorProvider(
 ): (teamId: string) => Promise<ProofCollector | null> {
   const cache = new Map<string, { hash: string; collector: ProofCollector | null }>();
   return async (teamId: string): Promise<ProofCollector | null> => {
+    // Judge-demo tenant reads the CONTROLLABLE demo proof source (Demo Controls own its state),
+    // never live integrations — so the judge can toggle the flag and the demo can't die on a
+    // lapsed trial. All other tenants resolve their own Connections config below.
+    if (cfg.demoTeam && teamId === cfg.demoTeam) return getDemoCollector(opts.now ?? (() => Date.now()));
     const resolved = await resolveTenantProof(store, teamId, cfg);
     const hash = createHash("sha256").update(JSON.stringify(resolved)).digest("hex");
     const hit = cache.get(teamId);
