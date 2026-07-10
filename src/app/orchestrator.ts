@@ -172,7 +172,11 @@ export class KeptOrchestrator {
     const result = await this.d.service.detectRequest({
       ...proposal.detectInput,
       team: msg.team,
-      owner: proposal.detectInput.owner ?? rts.suggestedOwner,
+      // Default the owner to the message SENDER (a real, valid user in this workspace) when the
+      // proposer/RTS don't name one — never a placeholder. The Gate-1 confirm is a DM to the
+      // owner, so an unresolvable owner (e.g. the old U_ACCOUNT_MANAGER default) makes
+      // conversations.open fail and the card never lands. Every fresh install hits this.
+      owner: proposal.detectInput.owner ?? rts.suggestedOwner ?? msg.userId,
       slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
     });
 
