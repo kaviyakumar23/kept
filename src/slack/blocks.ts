@@ -33,6 +33,12 @@ export const ACTIONS = {
   connect: "kept_connect",
   disconnect: "kept_disconnect",
   addMapping: "kept_add_mapping",
+  // App Home "🎬 Demo Controls" (demo workspace only) — the in-flight demo obligation id rides
+  // in the action_id suffix + `value`, exactly like the per-obligation gate buttons.
+  demoShip: "kept_demo_ship",
+  demoToggle: "kept_demo_toggle",
+  demoFail: "kept_demo_fail",
+  demoReset: "kept_demo_reset",
 } as const;
 
 /** Modal callback ids + input block/action ids (read back on view_submission). */
@@ -305,12 +311,54 @@ function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
   return blocks;
 }
 
+/**
+ * The judge-operable "🎬 Demo Controls" panel — rendered ONLY on the demo workspace's App Home
+ * (invariant #4 — the Slack layer passes `demo` only when the acting team === deps.demoTeam).
+ * It shows the live demo state (the in-flight promise + the controllable production flag) and the
+ * four buttons that drive the whole hero loop from Slack. Mirrors `connectionsBlocks`.
+ */
+export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolean): SlackBlock[] {
+  const id = obligation?.id ?? "";
+  const promise = obligation
+    ? `*${escapeMrkdwn(obligation.customer)}* — ${escapeMrkdwn(obligation.outcome)}  ·  _${obligation.state}_`
+    : "_none yet — click ↺ Reset demo to seed a fresh one_";
+  return [
+    divider,
+    header("🎬 Demo Controls"),
+    context("Judge-operable hero flow. Drive the whole loop from these buttons — the engine will personally block you until the production flag is ON."),
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Demo promise:* ${promise}` },
+        { type: "mrkdwn", text: `*Production feature flag:* ${flagOn ? "ON ✅" : "OFF ⛔"}` },
+      ],
+    },
+    context("Start here → 1) *Mark work shipped* (you'll be DM'd the evidence packet, flag OFF ⛔). 2) *Verify it's available* on that packet → the engine refuses. 3) *Toggle production flag* ON → *Verify* again → it passes → *Approve & send* the sanitized closure."),
+    {
+      type: "actions",
+      elements: [
+        button("Mark work shipped", ACTIONS.demoShip, id, "primary"),
+        button(flagOn ? "Toggle production flag (ON→OFF)" : "Toggle production flag (OFF→ON)", ACTIONS.demoToggle, id),
+        button("Customer replies: still fails", ACTIONS.demoFail, id),
+        button("↺ Reset demo", ACTIONS.demoReset, id, "danger"),
+      ],
+    },
+  ];
+}
+
 /** The App Home tab — every customer's request-and-commitment ledger, with drill-in. */
-export function appHomeView(obligations: Obligation[], now: number = Date.now(), configured?: IntegrationProvider[]): SlackView {
+export function appHomeView(
+  obligations: Obligation[],
+  now: number = Date.now(),
+  configured?: IntegrationProvider[],
+  demo?: { obligation: Obligation | null; flagOn: boolean },
+): SlackView {
   const blocks: SlackBlock[] = [
     header("Kept · the obligation ledger"),
     context("Everything your team committed to — and everything customers asked for."),
   ];
+  // Demo workspace only — the judge-operable panel goes at the top so it's the first thing seen.
+  if (demo) blocks.push(...demoControlsBlocks(demo.obligation, demo.flagOn));
   if (obligations.length === 0) {
     blocks.push(section("_No obligations yet. Kept will surface them as they're made._"));
     blocks.push(...connectionsBlocks(configured));

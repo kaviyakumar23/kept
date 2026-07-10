@@ -81,6 +81,15 @@ export class ObligationService {
     return out;
   }
 
+  /**
+   * Irreversibly delete ALL data for one tenant (event log + derived rows) — the store's
+   * team-scoped purge. Used on uninstall and by the judge "↺ Reset demo" control (scoped to
+   * the demo team). Strictly team-scoped: purging team A leaves team B untouched.
+   */
+  async purgeTeam(teamId: string): Promise<void> {
+    await this.store.purgeTeam(teamId);
+  }
+
   /** Detect a customer request / commitment, with entity-graph dedupe (C4/C6). */
   async detectRequest(input: DetectInput): Promise<DetectResult> {
     const now = input.now ?? this.clock();

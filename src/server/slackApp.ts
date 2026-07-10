@@ -8,6 +8,7 @@ import { SlackNotifier, type ClientForTeam } from "./slackNotifier.js";
 import type { SlackClientLike } from "./slackNotifier.js";
 import { buildKeptAssistant } from "./assistant.js";
 import type { TenantConfigStore } from "../store/tenantConfigStore.js";
+import { demoFlagOn, setDemoFlag, resetDemoProof } from "../demo/demoRuntime.js";
 import {
   ACTIONS,
   CALLBACKS,
@@ -67,6 +68,8 @@ export interface SlackAppDeps {
   tenantConfig?: TenantConfigStore;
   /** Judge-demo tenant (team id): App Home shows the Demo Controls panel for this workspace only. */
   demoTeam?: string;
+  /** Optional channel (id) where the demo's seeded promise + sanitized closure live. Unset → the loop runs DM-only. */
+  demoChannel?: string;
   /**
    * W2 (invariant #4) — full per-tenant data deletion on uninstall. Invoked by the
    * `app_uninstalled` / bot-token-revoked handler AFTER `deleteInstallation`, to purge
@@ -152,16 +155,43 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   });
 
   const obligationOf = (action: any): string => parseActionId(action.action_id).obligationId;
+  const isDemoTeam = (teamId: string): boolean => Boolean(deps.demoTeam) && teamId === deps.demoTeam;
+  /** The single in-flight (non-terminal) demo obligation, if any — the one the panel/buttons act on. */
+  const activeDemoObligation = (obligations: any[]): any =>
+    obligations.find((o) => !["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state)) ?? null;
   const republishHome = async (client: any, userId: string, teamId: string) => {
     try {
       // W1 (invariant #4) — App Home shows ONLY the acting workspace's obligations AND its own
       // configured connections; both reads are scoped to `teamId`. Undefined store (single-token /
       // dev path) → no Connections section is rendered.
       const configured = deps.tenantConfig ? await deps.tenantConfig.listConfigured(teamId) : undefined;
-      await client.views.publish({ user_id: userId, view: appHomeView(await orch.allObligations(teamId), undefined, configured) });
+      const obligations = await orch.allObligations(teamId);
+      // Demo workspace only — surface the judge-operable panel + live flag state.
+      const demo = isDemoTeam(teamId) ? { obligation: activeDemoObligation(obligations), flagOn: demoFlagOn() } : undefined;
+      await client.views.publish({ user_id: userId, view: appHomeView(obligations, undefined, configured, demo) });
     } catch {
       /* App Home publish is best-effort */
     }
+  };
+  /**
+   * Seed a fresh OPEN demo promise (owned by the acting judge) when the demo workspace has none
+   * in flight. When a demo channel is configured we anchor it with a message there so the sanitized
+   * closure can post into that thread; if the bot can't post (not a member / bad id) we fall back to
+   * a DM-only loop. Gated to the demo team by its only callers.
+   */
+  const ensureDemoSeed = async (client: any, userId: string, teamId: string): Promise<void> => {
+    if (activeDemoObligation(await orch.allObligations(teamId))) return;
+    let channel: string | undefined = deps.demoChannel;
+    let threadTs: string | undefined;
+    if (channel) {
+      try {
+        const res = await client.chat.postMessage({ channel, text: ':handshake: *Kept demo* — the team just committed: "We\'ll ship the SSO fix for Acme by Friday." (customer: Acme)' });
+        threadTs = res?.ts;
+      } catch {
+        channel = undefined; // bot isn't in the channel / bad id → run the loop DM-only
+      }
+    }
+    await orch.seedDemo(teamId, userId, channel, threadTs);
   };
   /** Best-effort private notice to the acting user when an action fails after ack(). */
   const dmUser = async (client: any, userId: string, text: string) => {
@@ -240,7 +270,10 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   // App Home — the live obligation-ledger dashboard + Connections (scoped to the opener's workspace).
   app.event("app_home_opened", async ({ event, body, client }: any) => {
     if (event.tab && event.tab !== "home") return;
-    await republishHome(client, event.user, body.team_id);
+    const teamId = body.team_id;
+    // Demo workspace — make sure the judge always lands on a fresh OPEN demo promise + Demo Controls.
+    if (isDemoTeam(teamId)) await ensureDemoSeed(client, event.user, teamId).catch(() => undefined);
+    await republishHome(client, event.user, teamId);
   });
 
   // --- gate actions (each enforces acting team == obligation team) ---
@@ -369,6 +402,53 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     if (!team) return;
     const config = (await deps.tenantConfig.get(team, "proof_targets")) ?? {};
     await client.views.open({ trigger_id: body.trigger_id, view: addMappingModal(config) });
+  });
+
+  // --- 🎬 Demo Controls (App Home) — judge-operable hero flow, DEMO WORKSPACE ONLY ---
+  // Every handler is team-scoped (resolveTeam) AND gated to `deps.demoTeam` (invariant #4): the
+  // controls do nothing for any other workspace. None posts to the customer (invariant #3) — the
+  // engine assembles proof and the judge (as owner) still signs each gate; "still fails" reopens.
+  app.action(new RegExp(`^${ACTIONS.demoShip}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    const team = await resolveTeam(client, body);
+    if (!team || !isDemoTeam(team)) return;
+    try {
+      await orch.markDemoShipped(team, obligationOf(action));
+      await republishHome(client, body.user.id, team);
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
+  });
+  app.action(new RegExp(`^${ACTIONS.demoToggle}:`), async ({ ack, body, client }: any) => {
+    await ack();
+    const team = await resolveTeam(client, body);
+    if (!team || !isDemoTeam(team)) return;
+    // Flip the controllable production flag the demo tenant's proof collector reads. No live
+    // integration is touched — this is exactly what verify()/recordFulfillmentSignal re-read.
+    setDemoFlag(!demoFlagOn());
+    await republishHome(client, body.user.id, team);
+  });
+  app.action(new RegExp(`^${ACTIONS.demoFail}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    const team = await resolveTeam(client, body);
+    if (!team || !isDemoTeam(team)) return;
+    try {
+      const o = await orch.obligation(obligationOf(action), team); // tenant-scoped (throws on cross-tenant)
+      if (o) await orch.reopen(o.id, "customer reports it still fails"); // engine-only; never messages the customer
+      await republishHome(client, body.user.id, team);
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
+  });
+  app.action(new RegExp(`^${ACTIONS.demoReset}:`), async ({ ack, body, client }: any) => {
+    await ack();
+    const team = await resolveTeam(client, body);
+    if (!team || !isDemoTeam(team)) return;
+    // Wipe the demo tenant's ledger (team-scoped), reset the flag OFF, and re-seed a fresh promise.
+    await orch.resetDemo(team);
+    resetDemoProof();
+    await ensureDemoSeed(client, body.user.id, team);
+    await republishHome(client, body.user.id, team);
   });
 
   // --- modal submissions ---

@@ -22,6 +22,7 @@ import type { RtsRetriever } from "../slack/rts.js";
 import { EMPTY_RTS, type RtsContext } from "../slack/rts.js";
 import type { Notifier, SentMessage } from "../slack/notifier.js";
 import { confirmCard, possibleFulfillmentCard, closureDraftCard } from "../slack/blocks.js";
+import { ticketDone, prMerged, prodDeploy } from "../eval/scenarios.js";
 
 export interface OrchestratorDeps {
   service: ObligationService;
@@ -535,6 +536,72 @@ export class KeptOrchestrator {
       return this.recordCustomerConfirmation(o.id);
     }
     return o;
+  }
+
+  // --- Demo Controls (judge-operable hero flow) ----------------------------
+  // These drive the SAME orchestrator methods a real event would; they exist so a judge in
+  // the designated demo workspace can run the whole loop from Slack buttons. Every one is
+  // team-scoped (invariant #4) — the Slack layer only ever calls them for `deps.demoTeam`,
+  // and none of them ever posts to the customer (invariant #3): "still fails" reopens via the
+  // engine, and the closure still requires the judge's explicit Approve & send.
+
+  /**
+   * Seed + confirm a fresh OPEN demo promise ("Ship the SSO fix for Acme"), OWNED BY the
+   * acting judge so the evidence-packet / Verify / closure DMs all come to them. Deterministic
+   * (no LLM): detect → Gate-1 confirm → one linked work item. When `channel`+`threadTs` are given
+   * the closure will post into that demo-channel thread; otherwise the loop completes DM-only.
+   */
+  async seedDemo(team: string, ownerUserId: string, channel?: string, threadTs?: string): Promise<Obligation | null> {
+    const now = this.now();
+    const at = new Date(now).toISOString();
+    // Upcoming Friday (≥1 day out) so the promise reads "by Friday" and isn't already overdue.
+    const day = new Date(now).getUTCDay();
+    const due = new Date(now + ((((5 - day) + 7) % 7) || 7) * 86_400_000).toISOString().slice(0, 10);
+    const detected = await this.d.service.detectRequest({
+      team,
+      direction: "TEAM_OWES_CUSTOMER",
+      signal: "CONFIRMED_COMMITMENT",
+      customer: "Acme",
+      subject_canonical: "SSO_LOGIN_BUG",
+      outcome: "Ship the SSO fix for Acme",
+      due,
+      owner: ownerUserId,
+      conditions: [],
+      slack: channel && threadTs ? { channel, thread_ts: threadTs } : undefined,
+      actor: userActor(ownerUserId),
+      source: { system: "slack", ref: null, accessible_to_user: true },
+      idempotencyKey: `demo-seed:${team}:${now}`,
+      at,
+      now,
+    });
+    if (detected.status === "deduped") return detected.obligation;
+    if (detected.status !== "created") return null;
+    const { obligation } = await this.confirmCommitment(detected.obligation.id, ownerUserId, undefined, team);
+    return obligation;
+  }
+
+  /**
+   * "Mark work shipped": record Jira Done + PR merged + prod deploy as fulfillment signals for
+   * the demo obligation (reusing the eval evidence builders). This drives it to
+   * POSSIBLE_FULFILLMENT and — because the demo tenant's proof collector reads the controllable
+   * flag, which starts OFF — assembles a BLOCKED evidence packet DM'd to the owner. The judge is
+   * the owner, so the existing Verify button on that packet routes to them and refuses (flag OFF).
+   */
+  async markDemoShipped(team: string, obligationId: ObligationId): Promise<Obligation | null> {
+    const o = await this.obligation(obligationId, team); // tenant-scoped read (throws on cross-tenant)
+    if (!o?.work_item) return null;
+    const ref = o.work_item.ref;
+    const refs: ResolutionCandidate["refs"] =
+      o.work_item.system === "jira" ? { jira: ref } : { linear: ref };
+    await this.recordFulfillmentSignal({ teamId: team, refs, evidence: ticketDone(`demo-ticket:${obligationId}`, ref), idempotencyKey: `demo:${obligationId}:ticket` });
+    await this.recordFulfillmentSignal({ teamId: team, refs, evidence: prMerged(`demo-pr:${obligationId}`, `pr:${obligationId}`), idempotencyKey: `demo:${obligationId}:pr` });
+    const last = await this.recordFulfillmentSignal({ teamId: team, refs, evidence: prodDeploy(`demo-deploy:${obligationId}`, `release:${obligationId}`), idempotencyKey: `demo:${obligationId}:deploy` });
+    return last.kind === "recorded" ? last.obligation : this.obligation(obligationId, team);
+  }
+
+  /** "↺ Reset demo": irreversibly wipe the demo tenant's ledger (team-scoped) so a fresh promise can be seeded. */
+  async resetDemo(team: string): Promise<void> {
+    await this.d.service.purgeTeam(team);
   }
 
   // --- read surfaces (ledger / audit / home / modals) ----------------------

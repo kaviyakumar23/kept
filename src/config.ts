@@ -32,6 +32,8 @@ export interface KeptConfig {
   pilotLlmLimit: number;
   /** Judge-demo tenant (team id): reads proof from the CONTROLLABLE demo source + shows Demo Controls. */
   demoTeam: string | undefined;
+  /** Optional channel (id) where the demo's seeded promise + sanitized closure live. Unset → cards go to the judge's DM/App Home. */
+  demoChannel: string | undefined;
   /**
    * W4 — Proof-of-Done sources. Each is REAL when its credentials are present, else the
    * proof-collector routes to the in-process simulated MCP proof server (so the offline
@@ -80,6 +82,7 @@ export function loadConfig(): KeptConfig {
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
     pilotLlmLimit: Number(process.env.KEPT_PILOT_LLM_LIMIT ?? 500),
     demoTeam: process.env.KEPT_DEMO_TEAM,
+    demoChannel: process.env.KEPT_DEMO_CHANNEL,
     proof: {
       launchDarkly: {
         // MCP-preferred: LAUNCHDARKLY_MCP_TOKEN is a LaunchDarkly API access token used as the
