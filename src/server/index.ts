@@ -1,4 +1,4 @@
-import { loadConfig, isOAuthMode, SLACK_BOT_SCOPES } from "../config.js";
+import { loadConfig, isOAuthMode, assertProductionOAuth, SLACK_BOT_SCOPES } from "../config.js";
 import { InMemoryEventStore } from "../store/memoryStore.js";
 import { PostgresEventStore } from "../store/postgresStore.js";
 import type { EventStore } from "../store/eventStore.js";
@@ -48,6 +48,9 @@ async function main() {
   if (!oauth && !cfg.slack.botToken) {
     throw new Error("SLACK_BOT_TOKEN is required (or set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET / SLACK_STATE_SECRET for OAuth HTTP mode)");
   }
+  // Invariant #6 / OAuth posture — fail closed if a production process would boot the
+  // single-workspace token path (the deployed app must authorize via per-workspace OAuth).
+  assertProductionOAuth(cfg);
 
   const store: EventStore = cfg.databaseUrl
     ? await (async () => {

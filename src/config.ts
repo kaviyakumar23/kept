@@ -109,6 +109,20 @@ export function isOAuthMode(cfg: KeptConfig): boolean {
 }
 
 /**
+ * Invariant #6 / OAuth posture — the DEPLOYED app MUST authorize via per-workspace OAuth; the
+ * single-token / Socket Mode path is a LOCAL-DEV convenience only. Throws if a production process
+ * would boot without OAuth (e.g. a stray SLACK_BOT_TOKEN and no OAuth trio), so a hard-coded
+ * single-workspace token can never silently run in production. Fails closed. Call at boot.
+ */
+export function assertProductionOAuth(cfg: KeptConfig, nodeEnv: string | undefined = process.env.NODE_ENV): void {
+  if (!isOAuthMode(cfg) && nodeEnv === "production") {
+    throw new Error(
+      "Production requires OAuth: set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET / SLACK_STATE_SECRET. The single-workspace SLACK_BOT_TOKEN path is for local development only.",
+    );
+  }
+}
+
+/**
  * The minimal bot scopes Kept requests at install (must match slack-manifest.yaml).
  * Marketplace constraint (invariant #6): granular scopes only — no blanket
  * `search:read` / `read` / `post` / `client`.
