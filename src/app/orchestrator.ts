@@ -345,13 +345,17 @@ export class KeptOrchestrator {
     let verifyCardSent = false;
     if (updated.state === "POSSIBLE_FULFILLMENT") {
       const assessment = assessFulfillment(updated.evidence);
-      if (assessment.sufficientForVerification) {
-        await this.d.notifier.sendPrivate(this.owner(updated, EMPTY_RTS), {
-          text: `Possible fulfillment — verify ${updated.customer} / ${updated.outcome}?`,
-          blocks: possibleFulfillmentCard(updated, assessment),
-        }, updated.team);
-        verifyCardSent = true;
-      }
+      // Surface the Evidence Packet as soon as we're in POSSIBLE_FULFILLMENT — whether the verdict
+      // is "available" (Gate 2 may proceed) or "blocked" (e.g. a production flag still OFF). The
+      // owner must SEE the blocked packet; the card renders the verdict, and the engine still guards
+      // the Verify click (INSUFFICIENT_EVIDENCE) so a blocked packet can never be verified.
+      await this.d.notifier.sendPrivate(this.owner(updated, EMPTY_RTS), {
+        text: assessment.sufficientForVerification
+          ? `Possible fulfillment — verify ${updated.customer} / ${updated.outcome}?`
+          : `Proof-of-Done blocked — ${updated.customer} / ${updated.outcome} not verifiably available`,
+        blocks: possibleFulfillmentCard(updated, assessment),
+      }, updated.team);
+      verifyCardSent = assessment.sufficientForVerification;
     }
     return { kind: "recorded", obligation: updated, verifyCardSent };
   }

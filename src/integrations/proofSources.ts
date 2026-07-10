@@ -137,7 +137,10 @@ async function build(cfg: KeptConfig, opts: { now?: () => number }): Promise<Bui
       const t: ProofTarget = {};
       const wi = o.work_item;
       if (wi && wi.system === "jira" && jiraLive) t.work = { system: "jira", key: wi.ref };
-      const mapped = targets[o.subject_canonical];
+      // Resolve a per-subject target, falling back to a per-customer entry and then a "*" catch-all.
+      // The subject_canonical is LLM-generated (non-deterministic), so customer/"*" keys let a
+      // configured proof target survive re-created obligations without knowing the exact subject.
+      const mapped = targets[o.subject_canonical] ?? targets[o.customer] ?? targets["*"];
       if (mapped?.flag) t.flag = mapped.flag;
       if (mapped?.ci) t.ci = mapped.ci;
       return Object.keys(t).length > 0 ? t : null;

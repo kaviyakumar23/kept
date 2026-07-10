@@ -13,6 +13,7 @@ primary_region = "sin"   # Singapore — bom (Mumbai) lacked volume capacity; si
 [env]
   PORT = "8080"
   NODE_ENV = "production"
+  KEPT_PROOF_TARGETS_FILE = "/app/proof-targets.json"
 
 [http_service]
   internal_port = 8080

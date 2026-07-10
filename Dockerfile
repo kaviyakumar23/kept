@@ -22,6 +22,7 @@ COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 COPY src ./src
 COPY slack-manifest.yaml ./
+COPY proof-targets.json ./
 
 EXPOSE 8080
 # Everything (Slack events + OAuth install + webhooks + /healthz) is served on PORT.
