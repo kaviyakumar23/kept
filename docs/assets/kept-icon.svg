@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Kept">
-  <rect width="512" height="512" rx="114" fill="#2563EB"/>
-  <path d="M150 262 L225 337 L372 176" fill="none" stroke="#FFFFFF" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 24 24" role="img" aria-label="Kept">
+  <rect width="24" height="24" rx="7" fill="#2563EB"/>
+  <circle cx="6" cy="6.5" r="1.7" fill="#fff"/>
+  <circle cx="6" cy="12" r="1.7" fill="#fff"/>
+  <circle cx="6" cy="17.5" r="1.7" fill="#fff"/>
+  <path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
+  <circle cx="17.2" cy="12" r="2.7" fill="#fff"/>
 </svg>
