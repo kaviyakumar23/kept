@@ -123,7 +123,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     // Fail CLOSED on an unattributable delivery: a message with no team can't be scoped
     // to a tenant, so we drop it rather than mint a synthetic ledger (invariant #4).
     if (message.subtype || !message.text || !message.team) return; // ignore edits/bot/system/team-less
-    await orch.ingestMessage({
+    const r = await orch.ingestMessage({
       team: message.team,
       channel: message.channel,
       threadTs: message.thread_ts ?? message.ts,
@@ -133,6 +133,14 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       actionToken: message.action_token ?? context?.actionToken,
       text: message.text,
     });
+    // Operational visibility (zero-copy: OUTCOME only, never the message text) — makes a
+    // missing card diagnosable: card sent (+owner) / deduped / skipped (+why).
+    const detail =
+      r.kind === "skipped" ? `signal=${r.signal}`
+      : r.kind === "confirm_card_sent" ? `owner=${r.owner} obligation=${r.obligationId}`
+      : r.kind === "deduped" ? `obligation=${r.obligationId}`
+      : "";
+    console.log(`[kept] ingest team=${message.team} channel=${message.channel} -> ${r.kind} ${detail}`.trimEnd());
   });
 
   const obligationOf = (action: any): string => parseActionId(action.action_id).obligationId;
