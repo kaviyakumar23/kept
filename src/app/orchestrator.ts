@@ -69,6 +69,7 @@ export interface SlackMessage {
 export type IngestResult =
   | { kind: "confirm_card_sent"; obligationId: ObligationId; owner: string; sent: SentMessage }
   | { kind: "deduped"; obligationId: ObligationId }
+  | { kind: "customer_reply"; obligationId: ObligationId; state: string }
   | { kind: "skipped"; signal: string };
 
 export type NotifyResult =
@@ -143,6 +144,11 @@ export class KeptOrchestrator {
     // Defense-in-depth (invariant #4): an unattributable delivery has no tenant to scope
     // to, so it is dropped — never collapsed into a synthetic/placeholder ledger.
     if (!msg.team) return { kind: "skipped", signal: "no_team" };
+    // A reply in an existing obligation's thread is a customer RESPONSE (a success phrase confirms
+    // → CLOSED; a "still fails" phrase reopens), not a new commitment — handle it (team-scoped, no
+    // LLM call) and return before new-commitment detection.
+    const reply = await this.tryCustomerReply(msg);
+    if (reply) return { kind: "customer_reply", obligationId: reply.id, state: reply.state };
     const at = new Date(this.now()).toISOString();
     const proposal = await proposeFromMessage(
       this.d.llm,
@@ -220,6 +226,34 @@ export class KeptOrchestrator {
       sent = await this.d.notifier.postEphemeral(msg.channel, owner, card, result.obligation.team);
     }
     return { kind: "confirm_card_sent", obligationId: result.obligation.id, owner, sent };
+  }
+
+  /**
+   * A thread reply on an existing CUSTOMER_NOTIFIED / CLOSED obligation is a customer RESPONSE, not
+   * a new commitment. Matched by THREAD and scoped to the sender's team (invariant #4 — a customer
+   * in one workspace can never close/reopen another workspace's obligation), so it needs no LLM
+   * call. A success phrase → recordCustomerConfirmation (→ CLOSED); a "still fails" phrase → reopen.
+   * NEVER posts a customer-facing message (invariant #3 — no auto-notify); it only changes state.
+   * Returns the updated obligation, or null when this isn't a confirm/deny on a tracked thread (so
+   * normal new-commitment detection then runs).
+   */
+  private async tryCustomerReply(msg: SlackMessage): Promise<Obligation | null> {
+    if (!msg.threadTs || msg.threadTs === msg.ts) return null; // only thread REPLIES, not the root message
+    const all = await this.d.service.listObligations(msg.team, this.now()); // W1 — same-tenant only
+    const o = all.find(
+      (x) =>
+        x.entity_refs?.slack?.thread_ts === msg.threadTs &&
+        x.entity_refs?.slack?.channel === msg.channel &&
+        (x.state === "CUSTOMER_NOTIFIED" || x.state === "CLOSED"),
+    );
+    if (!o) return null;
+    if (/\b(still|again)\b.*(fail|broke|broken|not working|does ?n'?t work)/i.test(msg.text)) {
+      return this.reopen(o.id, "customer reports it still fails");
+    }
+    if (/\b(works|working|resolved|fixed|confirmed|looks good|all good)\b/i.test(msg.text)) {
+      return this.recordCustomerConfirmation(o.id);
+    }
+    return null; // matched the thread but not a clear confirm/deny → let normal handling proceed
   }
 
   // --- Gate 1: account owner confirms --------------------------------------

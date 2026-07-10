@@ -144,6 +144,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       r.kind === "skipped" ? `signal=${r.signal}`
       : r.kind === "confirm_card_sent" ? `owner=${r.owner} obligation=${r.obligationId}`
       : r.kind === "deduped" ? `obligation=${r.obligationId}`
+      : r.kind === "customer_reply" ? `state=${r.state} obligation=${r.obligationId}`
       : "";
     console.log(`[kept] ingest team=${message.team} channel=${message.channel} -> ${r.kind} ${detail}`.trimEnd());
   });
