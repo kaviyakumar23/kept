@@ -69,6 +69,9 @@ export interface SlackMessage {
   /** W3 — RTS `action_token` from the Slack event context (Real-Time Search API). */
   actionToken?: string;
   text: string;
+  /** #5 — set when the promise was authored by an app / AI agent (not a human): the engine routes
+   *  it to a HUMAN owner and the Gate-1 card is badged "Promised by <agent>". */
+  agent?: { name: string };
   permalink?: string;
 }
 
@@ -198,7 +201,9 @@ export class KeptOrchestrator {
       // both the Gate-1 DM (conversations.open rejects it) and the card's <@owner> mention. Accept a
       // proposed owner only if it's a valid id; otherwise default to the message SENDER, who made
       // the promise and is always a valid in-workspace user.
-      owner: [proposal.detectInput.owner, rts.suggestedOwner].find((o): o is string => !!o && /^[UW][A-Z0-9]{2,}$/.test(o)) ?? msg.userId,
+      // An agent-authored promise has a BOT sender, so route it to the configured HUMAN owner
+      // (fallbackOwner) instead of the bot; a human still signs Gate 1 (#5).
+      owner: [proposal.detectInput.owner, rts.suggestedOwner, msg.agent ? this.d.fallbackOwner : msg.userId].find((o): o is string => !!o && /^[UW][A-Z0-9]{2,}$/.test(o)) ?? msg.userId,
       slack: { channel: msg.channel, thread_ts: msg.threadTs, permalink: msg.permalink },
     });
 
@@ -227,7 +232,7 @@ export class KeptOrchestrator {
     const owner = /^[UW][A-Z0-9]{2,}$/.test(resolved) ? resolved : msg.userId;
     const card = {
       text: `New obligation: ${result.obligation.customer} — ${result.obligation.outcome}`,
-      blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined),
+      blocks: confirmCard(result.obligation, proposal.classification, rts, warning?.conflict ? warning.message : undefined, msg.agent?.name),
     };
     let sent;
     try {

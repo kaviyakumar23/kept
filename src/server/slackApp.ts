@@ -132,7 +132,20 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   app.message(async ({ message, context }: any) => {
     // Fail CLOSED on an unattributable delivery: a message with no team can't be scoped
     // to a tenant, so we drop it rather than mint a synthetic ledger (invariant #4).
-    if (message.subtype || !message.text || !message.team) return; // ignore edits/bot/system/team-less
+    // Skip edits/deletes/system subtypes, team-less messages, and Kept's OWN posts. But ALLOW a
+    // promise from another app / AI agent (a "bot_message") — #5: an agent that makes a customer
+    // promise must be held to it too. The engine routes an agent promise to a HUMAN owner.
+    const subtype: string | undefined = message.subtype;
+    const isSystemOrEdit = Boolean(subtype && subtype !== "bot_message"); // edits/joins/etc. — never a fresh promise
+    const isOwnPost = Boolean(
+      (message.user && context?.botUserId && message.user === context.botUserId) ||
+      (message.bot_id && context?.botId && message.bot_id === context.botId),
+    );
+    if (isSystemOrEdit || isOwnPost || !message.text || !message.team) return;
+    const agent =
+      subtype === "bot_message" || message.bot_id
+        ? { name: String(message.username || message.bot_profile?.name || "an AI agent") }
+        : undefined;
     const r = await orch.ingestMessage({
       team: message.team,
       channel: message.channel,
@@ -142,6 +155,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       // W3 — the Real-Time Search action_token rides on the event context/payload.
       actionToken: message.action_token ?? context?.actionToken,
       text: message.text,
+      agent,
     });
     // Operational visibility (zero-copy: OUTCOME only, never the message text) — makes a
     // missing card diagnosable: card sent (+owner) / deduped / skipped (+why).

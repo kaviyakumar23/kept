@@ -96,7 +96,7 @@ const SIGNAL_LABEL: Record<string, string> = {
 };
 
 /** Gate 1 — private confirm card to the account owner (Confirm · Edit · Not a request). */
-export function confirmCard(o: Obligation, classification: Classification, rts: RtsContext, roadmapWarning?: string): SlackBlock[] {
+export function confirmCard(o: Obligation, classification: Classification, rts: RtsContext, roadmapWarning?: string, agentName?: string): SlackBlock[] {
   const blocks: SlackBlock[] = [
     header("Kept · new obligation detected"),
     section(`*${o.customer}* — ${o.outcome}\n_${SIGNAL_LABEL[classification.signal] ?? classification.signal}_`),
@@ -110,6 +110,11 @@ export function confirmCard(o: Obligation, classification: Classification, rts: 
       ],
     },
   ];
+  // #5 — an AI agent made this promise in the customer channel. Kept still holds it: routed to a
+  // human owner (above), badged here, human-signed at Gate 1.
+  if (agentName) {
+    blocks.push(context(`🤖 *Promised by ${escapeMrkdwn(agentName)}* — an AI agent made this commitment; a human owner verifies it.`));
+  }
   if (rts.priorCommitments.length > 0) {
     blocks.push(
       context(
