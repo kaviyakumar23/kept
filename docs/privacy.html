@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="slack-app-id" content="A0BBEJQ2CMC">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Kept</title>
+<meta name="description" content="How the Kept Slack app processes data: zero-copy (derived facts only, never raw message bodies), tenant isolation, per-workspace OAuth tokens, encryption, sub-processors, and deletion on uninstall.">
+<link rel="canonical" href="https://kept-iota.vercel.app/privacy.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='7'%20fill='%232563EB'/%3E%3Ccircle%20cx='6'%20cy='6.5'%20r='1.7'%20fill='%23fff'/%3E%3Ccircle%20cx='6'%20cy='12'%20r='1.7'%20fill='%23fff'/%3E%3Ccircle%20cx='6'%20cy='17.5'%20r='1.7'%20fill='%23fff'/%3E%3Cpath%20d='M7.4%206.7%20L15.6%2011.4%20M7.4%2012%20H15.6%20M7.4%2017.3%20L15.6%2012.6'%20stroke='%23fff'%20stroke-width='1.5'%20stroke-linecap='round'%20opacity='.85'/%3E%3Ccircle%20cx='17.2'%20cy='12'%20r='2.7'%20fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --accent:#2563EB; --accent-press:#1D4ED8; --accent-soft:#EFF4FF; --accent-line:#D7E3FF;
+    --close-bg:#0B1220; --close-fg:#F4F7FB; --close-sub:#93A2BC; --close-border:#23324D;
+    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F5F8FC;
+    --fg:#0F172A; --fg-muted:#42506A; --fg-subtle:#64748B; --fg-faint:#94A3B8;
+    --border:#E7ECF2; --border-strong:#E2E8F0;
+    --code-bg:#F1F5F9; --code-fg:#334155;
+    --header-bg:rgba(248,250,252,.85); --header-border:#E7ECF2;
+    --link:#2563EB; --link-hover:#1D4ED8;
+    --callout-bg:#EFF4FF; --callout-border:#D7E3FF;
+    --wrap:840px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0B1220; --surface:#0F1B30; --surface-2:#111E36;
+      --fg:#F4F7FB; --fg-muted:#C3CEDE; --fg-subtle:#9DACC4; --fg-faint:#71829D;
+      --border:#22314B; --border-strong:#2A3A57;
+      --code-bg:#16233B; --code-fg:#C3CEDE;
+      --header-bg:rgba(11,18,32,.85); --header-border:#22314B;
+      --link:#7DA6F7; --link-hover:#9CBAFB;
+      --callout-bg:#132239; --callout-border:#274063;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F5F8FC;
+    --fg:#0F172A; --fg-muted:#42506A; --fg-subtle:#64748B; --fg-faint:#94A3B8;
+    --border:#E7ECF2; --border-strong:#E2E8F0;
+    --code-bg:#F1F5F9; --code-fg:#334155;
+    --header-bg:rgba(248,250,252,.85); --header-border:#E7ECF2;
+    --link:#2563EB; --link-hover:#1D4ED8;
+    --callout-bg:#EFF4FF; --callout-border:#D7E3FF;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1220; --surface:#0F1B30; --surface-2:#111E36;
+    --fg:#F4F7FB; --fg-muted:#C3CEDE; --fg-subtle:#9DACC4; --fg-faint:#71829D;
+    --border:#22314B; --border-strong:#2A3A57;
+    --code-bg:#16233B; --code-fg:#C3CEDE;
+    --header-bg:rgba(11,18,32,.85); --header-border:#22314B;
+    --link:#7DA6F7; --link-hover:#9CBAFB;
+    --callout-bg:#132239; --callout-border:#274063;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    line-height:1.65; overflow-x:hidden;
+  }
+  .mono{ font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace; }
+  a{ color:var(--link); text-decoration:none; }
+  a:hover{ color:var(--link-hover); text-decoration:underline; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  ::selection{ background:rgba(37,99,235,.16); }
+  img{ max-width:100%; }
+
+  /* header */
+  .site-header{ position:sticky; top:0; z-index:50; background:var(--header-bg); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--header-border); }
+  .header-inner{ max-width:var(--wrap); margin:0 auto; padding:13px clamp(18px,5vw,40px); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:inline-flex; align-items:center; gap:10px; color:var(--fg); }
+  .brand:hover{ text-decoration:none; }
+  .brand-mark{ width:30px; height:30px; border-radius:9px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px var(--accent); flex:none; }
+  .brand-name{ font-size:20px; font-weight:600; letter-spacing:-.02em; }
+  .back-link{ font-size:14px; font-weight:500; color:var(--fg-subtle); }
+  .back-link:hover{ color:var(--fg); text-decoration:none; }
+
+  /* hero */
+  .doc-hero{ max-width:var(--wrap); margin:0 auto; padding:clamp(40px,6vw,72px) clamp(18px,5vw,40px) clamp(18px,3vw,26px); }
+  .eyebrow{ font-size:12px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+  .doc-title{ font-size:clamp(32px,5vw,50px); line-height:1.05; letter-spacing:-.03em; font-weight:600; margin:0 0 16px; text-wrap:balance; }
+  .updated{ font-size:13.5px; color:var(--fg-faint); }
+  .updated .mono{ color:var(--fg-subtle); }
+
+  /* content */
+  main.doc{ max-width:var(--wrap); margin:0 auto; padding:0 clamp(18px,5vw,40px) clamp(56px,8vw,96px); }
+  .doc-body{ font-size:16px; color:var(--fg-muted); }
+  .doc-body h2{ font-size:clamp(20px,2.6vw,26px); line-height:1.22; letter-spacing:-.02em; font-weight:600; color:var(--fg); margin:46px 0 14px; }
+  .doc-body h3{ font-size:16.5px; font-weight:600; color:var(--fg); margin:26px 0 10px; }
+  .doc-body p{ margin:0 0 16px; }
+  .doc-body ul, .doc-body ol{ margin:0 0 18px; padding-left:22px; }
+  .doc-body li{ margin:0 0 9px; }
+  .doc-body li::marker{ color:var(--fg-faint); }
+  .doc-body strong{ color:var(--fg); font-weight:600; }
+  .doc-body a{ text-decoration:underline; text-underline-offset:2px; }
+  code{ font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:var(--code-bg); color:var(--code-fg); border-radius:5px; padding:2px 6px; white-space:nowrap; }
+
+  /* lead callout */
+  .callout{ display:flex; gap:14px; background:var(--callout-bg); border:1px solid var(--callout-border); border-radius:16px; padding:18px 20px; margin:6px 0 30px; }
+  .callout-mark{ width:26px; height:26px; border-radius:8px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; flex:none; margin-top:1px; box-shadow:0 2px 8px -3px var(--accent); }
+  .callout p{ margin:0; color:var(--fg); font-size:15.5px; line-height:1.55; }
+
+  /* posture grid */
+  .posture{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:0 0 12px; }
+  .posture-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+  .posture-card .k{ font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+  .posture-card .v{ font-size:14px; line-height:1.5; color:var(--fg-muted); }
+  .posture-card .v b{ color:var(--fg); font-weight:600; }
+
+  /* table */
+  .table-wrap{ overflow-x:auto; margin:4px 0 22px; border:1px solid var(--border-strong); border-radius:14px; -webkit-overflow-scrolling:touch; }
+  table{ border-collapse:collapse; width:100%; min-width:560px; font-size:13.5px; }
+  th,td{ text-align:left; padding:12px 15px; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.5; }
+  thead th{ font-weight:600; color:var(--fg); background:var(--surface-2); font-size:12px; letter-spacing:.03em; text-transform:uppercase; }
+  tbody th{ font-weight:600; color:var(--fg); white-space:nowrap; }
+  td{ color:var(--fg-muted); }
+  tr:last-child td, tr:last-child th{ border-bottom:none; }
+
+  /* footer (always dark, matches landing) */
+  .site-footer{ background:var(--close-bg); border-top:1px solid var(--close-border); }
+  .footer-inner{ max-width:var(--wrap); margin:0 auto; padding:clamp(40px,5vw,60px) clamp(18px,5vw,40px); }
+  .footer-top{ display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start; justify-content:space-between; padding-bottom:26px; border-bottom:1px solid var(--close-border); }
+  .footer-brand{ flex:1 1 280px; max-width:380px; }
+  .footer-brand-row{ display:inline-flex; align-items:center; gap:10px; margin-bottom:13px; }
+  .footer-mark{ width:28px; height:28px; border-radius:8px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; }
+  .footer-name{ font-size:18px; font-weight:600; letter-spacing:-.02em; color:var(--close-fg); }
+  .footer-tag{ font-size:14.5px; line-height:1.55; color:var(--close-sub); margin:0; max-width:320px; }
+  .footer-nav{ display:flex; flex-wrap:wrap; gap:14px 40px; }
+  .footlink{ font-size:14px; color:var(--close-sub); transition:color .18s ease; }
+  .footlink:hover{ color:var(--close-fg); text-decoration:none; }
+  .footer-bottom{ padding-top:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  .footer-bottom .mono{ font-size:12px; color:var(--close-sub); }
+
+  @media (prefers-reduced-motion: reduce){ *{ scroll-behavior:auto !important; } }
+</style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="Kept home">
+        <span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
+        <span class="brand-name">Kept</span>
+      </a>
+      <a href="/" class="back-link">&larr; Back to site</a>
+    </div>
+  </header>
+
+  <div class="doc-hero">
+    <div class="eyebrow mono">Privacy Policy</div>
+    <h1 class="doc-title">How Kept handles your data</h1>
+    <div class="updated">Last updated: <span class="mono">2026-07-11</span></div>
+  </div>
+
+  <main class="doc">
+    <div class="doc-body">
+
+      <div class="callout">
+        <span class="callout-mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <p><strong>Kept does not store your Slack messages.</strong> It reads messages in the channels it is added to only to detect a commitment, then stores only short derived facts about that commitment (who owes what, to which customer, by when) plus links back to the original messages &mdash; never the message text itself.</p>
+      </div>
+
+      <div class="posture">
+        <div class="posture-card">
+          <div class="k">Zero-copy</div>
+          <div class="v">Only <b>derived facts and references</b> are persisted. Raw message bodies, prompts, and model output are never written to our database.</div>
+        </div>
+        <div class="posture-card">
+          <div class="k">Tenant-isolated</div>
+          <div class="v">Every stored record is tagged with your <b>workspace ID</b>. One workspace can never read another workspace's data.</div>
+        </div>
+        <div class="posture-card">
+          <div class="k">Least secrets</div>
+          <div class="v">A per-workspace OAuth <b>bot token</b> and any integration credentials you connect are held per tenant and encrypted at rest.</div>
+        </div>
+        <div class="posture-card">
+          <div class="k">Deleted on uninstall</div>
+          <div class="v">Removing Kept revokes its token and <b>purges your workspace's data</b>, scoped to your workspace ID.</div>
+        </div>
+      </div>
+
+      <h2>Who we are</h2>
+      <p>Kept (&ldquo;we&rdquo;, &ldquo;the app&rdquo;) is a Slack application that tracks commitments made in shared customer Slack channels and helps teams close the loop with verified proof. Privacy questions and data requests: <a href="mailto:kaviyakumar23@gmail.com">kaviyakumar23@gmail.com</a>.</p>
+
+      <h2>What data we process, and why</h2>
+
+      <h3>1. Slack message content &mdash; transient, not stored</h3>
+      <p>When Kept is a member of a channel, Slack delivers new messages to the app. Kept analyzes the message text <em>at that moment</em> to detect and classify a possible commitment. This text is processed transiently and is <strong>not written to our database</strong>. A language model (see <a href="#subprocessors">Sub-processors</a>) may see the text at inference time to propose a structured summary; the model's input and output are <strong>not stored</strong>.</p>
+
+      <h3>2. Derived obligation facts &mdash; stored</h3>
+      <p>For each confirmed commitment, we store only short, structured, human-confirmed fields: the customer name, a normalized description of what was promised (the &ldquo;outcome&rdquo;), the owner's Slack user ID, the due date, the workspace ID (<code>team_id</code>), Slack object IDs, and permalinks back to the original messages. These fields are size- and format-capped and are validated to ensure no raw message body, prompt, or model output is ever persisted. We call this <strong>zero-copy</strong>.</p>
+
+      <h3>3. Installation &amp; authentication data &mdash; stored</h3>
+      <p>When you install Kept, Slack provides an OAuth installation record including a <strong>bot token</strong> scoped to your workspace. We store this in a dedicated table so the app can act in your workspace; it is used only to authenticate Kept's own API calls.</p>
+
+      <h3>4. Operational data &mdash; stored</h3>
+      <p>Approved roadmap target dates (for a due-date sanity check), reminder schedules, and opaque capability tokens that authorize the per-customer trust page. None of these contain message content.</p>
+
+      <p>We do <strong>not</strong> sell personal data, and we do <strong>not</strong> export or back up your Slack message data.</p>
+
+      <h2>How your data is separated (tenant isolation)</h2>
+      <p>Every stored record is tagged with your workspace ID (<code>team_id</code>), and every read is scoped to that ID. One workspace can never read another workspace's data. A message that cannot be attributed to a workspace is dropped rather than stored.</p>
+
+      <h2>Customer-facing safety</h2>
+      <p>When Kept drafts a message to post back into a shared customer channel, it strips all internal context (engineering tickets, PRs, CRM, deployment / feature-flag / status details) and scans the draft for leaks before a human approves it. Nothing is ever sent to a customer channel automatically &mdash; a person on your team must approve every customer-facing message.</p>
+
+      <h2 id="subprocessors">Sub-processors</h2>
+      <p>We rely on the following third parties to run the service:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Sub-processor</th><th scope="col">Purpose</th><th scope="col">Data it receives</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Fly.io</th>
+              <td>Application hosting (compute) and our self-hosted Postgres database, in Fly's Singapore (<code>sin</code>) region. Our primary sub-processor.</td>
+              <td>All persisted data described above (derived facts + references + per-workspace bot tokens), plus transient request payloads.</td>
+            </tr>
+            <tr>
+              <th scope="row">OpenAI</th>
+              <td>The language model that proposes structured summaries of commitments (classification and field extraction). Anthropic's Claude is a supported alternative provider, selected by the operator via configuration; with no provider configured, a local heuristic is used instead.</td>
+              <td>Message text transiently at inference time. <strong>Nothing from the model is persisted</strong> by Kept, and API data is not used to train models.</td>
+            </tr>
+            <tr>
+              <th scope="row">Slack</th>
+              <td>The platform Kept runs on.</td>
+              <td>Slack is the source of data, not a downstream processor.</td>
+            </tr>
+            <tr>
+              <th scope="row">Vercel</th>
+              <td>Hosts only our static marketing / landing site (<code>kept-iota.vercel.app</code>) &mdash; the page you are reading now.</td>
+              <td><strong>None.</strong> No customer data flows through the marketing site.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Integrations you connect (not Kept sub-processors)</h3>
+      <p>To gather completion proof, you can connect read-only integrations using <strong>your own API credentials</strong>. Kept reads only <strong>derived status facts</strong> from them (for example, whether a workflow run passed, a feature flag is on, or an incident is resolved) &mdash; it never writes to them and never stores their raw content. These are data sources you control, not Kept sub-processors:</p>
+      <ul>
+        <li><strong>GitHub</strong> (GitHub Actions / API) &mdash; a live source of completion proof (for example, workflow run results).</li>
+        <li><strong>Linear, Jira, LaunchDarkly, Atlassian Statuspage</strong> &mdash; simulated in the current build (real API skeletons exist but are not live), so they receive none of your data today.</li>
+      </ul>
+
+      <h2>Data retention &amp; deletion</h2>
+      <ul>
+        <li><strong>While installed:</strong> derived obligation facts, roadmap target dates, reminders, and trust-link tokens are retained for as long as the app is installed, so the ledger stays complete.</li>
+        <li><strong>On uninstall:</strong> removing Kept from your Slack workspace revokes its access token and <strong>automatically purges your workspace's stored data</strong> &mdash; the obligation ledger, roadmap, reminders, trust-page tokens, and the installation record &mdash; in a single team-scoped operation. Other workspaces are unaffected.</li>
+        <li><strong>On request:</strong> a Workspace Owner or Admin can email us from a verifiable workspace domain to request an export or deletion of all data associated with your <code>team_id</code>. We action these manually and scope every operation to your workspace ID.</li>
+        <li><strong>Backups:</strong> Fly takes daily volume snapshots of the database (~5-day retention) as a basic safety net; these age out on Fly's rolling schedule.</li>
+      </ul>
+
+      <h2>Security</h2>
+      <p>Data is encrypted in transit (TLS) between Slack, Kept, and third-party APIs; the database is reached only over Fly's private, WireGuard-encrypted internal network and is never exposed to the public internet. Persisted data lives on a Fly volume that is encrypted at rest on Fly's infrastructure, and operator secrets (database URL, Slack credentials, optional integration keys) are stored as Fly encrypted secrets rather than baked into the app image. Per-workspace bot tokens are held in a dedicated table, and any integration credentials you connect are scoped to your workspace. We do not claim SOC 2 or ISO certification at this stage &mdash; see our <a href="/support.html">Support</a> page for how to raise a security question.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>We will update the &ldquo;Last updated&rdquo; date above when this policy changes and, for material changes, note them on the landing page.</p>
+
+      <h2>Contact</h2>
+      <p>Privacy questions or data requests: <a href="mailto:kaviyakumar23@gmail.com">kaviyakumar23@gmail.com</a>. See also our <a href="/support.html">Support</a> page and <a href="/ai-disclosure.html">AI disclosure</a>.</p>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-brand-row">
+            <span class="footer-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
+            <span class="footer-name">Kept</span>
+          </div>
+          <p class="footer-tag">Kept checks customer promises before your team calls them done.</p>
+        </div>
+        <nav class="footer-nav" aria-label="Footer">
+          <a href="/" class="footlink">Home</a>
+          <a href="/privacy.html" class="footlink">Privacy</a>
+          <a href="/support.html" class="footlink">Support</a>
+          <a href="/ai-disclosure.html" class="footlink">AI disclosure</a>
+          <a href="mailto:kaviyakumar23@gmail.com" class="footlink">Contact</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span class="mono">&copy; 2026 Kept</span>
+        <span class="mono">Derived facts, not message bodies.</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
