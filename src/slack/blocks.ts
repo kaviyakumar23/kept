@@ -1,4 +1,5 @@
 import type { Obligation } from "../domain/obligation.js";
+import type { ObligationState } from "../domain/state.js";
 import type { ObligationEvent } from "../domain/events.js";
 import type { Evidence } from "../domain/evidence.js";
 import type { Classification } from "../llm/schemas.js";
@@ -98,15 +99,16 @@ const SIGNAL_LABEL: Record<string, string> = {
 /** Gate 1 — private confirm card to the account owner (Confirm · Edit · Not a request). */
 export function confirmCard(o: Obligation, classification: Classification, rts: RtsContext, roadmapWarning?: string, agentName?: string): SlackBlock[] {
   const blocks: SlackBlock[] = [
-    header("Kept · new obligation detected"),
-    section(`*${o.customer}* — ${o.outcome}\n_${SIGNAL_LABEL[classification.signal] ?? classification.signal}_`),
+    header("Kept · confirm this promise"),
+    section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
+    context(`_${SIGNAL_LABEL[classification.signal] ?? classification.signal}_  ·  ${(classification.confidence * 100).toFixed(0)}% confidence`),
     {
       type: "section",
       fields: [
         { type: "mrkdwn", text: dueLabel(o.due) },
         { type: "mrkdwn", text: `*Owner:* ${o.owner && /^[UW][A-Z0-9]{2,}$/.test(o.owner) ? `<@${o.owner}>` : "—"}` },
-        { type: "mrkdwn", text: `*Customer:* ${o.customer}` },
-        { type: "mrkdwn", text: `*Confidence:* ${(classification.confidence * 100).toFixed(0)}%` },
+        { type: "mrkdwn", text: `*Customer:* ${escapeMrkdwn(o.customer)}` },
+        { type: "mrkdwn", text: `*Source:* Slack thread` },
       ],
     },
   ];
@@ -158,29 +160,30 @@ const isProdEnv = (v: unknown): boolean => {
 function evidencePacketRows(evidence: Evidence[]): string[] {
   const rows: string[] = [];
   const flag = latestEvidence(evidence, "feature_flag");
-  if (flag) rows.push(flag.data.enabled === true ? "Feature flag ON ✓" : "Feature flag OFF ✗");
+  if (flag) rows.push(flag.data.enabled === true ? "🚩 Production flag *ON*  ✓" : "🚩 Production flag *OFF*  ✗");
   const ci = latestEvidence(evidence, "ci_run");
-  if (ci) rows.push(ci.data.conclusion === "success" ? "CI success ✓" : `CI ${escapeMrkdwn(String(ci.data.conclusion ?? "?"))} ✗`);
+  if (ci) rows.push(ci.data.conclusion === "success" ? "🔧 CI *passed*  ✓" : `🔧 CI *${escapeMrkdwn(String(ci.data.conclusion ?? "?"))}*  ✗`);
   const status = latestEvidence(evidence, "status_page");
-  if (status) rows.push(status.data.component_status === "operational" ? "Status operational ✓" : `Status ${escapeMrkdwn(String(status.data.component_status ?? "?"))} ✗`);
-  if (evidence.some((e) => e.kind === "ticket_status" && String(e.data.status ?? "").toLowerCase() === "done")) rows.push("Ticket Done ✓");
-  if (evidence.some((e) => e.kind === "pr_merged" && e.data.merged === true)) rows.push("Code merged ✓");
-  if (evidence.some((e) => e.kind === "deploy" && isProdEnv(e.data.environment))) rows.push("Prod deploy ✓");
-  if (evidence.some((e) => e.kind === "customer_reply" && e.data.confirmed === true)) rows.push("Customer confirmed ✓");
-  if (rows.length === 0) rows.push("(no corroborating evidence yet)");
-  return rows.map((r) => `• ${r}`);
+  if (status) rows.push(status.data.component_status === "operational" ? "🟢 Status *operational*  ✓" : `🟠 Status *${escapeMrkdwn(String(status.data.component_status ?? "?"))}*  ✗`);
+  if (evidence.some((e) => e.kind === "ticket_status" && String(e.data.status ?? "").toLowerCase() === "done")) rows.push("🎫 Ticket *Done*  ✓");
+  if (evidence.some((e) => e.kind === "pr_merged" && e.data.merged === true)) rows.push("🔀 Code *merged*  ✓");
+  if (evidence.some((e) => e.kind === "deploy" && isProdEnv(e.data.environment))) rows.push("🚀 *Prod deploy*  ✓");
+  if (evidence.some((e) => e.kind === "customer_reply" && e.data.confirmed === true)) rows.push("💬 *Customer confirmed*  ✓");
+  if (rows.length === 0) rows.push("_no corroborating evidence yet_");
+  return rows.map((r) => `•  ${r}`);
 }
 
 /** Gate 2 — the Proof-of-Done evidence packet + verdict. A human signs; the agent assembled it. */
 export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAssessment): SlackBlock[] {
   return [
-    header("Kept · Proof-of-Done evidence packet"),
-    section(`*${o.customer}* — ${o.outcome}`),
-    section(`*Evidence packet:*\n${evidencePacketRows(o.evidence).join("\n")}`),
+    header("Kept · Proof-of-Done"),
+    section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
+    section(`*What Kept gathered*\n${evidencePacketRows(o.evidence).join("\n")}`),
+    divider,
     section(
       assessment.available
-        ? "*Verdict: available* — proof reconciled ✅"
-        : "*Verdict: blocked* — not verifiably available ⛔",
+        ? "✅ *Ready to close* — every signal reconciles."
+        : "⛔ *Not ready to close* — the evidence doesn't agree yet.",
     ),
     context(assessment.rationale),
     {
@@ -190,23 +193,25 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
         button("Not yet", ACTIONS.notYet, o.id),
       ],
     },
-    context("Ticket-Done alone is never enough — Kept reconciles flag / CI / status / merge / deploy (or a customer confirmation)."),
+    context("A closed ticket is never enough — Kept reconciles the flag, CI, status, merge, and deploy (or a direct customer confirmation)."),
   ];
 }
 
 /** Closure draft approval card — the sanitized, customer-facing text to be posted in-thread. */
 export function closureDraftCard(o: Obligation, draft: ClosureDraft): SlackBlock[] {
+  const n = draft.safe.redactedCount;
+  const safety =
+    n > 0
+      ? `🛡️ ${n} internal detail${n === 1 ? "" : "s"} kept out of the reply (${draft.safe.redactedSources.join(", ") || "internal"}) · ${draft.clean ? "Leak-safe ✅" : "⚠️ leak detected"}`
+      : draft.clean
+        ? "🛡️ Leak-safe — no internal detail in this reply ✅"
+        : "⚠️ Leak detected — review before sending";
   return [
-    header("Kept · ready to close the loop"),
-    section(`*${o.customer}* — ${o.outcome}\nDraft reply for the original thread:`),
+    header("Kept · close the loop"),
+    section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
+    context("Draft reply for the original customer thread. Nothing is sent until you approve."),
     section(`>>> ${draft.text}`),
-    context(
-      draft.safe.redactedCount > 0
-        ? `${draft.safe.redactedCount} internal item(s) redacted (${draft.safe.redactedSources.join(", ") || "internal"}). ${draft.clean ? "Leak-safe ✅" : "⚠️ leak detected"}`
-        : draft.clean
-          ? "Leak-safe ✅"
-          : "⚠️ leak detected",
-    ),
+    context(safety),
     {
       type: "actions",
       elements: [button("Approve & send", ACTIONS.approveSend, o.id, "primary"), button("Edit", ACTIONS.editDraft, o.id)],
@@ -214,15 +219,35 @@ export function closureDraftCard(o: Obligation, draft: ClosureDraft): SlackBlock
   ];
 }
 
-const STATE_EMOJI: Record<string, string> = {
-  CANDIDATE: "🟡", OPEN: "🔵", IN_PROGRESS: "🔵", POSSIBLE_FULFILLMENT: "🟣",
-  VERIFIED: "🟢", CUSTOMER_NOTIFIED: "🟢", CLOSED: "✅", REOPENED: "🔁", DISMISSED: "⚪", CANCELLED: "⚪",
+/**
+ * Shared status vocabulary — engine state → human-readable {emoji, label}. Used on EVERY
+ * surface (App Home rows, cards, receipts, reminders) so a user never sees a raw enum name
+ * like POSSIBLE_FULFILLMENT. One source of truth for how a promise's status reads.
+ */
+const STATUS: Record<ObligationState, { emoji: string; label: string }> = {
+  CANDIDATE: { emoji: "🟡", label: "Awaiting confirmation" },
+  OPEN: { emoji: "🔵", label: "Tracking" },
+  IN_PROGRESS: { emoji: "🔵", label: "In progress" },
+  POSSIBLE_FULFILLMENT: { emoji: "👀", label: "Awaiting your verify" },
+  VERIFIED: { emoji: "☑️", label: "Verified — ready to close" },
+  CUSTOMER_NOTIFIED: { emoji: "📣", label: "Closing with customer" },
+  CLOSED: { emoji: "✅", label: "Kept" },
+  REOPENED: { emoji: "↩️", label: "Reopened" },
+  DISMISSED: { emoji: "⚪", label: "Dismissed" },
+  CANCELLED: { emoji: "⚪", label: "Cancelled" },
+};
+const statusOf = (state: ObligationState): { emoji: string; label: string } => STATUS[state] ?? { emoji: "•", label: state };
+const statusChip = (state: ObligationState): string => {
+  const s = statusOf(state);
+  return `${s.emoji} ${s.label}`;
 };
 
 /** W5 — drift radar bucket → emoji, worst first. */
 const DRIFT_EMOJI: Record<DriftBucket, string> = { STALLED: "🔴", SLIPPING: "🟠", SOFTENING: "〰️", FIRM: "🟢" };
 
+/** One tidy row per obligation — status chip + outcome + the facts a reviewer scans for. */
 function ledgerLine(o: Obligation): string {
+  const s = statusOf(o.state);
   const flags: string[] = [];
   if (o.flags.is_overdue) flags.push("overdue");
   else if (o.flags.is_at_risk) flags.push("at risk");
@@ -230,7 +255,8 @@ function ledgerLine(o: Obligation): string {
   if (o.flags.has_scope_change) flags.push("scope changed");
   const tail = flags.length ? `  _(${flags.join(", ")})_` : "";
   const ref = o.work_item ? `  ·  ${escapeMrkdwn(o.work_item.ref)}` : "";
-  return `${STATE_EMOJI[o.state] ?? "•"} *${escapeMrkdwn(o.outcome)}* — ${o.state}${o.due ? `, due ${escapeMrkdwn(o.due)}` : ""}${ref}${tail}`;
+  const due = o.due ? `  ·  due ${escapeMrkdwn(o.due)}` : "";
+  return `${s.emoji}  *${escapeMrkdwn(o.outcome)}*  —  ${s.label}${due}${ref}${tail}`;
 }
 
 /** The "what we owe Acme" view — request-and-commitment ledger for one customer. */
@@ -298,7 +324,7 @@ export function auditHistoryView(o: Obligation, events: ObligationEvent[]): Slac
   });
   return [
     header("🧾 Receipts — the full ledger"),
-    section(`*${o.customer}* — ${o.outcome}\nCurrent state: *${o.state}* · ${o.history_count} events, append-only & human-signed at both gates`),
+    section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}\nStatus: *${statusChip(o.state)}*  ·  ${o.history_count} events, append-only & human-signed at both gates`),
     divider,
     section(lines.join("\n") || "_no events_"),
     context("Event-sourced: this is the actual immutable log Kept decides from — nothing here is reconstructed after the fact."),
@@ -309,7 +335,13 @@ export function auditHistoryView(o: Obligation, events: ObligationEvent[]): Slac
 export function reminderMessage(o: Obligation, kind: "AT_RISK" | "OVERDUE"): { text: string; blocks: SlackBlock[] } {
   const label = kind === "OVERDUE" ? "⏰ Overdue" : "⚠️ At risk";
   const text = `${label}: ${o.customer} — ${o.outcome}${o.due ? ` (due ${o.due})` : ""}`;
-  return { text, blocks: [section(`${label}\n*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}\n${dueLabel(o.due)}  ·  state ${o.state}`)] };
+  return {
+    text,
+    blocks: [
+      section(`*${label}*\n*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
+      context(`${dueLabel(o.due)}  ·  ${statusChip(o.state)}`),
+    ],
+  };
 }
 
 // --- App Home (live ledger dashboard) --------------------------------------
@@ -364,7 +396,7 @@ function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
 export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolean): SlackBlock[] {
   const id = obligation?.id ?? "";
   const promise = obligation
-    ? `*${escapeMrkdwn(obligation.customer)}* — ${escapeMrkdwn(obligation.outcome)}  ·  _${obligation.state}_`
+    ? `*${escapeMrkdwn(obligation.customer)}* — ${escapeMrkdwn(obligation.outcome)}  ·  ${statusChip(obligation.state)}`
     : "_none yet — click ↺ Reset demo to seed a fresh one_";
   return [
     divider,
@@ -390,6 +422,21 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
   ];
 }
 
+/** One App Home obligation row — status-chip line + a drill-in to its receipts. */
+const obligationRow = (o: Obligation): SlackBlock => ({
+  type: "section",
+  text: { type: "mrkdwn", text: ledgerLine(o) },
+  accessory: button("🧾 Receipts", ACTIONS.history, o.id),
+});
+/** Stable de-dupe by id (an obligation can be both overdue and awaiting-verify). */
+function dedupeById(list: Obligation[]): Obligation[] {
+  const seen = new Set<string>();
+  const out: Obligation[] = [];
+  for (const o of list) if (!seen.has(o.id)) { seen.add(o.id); out.push(o); }
+  return out;
+}
+const OPEN_STATE = (o: Obligation): boolean => !["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state);
+
 /** The App Home tab — every customer's request-and-commitment ledger, with drill-in. */
 export function appHomeView(
   obligations: Obligation[],
@@ -398,43 +445,53 @@ export function appHomeView(
   demo?: { obligation: Obligation | null; flagOn: boolean },
 ): SlackView {
   const blocks: SlackBlock[] = [
-    header("Kept · the obligation ledger"),
-    context("Everything your team committed to — and everything customers asked for."),
+    header("Kept"),
+    context("Customer promises made in Slack — checked against live delivery evidence, closed only when you sign."),
   ];
   // Demo workspace only — the judge-operable panel goes at the top so it's the first thing seen.
   if (demo) blocks.push(...demoControlsBlocks(demo.obligation, demo.flagOn));
   if (obligations.length === 0) {
-    blocks.push(section("_No obligations yet. Kept will surface them as they're made._"));
+    blocks.push(
+      divider,
+      section("*No promises tracked yet.*\nWhen your team commits to a customer in a shared channel — _“we’ll ship the SSO fix by Friday”_ — Kept surfaces it right here for you to confirm."),
+    );
     blocks.push(...connectionsBlocks(configured));
     return { type: "home", blocks };
   }
-  // Insight band (flag/state-derived → deterministic): what needs attention right now.
   const a = analytics(obligations, now);
-  blocks.push({
+  // ⚡ Needs you — the actionable items (awaiting your verify · overdue) pulled to the top.
+  const needsYou = dedupeById([...a.awaitingVerify, ...a.overdue]);
+  if (needsYou.length > 0) {
+    blocks.push(divider, section(`⚡ *Needs you*  ·  ${needsYou.length}`));
+    for (const o of needsYou.slice(0, 5)) blocks.push(obligationRow(o));
+    if (needsYou.length > 5) blocks.push(context(`…and ${needsYou.length - 5} more in the ledger below.`));
+  }
+  // Insight tiles (flag/state-derived → deterministic) — the at-a-glance counts.
+  blocks.push(divider, {
     type: "section",
     fields: [
-      { type: "mrkdwn", text: `*Open:* ${a.counts.open}` },
-      { type: "mrkdwn", text: `:red_circle: *Overdue:* ${a.overdue.length}` },
-      { type: "mrkdwn", text: `:large_yellow_circle: *At risk:* ${a.atRisk.length}` },
-      { type: "mrkdwn", text: `:eyes: *Awaiting verify:* ${a.awaitingVerify.length}` },
+      { type: "mrkdwn", text: `*Open*\n🔵 ${a.counts.open}` },
+      { type: "mrkdwn", text: `*Overdue*\n🔴 ${a.overdue.length}` },
+      { type: "mrkdwn", text: `*At risk*\n🟡 ${a.atRisk.length}` },
+      { type: "mrkdwn", text: `*Awaiting verify*\n👀 ${a.awaitingVerify.length}` },
     ],
   });
   // The differentiator, quantified. Every one is a broken promise a ticket-only tool would have
   // shipped to the customer as "Done". Shown once Kept has actually caught one.
   if (a.blockedCatches > 0) {
-    blocks.push(section(`🛡️ *Closes blocked before reaching the customer: ${a.blockedCatches}* — promises that read "Done" but weren't actually shipped (flag off / CI red / status degraded).`));
+    blocks.push(section(`🛡️ *${a.blockedCatches} close${a.blockedCatches === 1 ? "" : "s"} blocked before reaching a customer* — promises that read “Done” but weren’t actually shipped (flag off · CI red · status degraded).`));
   }
   // W5 — promise-drift radar band (certainty-decay derived → deterministic): which
   // commitments are softening / slipping / going silent. Rendered only when something drifts.
   const radar = driftRadar(obligations, now);
   if (radar.counts.drifting > 0) {
+    blocks.push(divider, section(`📉 *Drift radar*  ·  ${radar.counts.drifting} drifting`));
     blocks.push({
       type: "section",
       fields: [
-        { type: "mrkdwn", text: `:chart_with_downwards_trend: *Drifting:* ${radar.counts.drifting}` },
-        { type: "mrkdwn", text: `:red_circle: *Stalled:* ${radar.counts.stalled}` },
-        { type: "mrkdwn", text: `:large_orange_circle: *Slipping:* ${radar.counts.slipping}` },
-        { type: "mrkdwn", text: `:wavy_dash: *Softening:* ${radar.counts.softening}` },
+        { type: "mrkdwn", text: `*Stalled*\n🔴 ${radar.counts.stalled}` },
+        { type: "mrkdwn", text: `*Slipping*\n🟠 ${radar.counts.slipping}` },
+        { type: "mrkdwn", text: `*Softening*\n〰️ ${radar.counts.softening}` },
       ],
     });
     for (const r of radar.readings.slice(0, 3)) {
@@ -442,6 +499,8 @@ export function appHomeView(
       blocks.push(context(`${DRIFT_EMOJI[r.bucket]} *${escapeMrkdwn(r.customer)}* — ${escapeMrkdwn(r.outcome)}: _${r.bucket.toLowerCase()}_${why}`));
     }
   }
+  // The full ledger, grouped by customer.
+  blocks.push(divider, section("📚 *The ledger*"));
   const byCustomer = new Map<string, Obligation[]>();
   for (const o of obligations) {
     const list = byCustomer.get(o.customer) ?? [];
@@ -449,15 +508,9 @@ export function appHomeView(
     byCustomer.set(o.customer, list);
   }
   for (const [customer, list] of byCustomer) {
-    const openCount = list.filter((o) => !["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state)).length;
-    blocks.push(divider, section(`*${customer}*  ·  ${openCount} open`));
-    for (const o of list) {
-      blocks.push({
-        type: "section",
-        text: { type: "mrkdwn", text: ledgerLine(o) },
-        accessory: button("🧾 Receipts", ACTIONS.history, o.id),
-      });
-    }
+    const openCount = list.filter(OPEN_STATE).length;
+    blocks.push(section(`*${escapeMrkdwn(customer)}*  ·  ${openCount} open`));
+    for (const o of list) blocks.push(obligationRow(o));
   }
   blocks.push(...connectionsBlocks(configured));
   return { type: "home", blocks };

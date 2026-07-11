@@ -96,6 +96,32 @@ describe("Block Kit builders", () => {
     expect(json).toContain(actionId(ACTIONS.history, "o1"));
   });
 
+  it("surfaces humanized status labels, never raw engine state names", () => {
+    // A user must never see POSSIBLE_FULFILLMENT / IN_PROGRESS etc. — only the friendly chip.
+    const json = JSON.stringify(
+      appHomeView([
+        mkObl("POSSIBLE_FULFILLMENT", { id: "o1", customer: "Acme", outcome: "SSO login fix" }),
+        mkObl("IN_PROGRESS", { id: "o2", customer: "Globex", outcome: "Export feature" }),
+      ]),
+    );
+    expect(json).toContain("Awaiting your verify"); // POSSIBLE_FULFILLMENT humanized
+    expect(json).toContain("In progress"); // IN_PROGRESS humanized
+    expect(json).not.toContain("POSSIBLE_FULFILLMENT");
+    expect(json).not.toContain("IN_PROGRESS");
+  });
+
+  it("App Home pulls awaiting-verify items into a 'Needs you' band", () => {
+    const json = JSON.stringify(
+      appHomeView([mkObl("POSSIBLE_FULFILLMENT", { id: "o1", customer: "Acme", outcome: "SSO login fix" })]),
+    );
+    expect(json).toContain("Needs you");
+  });
+
+  it("empty App Home shows an inviting empty state, not a dead end", () => {
+    const json = JSON.stringify(appHomeView([]));
+    expect(json).toContain("No promises tracked yet");
+  });
+
   it("edit-obligation modal prefills fields and carries the obligation id", () => {
     const view = editObligationModal(mkObl("CANDIDATE", { id: "o9", outcome: "SSO login fix", due: "2026-06-19", owner: "U_ENG" })) as { type: string; callback_id: string; private_metadata: string };
     expect(view.type).toBe("modal");

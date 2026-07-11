@@ -16,6 +16,7 @@
     "eval:report": "tsx src/eval/report.ts",
     "demo": "tsx src/demo/storyboard.ts",
     "demo:drive": "tsx src/demo/driver.ts",
+    "smoke": "tsx src/smoke/smoke.ts",
     "start": "tsx src/server/index.ts"
   },
   "dependencies": {
