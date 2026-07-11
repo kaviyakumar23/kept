@@ -1,47 +1,66 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
-  <defs>
-    <style>
-      .h{font-family:'Fraunces',Georgia,'Times New Roman',serif;}
-      .s{font-family:'IBM Plex Sans',-apple-system,system-ui,sans-serif;}
-      .m{font-family:'IBM Plex Mono','SF Mono',Menlo,monospace;}
-    </style>
-  </defs>
+  <defs><style>
+    .h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+    .m{font-family:'Menlo','SF Mono',monospace;}
+  </style></defs>
 
-  <rect width="1200" height="630" fill="#F4F1EA"/>
-  <rect x="0" y="0" width="12" height="630" fill="#0F6E5C"/>
+  <rect width="1200" height="630" fill="#F8FAFC"/>
+  <rect width="1200" height="6" fill="#2563EB"/>
 
-  <!-- wordmark -->
-  <rect x="80" y="64" width="54" height="54" rx="13" fill="#0F6E5C"/>
-  <text x="107" y="101" class="m" font-size="29" font-weight="600" fill="#F4F1EA" text-anchor="middle">K</text>
-  <text x="148" y="106" class="h" font-size="38" font-weight="600" fill="#1B1A17">Kept</text>
+  <!-- wordmark: blue tile + ledger glyph -->
+  <rect x="80" y="56" width="52" height="52" rx="14" fill="#2563EB"/>
+  <svg x="92" y="68" width="28" height="28" viewBox="0 0 24 24">
+    <circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/>
+    <path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
+    <circle cx="17.2" cy="12" r="2.7" fill="#fff"/>
+  </svg>
+  <text x="148" y="97" class="h" font-size="34" font-weight="700" fill="#0F172A">Kept</text>
 
   <!-- eyebrow -->
-  <text x="82" y="196" class="m" font-size="20" letter-spacing="3" fill="#0F6E5C">SLACK-NATIVE · HUMAN-VERIFIED · EVENT-SOURCED</text>
+  <text x="82" y="178" class="m" font-size="18" letter-spacing="2.4" fill="#0F766E">SLACK-NATIVE COMMITMENT VERIFICATION</text>
 
   <!-- headline -->
-  <text x="80" y="282" class="h" font-size="58" font-weight="600" fill="#1B1A17">Never treat one message, ticket,</text>
-  <text x="80" y="350" class="h" font-size="58" font-weight="600" fill="#1B1A17">or merged PR as <tspan fill="#0F6E5C">truth.</tspan></text>
+  <text x="80" y="262" class="h" font-size="66" font-weight="700" letter-spacing="-1.6" fill="#0F172A">Jira said done.</text>
+  <text x="80" y="334" class="h" font-size="66" font-weight="700" letter-spacing="-1.6" fill="#0F172A">LaunchDarkly said <tspan fill="#DC2626">no.</tspan></text>
 
   <!-- subline -->
-  <text x="80" y="410" class="s" font-size="25" fill="#46433C">A human-verified obligation ledger for shared customer channels.</text>
+  <text x="80" y="390" class="h" font-size="24" fill="#475569">Kept checks customer promises in Slack against Jira, GitHub Actions</text>
+  <text x="80" y="422" class="h" font-size="24" fill="#475569">&amp; LaunchDarkly before your team calls it done.</text>
 
-  <!-- chips -->
-  <g>
-    <rect x="80" y="460" width="104" height="46" rx="10" fill="#DCEDE8" stroke="#B7D7CE"/>
-    <text x="132" y="489" class="m" font-size="19" font-weight="600" fill="#0B5346" text-anchor="middle">Slack</text>
-    <rect x="196" y="460" width="92" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
-    <text x="242" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">MCP</text>
-    <rect x="300" y="460" width="208" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
-    <text x="404" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">two human gates</text>
-    <rect x="520" y="460" width="188" height="46" rx="10" fill="#FBF9F3" stroke="#E4DECF"/>
-    <text x="614" y="489" class="m" font-size="19" fill="#1B1A17" text-anchor="middle">event-sourced</text>
-  </g>
+  <!-- ===== real integration logos ===== -->
+  <!-- Slack -->
+  <rect x="80" y="466" width="44" height="44" rx="11" fill="#fff" stroke="#E7ECF2"/>
+  <svg x="88" y="474" width="28" height="28" viewBox="0 0 122.8 122.8">
+    <path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/>
+    <path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/>
+    <path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/>
+    <path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/>
+  </svg>
+  <text x="134" y="495" class="h" font-size="22" font-weight="600" fill="#334155">Slack</text>
+
+  <!-- Jira -->
+  <rect x="250" y="466" width="44" height="44" rx="11" fill="#fff" stroke="#E7ECF2"/>
+  <svg x="259" y="475" width="26" height="26" viewBox="0 0 24 24">
+    <path fill="#2684FF" d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/>
+  </svg>
+  <text x="304" y="495" class="h" font-size="22" font-weight="600" fill="#334155">Jira</text>
+
+  <!-- GitHub Actions -->
+  <rect x="404" y="466" width="44" height="44" rx="11" fill="#181717"/>
+  <svg x="412" y="474" width="28" height="28" viewBox="0 0 24 24">
+    <path fill="#fff" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+  </svg>
+  <text x="458" y="495" class="h" font-size="22" font-weight="600" fill="#334155">GitHub Actions</text>
+
+  <!-- LaunchDarkly -->
+  <rect x="700" y="466" width="44" height="44" rx="11" fill="#fff" stroke="#E7ECF2"/>
+  <svg x="708" y="474" width="28" height="28" viewBox="0 0 24 24">
+    <path fill="#405BFF" d="M12 1q.7 10.3 11 11-10.3.7-11 11-.7-10.3-11-11Q11.3 11.3 12 1Z"/>
+  </svg>
+  <text x="754" y="495" class="h" font-size="22" font-weight="600" fill="#334155">LaunchDarkly</text>
 
   <!-- footer -->
-  <line x1="80" y1="556" x2="1120" y2="556" stroke="#E4DECF"/>
-  <text x="80" y="592" class="m" font-size="20" fill="#837C6E">github.com/kaviyakumar23/kept</text>
-  <g>
-    <circle cx="980" cy="586" r="6" fill="#0F6E5C"/>
-    <text x="996" y="592" class="m" font-size="20" fill="#46433C">New Slack Agent</text>
-  </g>
+  <line x1="80" y1="556" x2="1120" y2="556" stroke="#E2E8F0"/>
+  <text x="80" y="593" class="m" font-size="19" fill="#64748B">kept-iota.vercel.app</text>
+  <text x="1120" y="593" text-anchor="end" class="m" font-size="19" fill="#64748B">reads evidence over MCP + provider APIs</text>
 </svg>
