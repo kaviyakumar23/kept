@@ -115,6 +115,27 @@ export function assessFulfillment(allEvidence: Evidence[]): FulfillmentAssessmen
   // prod deploy. Fall through to "progress" rather than assert availability.
   const proofBlocks = flagOn === false || ciGreen === false || statusOk === false;
 
+  // Option A — the owner MANUALLY attested delivery (for teams with no automated proof source).
+  // That attestation is sufficient to verify, UNLESS a connected proof source contradicts it
+  // (flag OFF / CI red / status degraded) — the guardrail always wins over a human claim. Placed
+  // after the flag-OFF block above so an OFF flag still blocks a "marked delivered" promise.
+  const manualAttested = evidence.some((e) => e.kind === "manual_delivery");
+  if (manualAttested && !proofBlocks) {
+    const proofsPositive = [latestFlag, latestCi, latestStatus].filter((e): e is Evidence => e !== undefined);
+    const attestations = evidence.filter((e) => e.kind === "manual_delivery");
+    return {
+      available: true,
+      confidence: proofsPositive.length ? 0.85 : 0.7,
+      sufficientForVerification: true,
+      customerConfirmed: false,
+      rationale:
+        "the owner attested the work is delivered" +
+        (proofsPositive.length ? " and the connected proof sources agree" : " (no automated proof source connected)") +
+        ".",
+      contributing: [...attestations, ...proofsPositive],
+    };
+  }
+
   // Code merged AND deployed to the customer's environment → available (unless a proof
   // source blocks). ON / green / operational are corroborating proofs that raise confidence.
   if (prMerged.length > 0 && customerDeploys.length > 0 && !proofBlocks) {

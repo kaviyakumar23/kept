@@ -53,7 +53,9 @@ export class LaunchDarklyProofAdapter implements McpQueryClient {
   /** Is a real LaunchDarkly read path (MCP or REST) configured? (Used for real-vs-simulated selection.) */
   configured(): boolean {
     if (this.opts.mcp) return true;
-    return Boolean((this.opts.apiToken ?? process.env.LAUNCHDARKLY_API_TOKEN) && (this.opts.projectKey ?? process.env.LAUNCHDARKLY_PROJECT_KEY));
+    // Credentials come ONLY from opts (the resolved per-tenant / operator config). No process.env
+    // fallback here — otherwise a tenant with no LD token would borrow the operator's (cross-tenant leak).
+    return Boolean(this.opts.apiToken && this.opts.projectKey);
   }
 
   /**
@@ -65,15 +67,15 @@ export class LaunchDarklyProofAdapter implements McpQueryClient {
 
     const flag = String(args.flag_key ?? "").trim();
     if (!flag) return undefined;
-    const env = String(args.environment ?? this.opts.environment ?? process.env.LAUNCHDARKLY_ENVIRONMENT ?? "production").trim() || "production";
+    const env = String(args.environment ?? this.opts.environment ?? "production").trim() || "production";
 
     if (this.opts.mcp) return this.viaMcp(flag, env);
     return this.viaRest(flag, env);
   }
 
   private async viaRest(flag: string, env: string): Promise<McpStructured> {
-    const token = this.opts.apiToken ?? process.env.LAUNCHDARKLY_API_TOKEN;
-    const project = this.opts.projectKey ?? process.env.LAUNCHDARKLY_PROJECT_KEY;
+    const token = this.opts.apiToken;
+    const project = this.opts.projectKey;
     if (!token || !project) return undefined; // no credentials → skip (offline-safe; sim answers upstream)
 
     const base = this.opts.baseUrl ?? "https://app.launchdarkly.com";
@@ -100,8 +102,8 @@ export class LaunchDarklyProofAdapter implements McpQueryClient {
 
   private async viaMcp(flag: string, env: string): Promise<McpStructured> {
     try {
-      const tool = this.opts.mcpFlagTool ?? process.env.LAUNCHDARKLY_MCP_FLAG_TOOL ?? "get-flag";
-      const project = this.opts.projectKey ?? process.env.LAUNCHDARKLY_PROJECT_KEY;
+      const tool = this.opts.mcpFlagTool ?? "get-flag";
+      const project = this.opts.projectKey;
       // CODE picks the tool + args. LaunchDarkly's hosted MCP `get-flag` returns the flag resource
       // with `environments.<env>.on` (verified live: args projectKey + flagKey + env). Arg names
       // aren't pinned across versions, so we pass common aliases (the server ignores extras).

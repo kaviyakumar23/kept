@@ -14,7 +14,7 @@ import type { McpQueryClient, McpStructured } from "./mcp.js";
  * never throws and never blocks the pipeline (a missing proof is not a negative proof).
  */
 export interface GitHubActionsOptions {
-  /** Personal-access / app token. Falls back to the GITHUB_TOKEN env var. */
+  /** Personal-access / app token (from the resolved per-tenant / operator config; no env fallback). */
   token?: string;
   /** API base (override for GitHub Enterprise). Defaults to the public API. */
   baseUrl?: string;
@@ -37,7 +37,9 @@ export class GitHubActionsProofAdapter implements McpQueryClient {
   async query(name: string, args: Record<string, unknown>): Promise<McpStructured> {
     if (name !== "get_workflow_run") return undefined;
 
-    const token = this.opts.token ?? process.env.GITHUB_TOKEN;
+    // Credentials come ONLY from opts (the resolved per-tenant / operator config). No process.env
+    // fallback — otherwise a tenant with no token would borrow the operator's GITHUB_TOKEN.
+    const token = this.opts.token;
     if (!token) return undefined; // no credentials → skip the live source gracefully (offline-safe)
 
     const owner = String(args.owner ?? "").trim();

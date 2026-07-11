@@ -30,6 +30,12 @@ export interface KeptConfig {
   riskWindowMs: number;
   /** "Pilot" free-tier cap: max LLM classifications per workspace per month (per-tenant override wins). */
   pilotLlmLimit: number;
+  /**
+   * Operator's OWN workspace (team id). ONLY this team may use the operator-env integration
+   * credentials (LaunchDarkly/Jira/GitHub + proof-targets). Every other installed workspace uses
+   * strictly its own connected sources — no fallback to the operator's accounts (tenant isolation).
+   */
+  operatorTeam: string | undefined;
   /** Judge-demo tenant (team id): reads proof from the CONTROLLABLE demo source + shows Demo Controls. */
   demoTeam: string | undefined;
   /** Optional channel (id) where the demo's seeded promise + sanitized closure live. Unset → cards go to the judge's DM/App Home. */
@@ -81,6 +87,7 @@ export function loadConfig(): KeptConfig {
     publicUrl: process.env.KEPT_PUBLIC_URL,
     riskWindowMs: Number(process.env.KEPT_RISK_WINDOW_MS ?? 24 * 60 * 60 * 1000),
     pilotLlmLimit: Number(process.env.KEPT_PILOT_LLM_LIMIT ?? 500),
+    operatorTeam: process.env.KEPT_OPERATOR_TEAM,
     demoTeam: process.env.KEPT_DEMO_TEAM,
     demoChannel: process.env.KEPT_DEMO_CHANNEL,
     proof: {

@@ -320,22 +320,57 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
-  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action, client }: any) => {
+  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, respond, body, action, client }: any) => {
     await ack();
     const team = await resolveTeam(client, body);
     if (!team) return;
     try {
-      await orch.verify(obligationOf(action), body.user.id, team);
+      const { draftSent } = await orch.verify(obligationOf(action), body.user.id, team);
+      // Lock the packet only when verification actually succeeded — if it's blocked (e.g. flag
+      // OFF) leave the card live so the owner can flip the flag and click Verify again.
+      if (draftSent) {
+        await respond({
+          replace_original: true,
+          text: "Verified — closure draft ready.",
+          blocks: [{ type: "section", text: { type: "mrkdwn", text: ":ballot_box_with_check: *Verified* — the closure draft is in your DMs to review and send." } }],
+        }).catch(() => undefined);
+      } else {
+        await respond({ replace_original: false, response_type: "ephemeral", text: ":no_entry: Not verifiable yet — the evidence doesn't reconcile (or this was already handled)." }).catch(() => undefined);
+      }
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
-  app.action(new RegExp(`^${ACTIONS.approveSend}:`), async ({ ack, body, action, client }: any) => {
+  app.action(new RegExp(`^${ACTIONS.approveSend}:`), async ({ ack, respond, body, action, client }: any) => {
     await ack();
     const team = await resolveTeam(client, body);
     if (!team) return;
     try {
-      await orch.approveSend(obligationOf(action), body.user.id, team);
+      const res = await orch.approveSend(obligationOf(action), body.user.id, team);
+      await republishHome(client, body.user.id, team);
+      // Lock the draft card once it's sent so it can't be re-sent from a stale card.
+      if (res.kind === "notified") {
+        await respond({
+          replace_original: true,
+          text: "Closure sent.",
+          blocks: [{ type: "section", text: { type: "mrkdwn", text: ":white_check_mark: *Sent* — the sanitized closure is posted in the customer thread. Kept closes the loop when they confirm." } }],
+        }).catch(() => undefined);
+      } else {
+        await respond({ replace_original: false, response_type: "ephemeral", text: `:warning: Not sent — ${res.reason ?? "it was already handled"}.` }).catch(() => undefined);
+      }
+    } catch (err) {
+      if (!(await handledCrossTenant(client, body, err))) throw err;
+    }
+  });
+
+  // Option A — owner manually attests delivery (teams with no automated proof source). Records a
+  // manual_delivery signal → Evidence Packet DM; the App Home refreshes so the promise moves along.
+  app.action(new RegExp(`^${ACTIONS.markDelivered}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    try {
+      await orch.markDelivered(obligationOf(action), body.user.id, team);
       await republishHome(client, body.user.id, team);
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;

@@ -341,6 +341,8 @@ export class KeptOrchestrator {
     const run = prev.catch(() => {}).then(async (): Promise<CreatedWorkItem | null> => {
       const cur = await this.d.service.getObligation(obligationId);
       if (!cur || cur.work_item) return null; // already linked (or gone) → this call mints nothing
+      // No tracker connected → track the promise WITHOUT a linked ticket (never fabricate a ref).
+      if (this.d.workItems.enabled === false) return null;
       const work = await this.d.workItems.createIssue({
         title: cur.outcome,
         description: `Tracked by Kept for ${cur.customer}.`,
@@ -431,6 +433,45 @@ export class KeptOrchestrator {
       verifyCardSent = assessment.sufficientForVerification;
     }
     return { kind: "recorded", obligation: updated, verifyCardSent };
+  }
+
+  /**
+   * Option A — the owner manually attests the work is delivered, for teams that haven't connected
+   * an automated proof source. Records a first-class `manual_delivery` signal → POSSIBLE_FULFILLMENT
+   * → Evidence Packet. Still runs the proof collector, so a connected source that says NOT-live
+   * blocks the close (assessFulfillment decides). The human only proposes; code + Gate 2 decide.
+   */
+  async markDelivered(obligationId: ObligationId, byUserId: string, actingTeam?: string): Promise<{ obligation: Obligation | null; verifyCardSent: boolean }> {
+    const o = await this.loadForWrite(obligationId, actingTeam);
+    if (!o) throw new Error(`unknown obligation ${obligationId}`);
+    const at = new Date(this.now()).toISOString();
+    const evidence: Evidence = {
+      id: `owner:${o.id}:${at}`,
+      source: "owner",
+      kind: "manual_delivery",
+      ref: `manual@${at}`,
+      at,
+      accessible_to_user: true,
+      data: { by: byUserId },
+      proves: "owner attested the work is delivered",
+    };
+    const r = await this.d.service.dispatch(
+      { kind: "RECORD_FULFILLMENT_SIGNAL", evidence },
+      this.ctx(o.id, `${o.id}:manual:${o.state_version}`, byUserId, byUserId),
+    );
+    const updated = await this.collectProof(r.obligation ?? (await this.d.service.getObligation(o.id))!);
+    let verifyCardSent = false;
+    if (updated.state === "POSSIBLE_FULFILLMENT") {
+      const assessment = assessFulfillment(updated.evidence);
+      await this.d.notifier.sendPrivate(this.owner(updated, EMPTY_RTS), {
+        text: assessment.sufficientForVerification
+          ? `Ready to verify — ${updated.customer} / ${updated.outcome}`
+          : `Marked delivered, but blocked — ${updated.customer} / ${updated.outcome}`,
+        blocks: possibleFulfillmentCard(updated, assessment),
+      }, updated.team);
+      verifyCardSent = assessment.sufficientForVerification;
+    }
+    return { obligation: updated, verifyCardSent };
   }
 
   /**

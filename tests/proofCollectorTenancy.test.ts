@@ -120,7 +120,7 @@ describe("per-tenant proof collector — cross-tenant isolation (invariant #4)",
     expect(await c1!.collect(obNew)).toEqual([]);
   });
 
-  it("reads GitHub with the ACTING team's own token; operator env is the ONLY fallback, never another tenant's token", async () => {
+  it("reads GitHub with the ACTING team's own token; NEVER borrows the operator env or another tenant's token", async () => {
     const seen: string[] = [];
     const fakeFetch = vi.fn(async (_url: unknown, init: { headers?: Record<string, string> }) => {
       seen.push(String(init?.headers?.authorization ?? ""));
@@ -130,7 +130,8 @@ describe("per-tenant proof collector — cross-tenant isolation (invariant #4)",
     process.env.GITHUB_TOKEN = "operator-token"; // the shared operator default
 
     const store = new InMemoryTenantConfigStore();
-    // Team A brings its OWN GitHub token; Team B configures a CI target but NO token → operator default.
+    // Team A brings its OWN GitHub token; Team B configures a CI target but NO token. Neither team is
+    // the operatorTeam, so B must NOT borrow the operator's GITHUB_TOKEN — its live read is skipped.
     await store.set("T_A", "github", { token: "team-A-token" });
     await store.set("T_A", "proof_targets", { Acme: { ci: { owner: "acme", repo: "web", runId: 42 } } });
     await store.set("T_B", "proof_targets", { Globex: { ci: { owner: "globex", repo: "app", runId: 7 } } });
@@ -140,13 +141,14 @@ describe("per-tenant proof collector — cross-tenant isolation (invariant #4)",
     const cA = await provider("T_A");
     await cA!.collect(mkObl("POSSIBLE_FULFILLMENT", { team: "T_A", customer: "Acme", subject_canonical: "S1" }));
     const cB = await provider("T_B");
-    await cB!.collect(mkObl("POSSIBLE_FULFILLMENT", { team: "T_B", customer: "Globex", subject_canonical: "S2" }));
+    const bEvidence = await cB!.collect(mkObl("POSSIBLE_FULFILLMENT", { team: "T_B", customer: "Globex", subject_canonical: "S2" }));
 
-    // A used ITS OWN token; B fell back to the OPERATOR token — in that exact order.
-    expect(seen).toEqual(["Bearer team-A-token", "Bearer operator-token"]);
-    // The critical isolation guarantee: A's secret never authenticated B's proof read.
-    expect(seen[1]).not.toContain("team-A-token");
-    expect(seen).not.toContain(""); // both reads were authenticated (no unauth leak-through)
+    // A used ITS OWN token. B has no token and the operator fallback is REMOVED → B makes NO
+    // authenticated operator request; it gathers no CI evidence rather than borrowing operator creds.
+    expect(seen).toEqual(["Bearer team-A-token"]);
+    expect(seen).not.toContain("Bearer operator-token"); // operator creds never leak to another tenant
+    expect(seen).not.toContain(""); // the one read that happened was authenticated
+    expect(bEvidence).toEqual([]); // no token → no live read for B (uses the manual path instead)
   });
 
   it("an unconfigured team with NO operator default gets a null collector (no cross-tenant borrow)", async () => {

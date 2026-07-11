@@ -27,6 +27,8 @@ export const ACTIONS = {
   dismiss: "kept_dismiss",
   verify: "kept_verify",
   notYet: "kept_not_yet",
+  // Option A — owner manually attests delivery (for teams with no automated proof source).
+  markDelivered: "kept_mark_delivered",
   approveSend: "kept_approve_send",
   editDraft: "kept_edit_draft",
   history: "kept_history",
@@ -157,18 +159,29 @@ const isProdEnv = (v: unknown): boolean => {
  * so a reviewer sees at a glance WHY the close is or isn't allowed — e.g. "Ticket Done ✓"
  * next to "Feature flag OFF ✗" is the whole differentiator.
  */
+// Provenance tags — so the reader knows HOW Kept knows each fact: a source Kept actively
+// queried ("read live") vs. an event a pipeline pushed to Kept's webhook ("reported").
+const LIVE = "  _· read live_";
+const REPORTED = "  _· reported_";
 function evidencePacketRows(evidence: Evidence[]): string[] {
   const rows: string[] = [];
   const flag = latestEvidence(evidence, "feature_flag");
-  if (flag) rows.push(flag.data.enabled === true ? "🚩 Production flag *ON*  ✓" : "🚩 Production flag *OFF*  ✗");
+  if (flag) rows.push((flag.data.enabled === true ? "🚩 Production flag *ON*  ✓" : "🚩 Production flag *OFF*  ✗") + LIVE);
   const ci = latestEvidence(evidence, "ci_run");
-  if (ci) rows.push(ci.data.conclusion === "success" ? "🔧 CI *passed*  ✓" : `🔧 CI *${escapeMrkdwn(String(ci.data.conclusion ?? "?"))}*  ✗`);
+  if (ci) rows.push((ci.data.conclusion === "success" ? "🔧 CI *passed*  ✓" : `🔧 CI *${escapeMrkdwn(String(ci.data.conclusion ?? "?"))}*  ✗`) + LIVE);
   const status = latestEvidence(evidence, "status_page");
-  if (status) rows.push(status.data.component_status === "operational" ? "🟢 Status *operational*  ✓" : `🟠 Status *${escapeMrkdwn(String(status.data.component_status ?? "?"))}*  ✗`);
-  if (evidence.some((e) => e.kind === "ticket_status" && String(e.data.status ?? "").toLowerCase() === "done")) rows.push("🎫 Ticket *Done*  ✓");
-  if (evidence.some((e) => e.kind === "pr_merged" && e.data.merged === true)) rows.push("🔀 Code *merged*  ✓");
-  if (evidence.some((e) => e.kind === "deploy" && isProdEnv(e.data.environment))) rows.push("🚀 *Prod deploy*  ✓");
-  if (evidence.some((e) => e.kind === "customer_reply" && e.data.confirmed === true)) rows.push("💬 *Customer confirmed*  ✓");
+  if (status) rows.push((status.data.component_status === "operational" ? "🟢 Status *operational*  ✓" : `🟠 Status *${escapeMrkdwn(String(status.data.component_status ?? "?"))}*  ✗`) + LIVE);
+  const ticket = latestEvidence(evidence, "ticket_status");
+  if (ticket && String(ticket.data.status ?? "").toLowerCase() === "done") {
+    // ticket_status has two provenances: a collector MCP read encodes the instant in `ref`
+    // (`KEY@<iso>`) → read live; a webhook push carries a bare `KEY` → reported. Label honestly.
+    const readLive = /@\d{4}-\d\d-\d\d/.test(ticket.ref);
+    rows.push("🎫 Ticket *Done*  ✓" + (readLive ? LIVE : REPORTED));
+  }
+  if (evidence.some((e) => e.kind === "pr_merged" && e.data.merged === true)) rows.push("🔀 Code *merged*  ✓" + REPORTED);
+  if (evidence.some((e) => e.kind === "deploy" && isProdEnv(e.data.environment))) rows.push("🚀 *Prod deploy*  ✓" + REPORTED);
+  if (evidence.some((e) => e.kind === "customer_reply" && e.data.confirmed === true)) rows.push("💬 *Customer confirmed*  ✓" + REPORTED);
+  if (evidence.some((e) => e.kind === "manual_delivery")) rows.push("✍️ *Marked delivered by the owner*  ✓  _· attested_");
   if (rows.length === 0) rows.push("_no corroborating evidence yet_");
   return rows.map((r) => `•  ${r}`);
 }
@@ -193,7 +206,7 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
         button("Not yet", ACTIONS.notYet, o.id),
       ],
     },
-    context("A closed ticket is never enough — Kept reconciles the flag, CI, status, merge, and deploy (or a direct customer confirmation)."),
+    context("_read live_ = Kept queried the source just now · _reported_ = your pipeline pushed it · _attested_ = a human marked it delivered. A closed ticket is never enough on its own."),
   ];
 }
 
@@ -201,11 +214,11 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
 export function closureDraftCard(o: Obligation, draft: ClosureDraft): SlackBlock[] {
   const n = draft.safe.redactedCount;
   const safety =
-    n > 0
-      ? `🛡️ ${n} internal detail${n === 1 ? "" : "s"} kept out of the reply (${draft.safe.redactedSources.join(", ") || "internal"}) · ${draft.clean ? "Leak-safe ✅" : "⚠️ leak detected"}`
-      : draft.clean
-        ? "🛡️ Leak-safe — no internal detail in this reply ✅"
-        : "⚠️ Leak detected — review before sending";
+    !draft.clean
+      ? "⚠️ Review before sending — an internal detail may leak."
+      : n > 0
+        ? `🛡️ Safe to send — Kept kept ${n} internal detail${n === 1 ? "" : "s"} out of the customer's reply.`
+        : "🛡️ Safe to send — nothing internal is in this reply.";
   return [
     header("Kept · close the loop"),
     section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
@@ -422,12 +435,18 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
   ];
 }
 
-/** One App Home obligation row — status-chip line + a drill-in to its receipts. */
-const obligationRow = (o: Obligation): SlackBlock => ({
-  type: "section",
-  text: { type: "mrkdwn", text: ledgerLine(o) },
-  accessory: button("🧾 Receipts", ACTIONS.history, o.id),
-});
+/** App Home blocks for one obligation — the status-chip row (+ Receipts), and for a promise
+ *  that's being worked, a "Mark delivered" action so a team with no automated proof source can
+ *  still push it into the Proof-of-Done gate (Option A — integrations are optional). */
+function obligationBlocks(o: Obligation): SlackBlock[] {
+  const out: SlackBlock[] = [
+    { type: "section", text: { type: "mrkdwn", text: ledgerLine(o) }, accessory: button("🧾 Receipts", ACTIONS.history, o.id) },
+  ];
+  if (o.state === "OPEN" || o.state === "IN_PROGRESS") {
+    out.push({ type: "actions", elements: [button("✅ Mark delivered", ACTIONS.markDelivered, o.id, "primary")] });
+  }
+  return out;
+}
 /** Stable de-dupe by id (an obligation can be both overdue and awaiting-verify). */
 function dedupeById(list: Obligation[]): Obligation[] {
   const seen = new Set<string>();
@@ -463,7 +482,7 @@ export function appHomeView(
   const needsYou = dedupeById([...a.awaitingVerify, ...a.overdue]);
   if (needsYou.length > 0) {
     blocks.push(divider, section(`⚡ *Needs you*  ·  ${needsYou.length}`));
-    for (const o of needsYou.slice(0, 5)) blocks.push(obligationRow(o));
+    for (const o of needsYou.slice(0, 5)) blocks.push(...obligationBlocks(o));
     if (needsYou.length > 5) blocks.push(context(`…and ${needsYou.length - 5} more in the ledger below.`));
   }
   // Insight tiles (flag/state-derived → deterministic) — the at-a-glance counts.
@@ -510,7 +529,7 @@ export function appHomeView(
   for (const [customer, list] of byCustomer) {
     const openCount = list.filter(OPEN_STATE).length;
     blocks.push(section(`*${escapeMrkdwn(customer)}*  ·  ${openCount} open`));
-    for (const o of list) blocks.push(obligationRow(o));
+    for (const o of list) blocks.push(...obligationBlocks(o));
   }
   blocks.push(...connectionsBlocks(configured));
   return { type: "home", blocks };

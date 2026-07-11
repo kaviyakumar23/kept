@@ -182,6 +182,16 @@ export function makeProofCollectorProvider(
     // never live integrations — so the judge can toggle the flag and the demo can't die on a
     // lapsed trial. All other tenants resolve their own Connections config below.
     if (cfg.demoTeam && teamId === cfg.demoTeam) return getDemoCollector(opts.now ?? (() => Date.now()));
+    // The operator's OWN workspace is the only team allowed to use the operator-env credentials
+    // (LaunchDarkly/Jira/GitHub + proof-targets file). Every other tenant is strictly isolated below.
+    if (cfg.operatorTeam && teamId === cfg.operatorTeam) {
+      const hit = cache.get(teamId);
+      if (hit && hit.hash === "operator") return hit.collector;
+      const built = await buildProofCollector(cfg, opts);
+      const collector = built?.collector ?? null;
+      cache.set(teamId, { hash: "operator", collector });
+      return collector;
+    }
     const resolved = await resolveTenantProof(store, teamId, cfg);
     const hash = createHash("sha256").update(JSON.stringify(resolved)).digest("hex");
     const hit = cache.get(teamId);
@@ -209,11 +219,14 @@ async function resolveTenantProof(store: TenantConfigStore, teamId: string, cfg:
   ]);
   const ldConfigured = !!(ld && (ld.mcpToken || (ld.apiToken && ld.projectKey)));
   const jiraConfigured = !!(jira && (jira.mcpToken || (jira.apiToken && jira.email && jira.baseUrl)));
+  // STRICT per-tenant isolation: a workspace reads ONLY the sources it connected itself. No fallback
+  // to the operator's LaunchDarkly/Jira/GitHub or proof-targets file (that's operator-team only, handled
+  // above). Unconfigured providers stay empty → no live source → no collector → uses the manual path.
   return {
-    launchDarkly: ldConfigured ? { ...LD_DEFAULTS, ...ld } : cfg.proof.launchDarkly,
-    jira: jiraConfigured ? { ...jira } : cfg.proof.jira,
-    githubToken: gh?.token ?? process.env.GITHUB_TOKEN,
-    targetsFile: cfg.proof.targetsFile,
+    launchDarkly: ldConfigured ? { ...LD_DEFAULTS, ...ld } : {},
+    jira: jiraConfigured ? { ...jira } : {},
+    githubToken: gh?.token,
+    targetsFile: undefined,
     targets: tgt ?? undefined,
   };
 }

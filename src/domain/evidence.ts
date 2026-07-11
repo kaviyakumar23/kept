@@ -21,7 +21,10 @@ export type EvidenceSource =
   // component health. All three are internal-only (never surfaced to a customer).
   | "feature_flag"
   | "ci"
-  | "status_page";
+  | "status_page"
+  // Option A — the team owner's manual attestation that the work shipped, for teams that
+  // haven't connected an automated proof source. Internal-only (never shown to a customer).
+  | "owner";
 
 export type EvidenceKind =
   | "customer_request" // slack: the ask
@@ -43,7 +46,10 @@ export type EvidenceKind =
   // and `assessFulfillment` then honors the latest-by-`at`.
   | "feature_flag"
   | "ci_run"
-  | "status_page";
+  | "status_page"
+  // Option A — a human owner's attestation that the work is delivered (no automated proof).
+  // Sufficient to verify UNLESS a connected proof source contradicts it (reconciliation.ts).
+  | "manual_delivery";
 
 export interface Evidence {
   id: string;
@@ -72,6 +78,7 @@ export const SOURCE_ROLES: Record<EvidenceSource, string> = {
   feature_flag: "whether the capability is actually reachable in production",
   ci: "the build / tests passed for the change",
   status_page: "the component's operational health",
+  owner: "the owner's manual attestation that the work is delivered",
 };
 
 /** Sources that must never leak to a shared customer channel (see D1). */
@@ -84,6 +91,8 @@ export const INTERNAL_ONLY_SOURCES: ReadonlySet<EvidenceSource> = new Set([
   "feature_flag",
   "ci",
   "status_page",
+  // A manual owner attestation is internal — the customer's own confirmation is separate.
+  "owner",
 ]);
 
 /**
@@ -110,6 +119,9 @@ export const KIND_SOURCES: Record<EvidenceKind, readonly EvidenceSource[]> = {
   feature_flag: ["feature_flag"],
   ci_run: ["ci"],
   status_page: ["status_page"],
+  // Only the `owner` source may attest a manual delivery — a proposer can't forge it on
+  // another source to fake an attestation.
+  manual_delivery: ["owner"],
 };
 
 /** True iff the evidence's source is allowed to attest to its claimed kind. */

@@ -22,7 +22,26 @@ export interface CreateIssueInput {
 
 export interface WorkItemAdapter {
   readonly system: "linear" | "jira";
+  /**
+   * Whether this adapter creates REAL tickets. Undefined ⇒ enabled (back-compat for real
+   * adapters). A false value means "no tracker connected" — the orchestrator then skips
+   * linking entirely rather than fabricating a placeholder ref (invariant #7 honesty).
+   */
+  readonly enabled?: boolean;
   createIssue(input: CreateIssueInput): Promise<CreatedWorkItem>;
+}
+
+/**
+ * No-op adapter for the hosted app when a tenant hasn't connected a real Jira/Linear.
+ * Kept tracks the promise WITHOUT a linked ticket — it never invents a fake `PROJ-118`.
+ * `enabled: false` makes the orchestrator skip the link step; `createIssue` is never called.
+ */
+export class NoopWorkItemAdapter implements WorkItemAdapter {
+  readonly system = "linear" as const;
+  readonly enabled = false;
+  async createIssue(): Promise<CreatedWorkItem> {
+    throw new Error("work-item creation is disabled — no issue tracker connected for this workspace");
+  }
 }
 
 /**

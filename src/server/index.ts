@@ -11,7 +11,7 @@ import { PostgresScheduler } from "../scheduler/postgresScheduler.js";
 import type { Scheduler, ReminderHandler } from "../scheduler/scheduler.js";
 import type { Notifier } from "../slack/notifier.js";
 import { selectLlm } from "../llm/select.js";
-import type { WorkItemAdapter } from "../integrations/linear.js";
+import { NoopWorkItemAdapter, type WorkItemAdapter } from "../integrations/linear.js";
 import { JiraApiAdapter } from "../integrations/jira.js";
 import { McpWorkItemAdapter, createSimulatedMcpWorkItems } from "../integrations/mcp.js";
 import { buildProofCollector, makeProofCollectorProvider } from "../integrations/proofSources.js";
@@ -89,6 +89,11 @@ async function main() {
   } else if (process.env.JIRA_BASE_URL && process.env.JIRA_EMAIL && process.env.JIRA_API_TOKEN && process.env.JIRA_PROJECT_KEY) {
     workItems = new JiraApiAdapter({ baseUrl: process.env.JIRA_BASE_URL, email: process.env.JIRA_EMAIL, apiToken: process.env.JIRA_API_TOKEN, projectKey: process.env.JIRA_PROJECT_KEY });
     workItemsMode = "jira-rest";
+  } else if (oauth) {
+    // Hosted multi-tenant: NEVER fabricate tickets. Track promises without a linked work item
+    // until a tenant connects a real Jira/Linear (invariant #7 — no fake PROJ-118 shown as real).
+    workItems = new NoopWorkItemAdapter();
+    workItemsMode = "noop:no-tracker";
   } else {
     workItems = await createSimulatedMcpWorkItems();
     workItemsMode = "mcp:simulated";
@@ -189,6 +194,8 @@ async function main() {
   const orchHolder: { orch?: KeptOrchestrator } = {};
   const webhookOpts = {
     secret: process.env.KEPT_WEBHOOK_SECRET,
+    // Hosted OAuth mode authenticates every webhook (fail closed): forged proof can't be injected.
+    requireSecret: oauth,
     teamId: process.env.KEPT_TEAM_ID,
     ...(installationStore ? { listTeamIds: () => installationStore!.listTeamIds() } : {}),
   };

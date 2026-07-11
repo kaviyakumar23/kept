@@ -24,6 +24,12 @@ export interface WebhookServerOpts {
   /** Shared-secret guard via the `x-kept-secret` header (stand-in for per-source HMAC). */
   secret?: string;
   /**
+   * Hosted mode: authentication is MANDATORY. When true, a delivery is rejected unless a
+   * secret is configured AND the `x-kept-secret` header matches it — so an unauthenticated
+   * caller can never inject forged proof. Fails closed if no secret is configured.
+   */
+  requireSecret?: boolean;
+  /**
    * Default tenant when a delivery does not name one (single-tenant dev / the demo
    * driver). A request may still override per-delivery via the `x-kept-team` header.
    */
@@ -101,10 +107,14 @@ async function handleWebhook(
     res.end("method not allowed");
     return;
   }
-  if (opts.secret && req.headers["x-kept-secret"] !== opts.secret) {
-    res.statusCode = 401;
-    res.end("unauthorized");
-    return;
+  // Authenticate the delivery. In hosted mode (requireSecret) a matching secret is MANDATORY
+  // and we fail closed if none is configured — so no one can POST forged proof to /webhooks/*.
+  if (opts.requireSecret || opts.secret) {
+    if (!opts.secret || req.headers["x-kept-secret"] !== opts.secret) {
+      res.statusCode = 401;
+      res.end("unauthorized");
+      return;
+    }
   }
 
   const action = mapByPath(pathnameOf(req), await readJson(req));
