@@ -146,6 +146,9 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       subtype === "bot_message" || message.bot_id
         ? { name: String(message.username || message.bot_profile?.name || "an AI agent") }
         : undefined;
+    // Channel→customer binding (if the workspace pinned this channel to a customer). Anchors the
+    // customer identity to the channel instead of re-parsing it from every message.
+    const channelCustomers = deps.tenantConfig ? await deps.tenantConfig.get(message.team, "channel_customers") : null;
     const r = await orch.ingestMessage({
       team: message.team,
       channel: message.channel,
@@ -156,6 +159,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       actionToken: message.action_token ?? context?.actionToken,
       text: message.text,
       agent,
+      customerBinding: channelCustomers?.[message.channel],
     });
     // Operational visibility (zero-copy: OUTCOME only, never the message text) — makes a
     // missing card diagnosable: card sent (+owner) / deduped / skipped (+why).
@@ -612,6 +616,36 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     await ack();
     const text = (command.text || "").trim();
     const team = command.team_id;
+
+    // `/kept customer <name>` — bind THIS channel to a customer (a shared customer channel = one
+    // customer). The binding then anchors every promise here, overriding the LLM's guess.
+    const bind = /^customer(?:\s+(.+))?$/i.exec(text);
+    if (bind) {
+      if (!deps.tenantConfig) {
+        await respond({ response_type: "ephemeral", text: ":information_source: Channel→customer binding isn't available on this deployment." });
+        return;
+      }
+      const channel = command.channel_id;
+      const arg = (bind[1] || "").trim();
+      const current = (await deps.tenantConfig.get(team, "channel_customers")) ?? {};
+      if (!arg) {
+        const c = current[channel];
+        await respond({ response_type: "ephemeral", text: c
+          ? `:round_pushpin: This channel is bound to *${c}* — every promise here is tracked for them. Change with \`/kept customer <name>\`, clear with \`/kept customer clear\`.`
+          : "This channel has no customer binding. Set one with `/kept customer <name>` so every promise here is tracked for that customer — no guessing from the wording." });
+        return;
+      }
+      if (/^(clear|none|off|remove)$/i.test(arg)) {
+        delete current[channel];
+        await deps.tenantConfig.set(team, "channel_customers", current);
+        await respond({ response_type: "ephemeral", text: ":unlock: Cleared this channel's customer binding — Kept will infer the customer from each message again." });
+        return;
+      }
+      current[channel] = arg;
+      await deps.tenantConfig.set(team, "channel_customers", current);
+      await respond({ response_type: "ephemeral", text: `:round_pushpin: This channel is now bound to *${arg}*. Every promise here is tracked for ${arg}, regardless of how it's worded.` });
+      return;
+    }
 
     const mint = /^trust\s+(.+)$/i.exec(text);
     if (mint) {

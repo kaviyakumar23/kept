@@ -72,6 +72,9 @@ export interface SlackMessage {
   /** #5 — set when the promise was authored by an app / AI agent (not a human): the engine routes
    *  it to a HUMAN owner and the Gate-1 card is badged "Promised by <agent>". */
   agent?: { name: string };
+  /** Channel→customer binding (resolved by the Slack layer from tenant config). When set, it is the
+   *  customer for this promise — it OVERRIDES the LLM's extracted name (the channel IS the customer). */
+  customerBinding?: string;
   permalink?: string;
 }
 
@@ -181,10 +184,15 @@ export class KeptOrchestrator {
     );
     if (!proposal.actionable) return { kind: "skipped", signal: proposal.classification.signal };
 
+    // The customer identity is anchored to the CHANNEL when the workspace has bound it (a shared
+    // customer channel = one customer). The binding wins over the LLM's per-message extraction,
+    // which fixes "Acme" vs "Acme Corp" fragmentation and unnamed-customer guesses.
+    const customer = msg.customerBinding?.trim() || proposal.detectInput.customer;
+
     // RTS context — permission-safe, EPHEMERAL (never persisted). Scoped to the team.
     const rts = await this.d.rts.retrieve({
       team: msg.team,
-      customer: proposal.detectInput.customer,
+      customer,
       subject_canonical: proposal.detectInput.subject_canonical,
       channel: msg.channel,
       userId: msg.userId,
@@ -195,6 +203,7 @@ export class KeptOrchestrator {
     // W1 — stamp the acting workspace onto the obligation (the proposer omits it).
     const result = await this.d.service.detectRequest({
       ...proposal.detectInput,
+      customer, // channel binding wins over the LLM's extracted name (see above)
       team: msg.team,
       // Owner must be a real Slack user id. The proposer/RTS can hand back an LLM-guessed NAME (or
       // a placeholder like U_ACCOUNT_MANAGER — the underscore isn't a valid id), which then poisons
