@@ -245,7 +245,7 @@ export function verifyNudge(o: Obligation): SlackBlock[] {
   return [
     section(`👀 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is ready for your review.`),
     context("Kept gathered the delivery evidence. Open it to see what reconciles — and sign only if it does."),
-    { type: "actions", elements: [button("👀 Review & verify", ACTIONS.verify, o.id, "primary")] },
+    { type: "actions", elements: [button("Review & verify", ACTIONS.verify, o.id, "primary")] },
   ];
 }
 
@@ -254,7 +254,7 @@ export function sendNudge(o: Obligation): SlackBlock[] {
   return [
     section(`📣 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is verified and ready to close.`),
     context("Review the sanitized reply, then send it to the customer thread when you're happy."),
-    { type: "actions", elements: [button("📣 Review & send", ACTIONS.editDraft, o.id, "primary")] },
+    { type: "actions", elements: [button("Review & send", ACTIONS.editDraft, o.id, "primary")] },
   ];
 }
 
@@ -456,8 +456,8 @@ function connectionsBlocks(configured?: IntegrationProvider[], mappings?: ProofT
       blocks.push(
         { type: "section", text: { type: "mrkdwn", text: `*${escapeMrkdwn(key)}*  →  ${target}` } },
         { type: "actions", elements: [
-          button("✏️ Edit", ACTIONS.addMapping, key),
-          button("✕ Remove", ACTIONS.removeMapping, key, "danger"),
+          button("Edit", ACTIONS.addMapping, key),
+          button("Remove", ACTIONS.removeMapping, key, "danger"),
         ] },
       );
     }
@@ -476,7 +476,7 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
   const id = obligation?.id ?? "";
   const promise = obligation
     ? `*${escapeMrkdwn(obligation.customer)}* — ${escapeMrkdwn(obligation.outcome)}  ·  ${statusChip(obligation.state)}`
-    : "_none yet — click ↺ Reset demo to seed a fresh one_";
+    : "_none yet — click Reset demo to seed a fresh one_";
   return [
     divider,
     header("🎬 Demo Controls"),
@@ -495,7 +495,7 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
         button("Mark work shipped", ACTIONS.demoShip, id, "primary"),
         button(flagOn ? "Toggle production flag (ON→OFF)" : "Toggle production flag (OFF→ON)", ACTIONS.demoToggle, id),
         button("Customer replies: still fails", ACTIONS.demoFail, id),
-        button("↺ Reset demo", ACTIONS.demoReset, id, "danger"),
+        button("Reset demo", ACTIONS.demoReset, id, "danger"),
       ],
     },
   ];
@@ -505,13 +505,14 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
  *  (the cockpit). Verify/Send open focused modals; Confirm/Mark-delivered act directly. Terminal
  *  and awaiting-customer rows have no pending owner action (null → just Receipts). */
 function primaryActionFor(o: Obligation): { label: string; action: string } | null {
+  // Slack app-design: button labels are clean, specific text — no emoji on controls.
   switch (o.state) {
-    case "CANDIDATE": return { label: "✅ Confirm", action: ACTIONS.confirm };
+    case "CANDIDATE": return { label: "Confirm", action: ACTIONS.confirm };
     case "OPEN":
     case "IN_PROGRESS":
-    case "REOPENED": return { label: "✅ Mark delivered", action: ACTIONS.markDelivered };
-    case "POSSIBLE_FULFILLMENT": return { label: "👀 Verify", action: ACTIONS.verify };
-    case "VERIFIED": return { label: "📣 Send", action: ACTIONS.editDraft };
+    case "REOPENED": return { label: "Mark delivered", action: ACTIONS.markDelivered };
+    case "POSSIBLE_FULFILLMENT": return { label: "Verify", action: ACTIONS.verify };
+    case "VERIFIED": return { label: "Send", action: ACTIONS.editDraft };
     default: return null; // CUSTOMER_NOTIFIED / CLOSED / DISMISSED / CANCELLED
   }
 }
@@ -521,7 +522,7 @@ function primaryActionFor(o: Obligation): { label: string; action: string } | nu
  *  section + [action · 🧾 Receipts]; settled rows collapse to one line with Receipts as accessory. */
 function obligationBlocks(o: Obligation): SlackBlock[] {
   const primary = primaryActionFor(o);
-  const receipts = button("🧾 Receipts", ACTIONS.history, o.id);
+  const receipts = button("Receipts", ACTIONS.history, o.id);
   if (!primary) {
     return [{ type: "section", text: { type: "mrkdwn", text: ledgerLine(o) }, accessory: receipts }];
   }

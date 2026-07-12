@@ -37,10 +37,10 @@ A fresh install reads **no** proof source until it connects its own. In **App Ho
 3. **Capture.** Post: `We'll ship the CSV export by Friday.`
    ✅ DM: confirm card **Acme — CSV export** · *Confirm · Edit · Not a request*. No fake work-item line.
 4. **Gate 1.** Click **Confirm**.  ✅ Card **locks** → *"✅ Confirmed — now tracked."*
-5. **Mark delivered.** App Home → the promise → **✅ Mark delivered**.
-   ✅ DM: a thin **👀 Review & verify** nudge. Click it (or the promise's **👀 Verify** on Home) → the **Proof-of-Done** modal opens: **✍️ Marked delivered by the owner ✓ · attested** → **✅ Ready to close** (no proof source → attestation is enough).
-6. **Gate 2.** In the modal, click **Verify it's available** (the submit *is* your signature).  ✅ Modal closes → a **📣 Review & send** nudge lands in your DM.
-7. **Approve.** Open that nudge (or the promise's **📣 Send** on Home) → the closure-draft modal → **Approve & send**.  ✅ Sanitized closure **posts in the channel thread** (no internal refs).
+5. **Mark delivered.** App Home → the promise → **Mark delivered**.
+   ✅ DM: a thin **Review & verify** nudge. Click it (or the promise's **Verify** on Home) → the **Proof-of-Done** modal opens: **✍️ Marked delivered by the owner ✓ · attested** → **✅ Ready to close** (no proof source → attestation is enough).
+6. **Gate 2.** In the modal, click **Verify it's available** (the submit *is* your signature).  ✅ Modal closes → a **Review & send** nudge lands in your DM.
+7. **Approve.** Open that nudge (or the promise's **Send** on Home) → the closure-draft modal → **Approve & send**.  ✅ Sanitized closure **posts in the channel thread** (no internal refs).
 8. **Customer reply.** In that **same thread** (Reply in thread), reply: `works now`
    ✅ DM: *"✅ Acme confirmed 'CSV export' is working — closed."* Promise is now **✅ Kept**.
 
@@ -71,8 +71,8 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 - Click **Confirm**.  ✅ Card locks → *"✅ Confirmed."*
 
 ### Step 3 — Mark delivered → open the packet → **the block**
-- App Home → the promise → **✅ Mark delivered**. You get a **👀 Review & verify** nudge in DM.
-- Open it (or click **👀 Verify** on the Home row). *(At this instant Kept reads the live Acme flag.)*
+- App Home → the promise → **Mark delivered**. You get a **Review & verify** nudge in DM.
+- Open it (or click **Verify** on the Home row). *(At this instant Kept reads the live Acme flag.)*
   ✅ **Proof-of-Done modal** shows **✍️ Marked delivered by the owner ✓** **and** **🚩 Production flag OFF ✗ · read live** → verdict **⛔ Not ready to close.**
   ❗ **If it says "Ready to close" instead:** the flag wasn't OFF in **production** at read time, **or** the customer isn't mapped (see Troubleshooting). Re-do Step 0.
 
@@ -82,11 +82,11 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 
 ### Step 5 — flip the flag ON → Verify → **passes**
 - In LaunchDarkly (**Production**), toggle `sso-login-fix` **ON** → **Review and save**. *(Optionally re-run the smoke check → should say ON.)*
-- Re-open the packet (👀 Verify on Home) → click **Verify it's available** again. *(Verify re-reads the live flag.)*
-  ✅ Modal closes → you get a **📣 Review & send** nudge. Same promise, opposite outcome — driven only by the real flag.
+- Re-open the packet (**Verify** on Home) → click **Verify it's available** again. *(Verify re-reads the live flag.)*
+  ✅ Modal closes → you get a **Review & send** nudge. Same promise, opposite outcome — driven only by the real flag.
 
 ### Step 6 — close the loop
-- Open the send nudge (or **📣 Send** on Home) → **Approve & send** → the sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
+- Open the send nudge (or **Send** on Home) → **Approve & send** → the sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
 
 ### Troubleshooting — "it said Verified with the flag OFF"
 | Cause | How to confirm | Fix |
@@ -99,7 +99,7 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 ---
 
 ## Test C — Surfaces
-15. **App Home (the cockpit):** compact counts strip · ⚡ *Needs you now* pointer · 📋 ledger grouped by customer, each open promise carrying its own action (**Confirm / Mark delivered / 👀 Verify / 📣 Send**) + 🧾 Receipts; closed promises collapse to a *Kept:* line. Plain-language status (no raw enum names).
+15. **App Home (the cockpit):** compact counts strip · ⚡ *Needs you now* pointer · 📋 ledger grouped by customer, each open promise carrying its own action (**Confirm / Mark delivered / Verify / Send**) + **Receipts**; closed promises collapse to a *Kept:* line. Plain-language status (no raw enum names).
 16. **Receipts** on any promise → modal timeline: *Promise captured → Confirmed → Verified → Closure posted → Customer confirmed*, timestamped.
 17. `/kept` → ephemeral ledger for Acme.
 
