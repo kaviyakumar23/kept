@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="slack-app-id" content="A0BBEJQ2CMC">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs — Kept</title>
+<meta name="description" content="How to use Kept: install it, add it to a channel, connect Jira / GitHub Actions / LaunchDarkly, and take each customer promise from Slack to a signed closure.">
+<link rel="canonical" href="https://kept-iota.vercel.app/docs.html">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Crect%20width='24'%20height='24'%20rx='7'%20fill='%232563EB'/%3E%3Ccircle%20cx='6'%20cy='6.5'%20r='1.7'%20fill='%23fff'/%3E%3Ccircle%20cx='6'%20cy='12'%20r='1.7'%20fill='%23fff'/%3E%3Ccircle%20cx='6'%20cy='17.5'%20r='1.7'%20fill='%23fff'/%3E%3Cpath%20d='M7.4%206.7%20L15.6%2011.4%20M7.4%2012%20H15.6%20M7.4%2017.3%20L15.6%2012.6'%20stroke='%23fff'%20stroke-width='1.5'%20stroke-linecap='round'%20opacity='.85'/%3E%3Ccircle%20cx='17.2'%20cy='12'%20r='2.7'%20fill='%23fff'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --accent:#2563EB; --accent-press:#1D4ED8; --accent-soft:#EFF4FF; --accent-line:#D7E3FF;
+    --close-bg:#0B1220; --close-fg:#F4F7FB; --close-sub:#93A2BC; --close-border:#23324D;
+    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F5F8FC;
+    --fg:#0F172A; --fg-muted:#42506A; --fg-subtle:#64748B; --fg-faint:#94A3B8;
+    --border:#E7ECF2; --border-strong:#E2E8F0;
+    --code-bg:#F1F5F9; --code-fg:#334155;
+    --header-bg:rgba(248,250,252,.85); --header-border:#E7ECF2;
+    --link:#2563EB; --link-hover:#1D4ED8;
+    --callout-bg:#EFF4FF; --callout-border:#D7E3FF;
+    --wrap:840px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0B1220; --surface:#0F1B30; --surface-2:#111E36;
+      --fg:#F4F7FB; --fg-muted:#C3CEDE; --fg-subtle:#9DACC4; --fg-faint:#71829D;
+      --border:#22314B; --border-strong:#2A3A57;
+      --code-bg:#16233B; --code-fg:#C3CEDE;
+      --header-bg:rgba(11,18,32,.85); --header-border:#22314B;
+      --link:#7DA6F7; --link-hover:#9CBAFB;
+      --callout-bg:#132239; --callout-border:#274063;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F5F8FC;
+    --fg:#0F172A; --fg-muted:#42506A; --fg-subtle:#64748B; --fg-faint:#94A3B8;
+    --border:#E7ECF2; --border-strong:#E2E8F0;
+    --code-bg:#F1F5F9; --code-fg:#334155;
+    --header-bg:rgba(248,250,252,.85); --header-border:#E7ECF2;
+    --link:#2563EB; --link-hover:#1D4ED8;
+    --callout-bg:#EFF4FF; --callout-border:#D7E3FF;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1220; --surface:#0F1B30; --surface-2:#111E36;
+    --fg:#F4F7FB; --fg-muted:#C3CEDE; --fg-subtle:#9DACC4; --fg-faint:#71829D;
+    --border:#22314B; --border-strong:#2A3A57;
+    --code-bg:#16233B; --code-fg:#C3CEDE;
+    --header-bg:rgba(11,18,32,.85); --header-border:#22314B;
+    --link:#7DA6F7; --link-hover:#9CBAFB;
+    --callout-bg:#132239; --callout-border:#274063;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    line-height:1.65; overflow-x:hidden;
+  }
+  .mono{ font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace; }
+  a{ color:var(--link); text-decoration:none; }
+  a:hover{ color:var(--link-hover); text-decoration:underline; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  ::selection{ background:rgba(37,99,235,.16); }
+  img{ max-width:100%; }
+
+  .site-header{ position:sticky; top:0; z-index:50; background:var(--header-bg); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--header-border); }
+  .header-inner{ max-width:var(--wrap); margin:0 auto; padding:13px clamp(18px,5vw,40px); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .brand{ display:inline-flex; align-items:center; gap:10px; color:var(--fg); }
+  .brand:hover{ text-decoration:none; }
+  .brand-mark{ width:30px; height:30px; border-radius:9px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px -2px var(--accent); flex:none; }
+  .brand-name{ font-size:20px; font-weight:600; letter-spacing:-.02em; }
+  .header-cta{ display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#fff; font-size:14px; font-weight:600; padding:9px 15px; border-radius:10px; box-shadow:0 1px 2px rgba(15,23,42,.16), 0 10px 22px -12px var(--accent); }
+  .header-cta:hover{ background:var(--accent-press); color:#fff; text-decoration:none; }
+
+  .doc-hero{ max-width:var(--wrap); margin:0 auto; padding:clamp(40px,6vw,72px) clamp(18px,5vw,40px) clamp(18px,3vw,26px); }
+  .eyebrow{ font-size:12px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+  .doc-title{ font-size:clamp(32px,5vw,50px); line-height:1.05; letter-spacing:-.03em; font-weight:600; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:18px; line-height:1.55; color:var(--fg-muted); margin:0; max-width:64ch; }
+
+  /* on-page contents */
+  .toc{ max-width:var(--wrap); margin:0 auto; padding:8px clamp(18px,5vw,40px) 0; }
+  .toc-inner{ background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+  .toc-inner .k{ font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--fg-faint); margin:0 0 10px; }
+  .toc-list{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:6px 20px; }
+  .toc-list a{ font-size:14.5px; color:var(--fg-muted); }
+  .toc-list a:hover{ color:var(--accent); text-decoration:none; }
+  .toc-list .n{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12px; color:var(--fg-faint); margin-right:8px; }
+
+  main.doc{ max-width:var(--wrap); margin:0 auto; padding:0 clamp(18px,5vw,40px) clamp(56px,8vw,96px); }
+  .doc-body{ font-size:16px; color:var(--fg-muted); }
+  .doc-body h2{ font-size:clamp(20px,2.6vw,26px); line-height:1.22; letter-spacing:-.02em; font-weight:600; color:var(--fg); margin:48px 0 14px; scroll-margin-top:80px; }
+  .doc-body h3{ font-size:16.5px; font-weight:600; color:var(--fg); margin:26px 0 10px; }
+  .doc-body p{ margin:0 0 16px; }
+  .doc-body ul, .doc-body ol{ margin:0 0 18px; padding-left:22px; }
+  .doc-body li{ margin:0 0 9px; }
+  .doc-body li::marker{ color:var(--fg-faint); }
+  .doc-body strong{ color:var(--fg); font-weight:600; }
+  .doc-body a{ text-decoration:underline; text-underline-offset:2px; }
+  code{ font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:var(--code-bg); color:var(--code-fg); border-radius:5px; padding:2px 6px; }
+
+  .callout{ display:flex; gap:14px; background:var(--callout-bg); border:1px solid var(--callout-border); border-radius:16px; padding:18px 20px; margin:6px 0 30px; }
+  .callout-mark{ width:26px; height:26px; border-radius:8px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; flex:none; margin-top:1px; box-shadow:0 2px 8px -3px var(--accent); }
+  .callout p{ margin:0; color:var(--fg); font-size:15.5px; line-height:1.55; }
+
+  ol.steps{ counter-reset:step; list-style:none; padding-left:0; }
+  ol.steps li{ position:relative; padding-left:40px; margin-bottom:14px; }
+  ol.steps li::before{ counter-increment:step; content:counter(step); position:absolute; left:0; top:-1px; width:26px; height:26px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--accent-line); color:var(--accent); font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:12.5px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+
+  .note{ background:var(--surface-2); border:1px solid var(--border-strong); border-left:3px solid var(--accent); border-radius:12px; padding:14px 16px; margin:2px 0 20px; font-size:14.5px; line-height:1.55; }
+  .note strong{ color:var(--fg); }
+
+  /* lifecycle rail */
+  .flow{ list-style:none; margin:2px 0 26px; padding:0; display:grid; gap:10px; }
+  .flow li{ display:flex; gap:14px; align-items:flex-start; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:15px 17px; }
+  .flow .step-k{ flex:none; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:7px; padding:5px 9px; margin-top:1px; min-width:104px; text-align:center; }
+  .flow .step-b{ font-size:15px; line-height:1.55; }
+  .flow .step-b b{ color:var(--fg); font-weight:600; }
+  .gate{ display:inline-block; font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px; font-weight:600; color:#fff; background:var(--accent); border-radius:5px; padding:1px 6px; margin-left:2px; vertical-align:middle; }
+
+  /* source cards */
+  .src-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:4px 0 20px; }
+  .src-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:17px 18px; }
+  .src-card .k{ font-size:15px; font-weight:600; color:var(--fg); margin-bottom:5px; }
+  .src-card .v{ font-size:14px; line-height:1.5; color:var(--fg-muted); }
+
+  /* command table */
+  .cmds{ width:100%; border-collapse:collapse; margin:4px 0 22px; font-size:14.5px; }
+  .cmds th, .cmds td{ text-align:left; padding:11px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .cmds th{ font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--fg-faint); }
+  .cmds td:first-child{ white-space:nowrap; }
+  .cmds code{ white-space:nowrap; }
+  .cmds td .d{ color:var(--fg-muted); }
+  .cmd-scroll{ overflow-x:auto; }
+
+  .site-footer{ background:var(--close-bg); border-top:1px solid var(--close-border); }
+  .footer-inner{ max-width:var(--wrap); margin:0 auto; padding:clamp(40px,5vw,60px) clamp(18px,5vw,40px); }
+  .footer-top{ display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start; justify-content:space-between; padding-bottom:26px; border-bottom:1px solid var(--close-border); }
+  .footer-brand{ flex:1 1 280px; max-width:380px; }
+  .footer-brand-row{ display:inline-flex; align-items:center; gap:10px; margin-bottom:13px; }
+  .footer-mark{ width:28px; height:28px; border-radius:8px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; }
+  .footer-name{ font-size:18px; font-weight:600; letter-spacing:-.02em; color:var(--close-fg); }
+  .footer-tag{ font-size:14.5px; line-height:1.55; color:var(--close-sub); margin:0; max-width:320px; }
+  .footer-nav{ display:flex; flex-wrap:wrap; gap:14px 40px; }
+  .footlink{ font-size:14px; color:var(--close-sub); transition:color .18s ease; }
+  .footlink:hover{ color:var(--close-fg); text-decoration:none; }
+  .footer-bottom{ padding-top:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  .footer-bottom .mono{ font-size:12px; color:var(--close-sub); }
+
+  @media (prefers-reduced-motion: reduce){ *{ scroll-behavior:auto !important; } }
+</style>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="Kept home">
+        <span class="brand-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
+        <span class="brand-name">Kept</span>
+      </a>
+      <a href="https://kept-slack-agent.fly.dev/slack/install" class="header-cta">Add to Slack</a>
+    </div>
+  </header>
+
+  <div class="doc-hero">
+    <div class="eyebrow mono">Documentation</div>
+    <h1 class="doc-title">Using Kept</h1>
+    <p class="lede">Kept tracks the promises your team makes to customers in Slack and checks them against live delivery evidence before anyone calls the work done. This page walks you from install to a signed closure.</p>
+  </div>
+
+  <nav class="toc" aria-label="On this page">
+    <div class="toc-inner">
+      <p class="k">On this page</p>
+      <ul class="toc-list">
+        <li><a href="#install"><span class="n">01</span>Install Kept</a></li>
+        <li><a href="#channel"><span class="n">02</span>Add it to a channel</a></li>
+        <li><a href="#lifecycle"><span class="n">03</span>The lifecycle</a></li>
+        <li><a href="#home"><span class="n">04</span>The App Home cockpit</a></li>
+        <li><a href="#proof"><span class="n">05</span>Connect proof sources</a></li>
+        <li><a href="#commands"><span class="n">06</span>Slash commands</a></li>
+        <li><a href="#data"><span class="n">07</span>What Kept stores</a></li>
+        <li><a href="#help"><span class="n">08</span>Get help</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="doc">
+    <div class="doc-body">
+
+      <div class="callout">
+        <span class="callout-mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <p>Kept never posts to a customer on its own. A person confirms the commitment, and a person signs the closure. Kept does the checking in between.</p>
+      </div>
+
+      <h2 id="install">01 &nbsp; Install Kept</h2>
+      <ol class="steps">
+        <li>Click <a href="https://kept-slack-agent.fly.dev/slack/install"><strong>Add to Slack</strong></a> and choose the workspace to install into.</li>
+        <li>Review the requested permissions and click <strong>Allow</strong>. Kept requests only the scopes it needs and reads only the channels you add it to.</li>
+        <li>Open <strong>Kept</strong> in the left sidebar and go to the <strong>Home</strong> tab &mdash; that's your obligation ledger.</li>
+      </ol>
+      <p>Installation is per workspace. Each workspace's data and credentials are isolated from every other workspace's.</p>
+
+      <h2 id="channel">02 &nbsp; Add it to a channel</h2>
+      <p>Kept only sees the channels it has been invited to. In the channel where your team talks to a customer:</p>
+      <ol class="steps">
+        <li>Run <code>/invite @Kept</code> to add it to the channel.</li>
+        <li>Bind the channel to that customer: <code>/kept customer Acme</code>. Every promise made in this channel is then tracked for <em>Acme</em>, regardless of how it's worded &mdash; no guessing.</li>
+      </ol>
+      <p>A shared customer channel maps to one customer. You can clear the binding any time with <code>/kept customer clear</code>.</p>
+
+      <h2 id="lifecycle">03 &nbsp; The lifecycle</h2>
+      <p>Every promise moves through the same guarded path. There are two points where a human decides &mdash; Kept does everything else.</p>
+      <ul class="flow">
+        <li><span class="step-k">Capture</span><span class="step-b">Someone commits to the customer in the channel &mdash; <em>&ldquo;we'll ship the SSO fix by Friday.&rdquo;</em> Kept detects it and sends the owner a private confirm card.</span></li>
+        <li><span class="step-k">Confirm <span class="gate">Gate 1</span></span><span class="step-b"><b>A human confirms</b> the promise should be tracked (or edits the details first, or dismisses it). Nothing is tracked until someone says so.</span></li>
+        <li><span class="step-k">Deliver</span><span class="step-b">When the work ships, the owner clicks <b>Mark delivered</b> &mdash; or a connected proof source (Jira, GitHub Actions, LaunchDarkly) reports it. Kept assembles a <b>Proof-of-Done</b> evidence packet.</span></li>
+        <li><span class="step-k">Verify <span class="gate">Gate 2</span></span><span class="step-b"><b>A human reviews the evidence and signs.</b> If the evidence disagrees &mdash; a Jira ticket says Done but the production flag is still off &mdash; Kept <b>refuses the close</b> and shows why.</span></li>
+        <li><span class="step-k">Send</span><span class="step-b">The owner reviews the auto-drafted, sanitized reply and sends it into the original customer thread. Internal references never leak into it.</span></li>
+        <li><span class="step-k">Kept</span><span class="step-b">When the customer confirms it's working, the loop closes. The full timeline is kept as a signed, append-only receipt.</span></li>
+      </ul>
+
+      <h2 id="home">04 &nbsp; The App Home cockpit</h2>
+      <p>The <strong>Home</strong> tab is where you run everything. It shows a compact status strip, a &ldquo;Needs you now&rdquo; line, and your ledger grouped by customer &mdash; and every open promise carries its own next step:</p>
+      <ul>
+        <li><strong>Confirm</strong> &mdash; accept a freshly captured promise.</li>
+        <li><strong>Mark delivered</strong> &mdash; attest the work shipped (for teams with no automated proof source connected, this alone is enough).</li>
+        <li><strong>Verify</strong> &mdash; opens the Proof-of-Done evidence packet as a focused window; the submit button is your signature.</li>
+        <li><strong>Send</strong> &mdash; review and send the sanitized closure to the customer.</li>
+        <li><strong>Receipts</strong> &mdash; the full, timestamped, append-only history of the promise.</li>
+      </ul>
+      <p>When Kept needs you, it sends a short direct message with one button that opens the right window &mdash; so your message history stays a scannable list, not a wall of cards.</p>
+
+      <h2 id="proof">05 &nbsp; Connect proof sources</h2>
+      <p>Proof sources are how Kept knows a promise is <em>actually</em> done, not just marked done. Connect them in <strong>App Home &rarr; Connections</strong>. Each workspace connects its own &mdash; Kept reads them only for your team.</p>
+      <div class="src-grid">
+        <div class="src-card"><div class="k">Jira</div><div class="v">Checks whether the related issue is actually marked done.</div></div>
+        <div class="src-card"><div class="k">GitHub Actions</div><div class="v">Checks whether the relevant workflow run passed.</div></div>
+        <div class="src-card"><div class="k">LaunchDarkly</div><div class="v">Checks whether the feature flag is actually on in production.</div></div>
+      </div>
+      <ol class="steps">
+        <li>In <strong>Connections</strong>, click <strong>Connect</strong> next to a source and enter its credentials (a read-only token is enough). Kept never echoes a saved token back.</li>
+        <li>Click <strong>Add mapping</strong> to tell Kept <em>which signal proves which customer's work</em> &mdash; e.g. map customer <code>Acme</code> to the LaunchDarkly flag <code>sso-login-fix</code> in <code>production</code>. You can add, edit, and remove a mapping per customer.</li>
+      </ol>
+      <div class="note"><strong>Optional by design.</strong> If you connect nothing, Kept still works end to end on a human's <em>Mark delivered</em> attestation. Connect a source when you want the close gated on live delivery evidence, not just someone's word.</div>
+
+      <h2 id="commands">06 &nbsp; Slash commands</h2>
+      <div class="cmd-scroll">
+      <table class="cmds">
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>/kept</code> <span class="mono">&lt;customer&gt;</span></td><td class="d">Show the obligation ledger for a customer (what you owe them, and its status).</td></tr>
+          <tr><td><code>/kept customer</code> <span class="mono">&lt;name&gt;</span></td><td class="d">Bind this channel to a customer. <code>/kept customer clear</code> removes the binding.</td></tr>
+          <tr><td><code>/kept trust</code> <span class="mono">&lt;customer&gt;</span></td><td class="d">Create a private, audience-safe web page showing that customer what's promised and what's done.</td></tr>
+          <tr><td><code>/kept untrust</code> <span class="mono">&lt;customer&gt;</span></td><td class="d">Revoke that customer's trust page &mdash; existing links stop working.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>You can also ask Kept in its <strong>Assistant</strong> pane &mdash; <em>&ldquo;What's overdue?&rdquo;</em>, <em>&ldquo;What did we promise Acme?&rdquo;</em>, <em>&ldquo;What's waiting on me to verify?&rdquo;</em></p>
+
+      <h2 id="data">07 &nbsp; What Kept stores</h2>
+      <p>Kept stores <strong>derived facts, not message bodies</strong>. It keeps the structured commitment &mdash; customer, outcome, owner, due date, source references, and the signed verdicts &mdash; and never the raw text of your Slack messages, prompts, or model responses.</p>
+      <p>Everything a customer could see is passed through an audience filter first, so internal sources (tickets, PRs, CI, flags) never leak into a customer-facing reply or trust page. Data is isolated per workspace, and uninstalling deletes your workspace's stored token and ledger.</p>
+      <p>More detail: <a href="/privacy.html">Privacy policy</a> &middot; <a href="/ai-disclosure.html">AI disclosure</a>.</p>
+
+      <h2 id="help">08 &nbsp; Get help</h2>
+      <p>Stuck, found a bug, or want your workspace's data exported or deleted? The <a href="/support.html">Support page</a> has the fastest paths, or email <a href="mailto:kaviyakumar23@gmail.com">kaviyakumar23@gmail.com</a>.</p>
+
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-brand-row">
+            <span class="footer-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
+            <span class="footer-name">Kept</span>
+          </div>
+          <p class="footer-tag">Kept checks customer promises before your team calls them done.</p>
+        </div>
+        <nav class="footer-nav" aria-label="Footer">
+          <a href="/" class="footlink">Home</a>
+          <a href="/docs.html" class="footlink">Docs</a>
+          <a href="/privacy.html" class="footlink">Privacy</a>
+          <a href="/support.html" class="footlink">Support</a>
+          <a href="/ai-disclosure.html" class="footlink">AI disclosure</a>
+          <a href="mailto:kaviyakumar23@gmail.com" class="footlink">Contact</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <span class="mono">&copy; 2026 Kept</span>
+        <span class="mono">Derived facts, not message bodies.</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
