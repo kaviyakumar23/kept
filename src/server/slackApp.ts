@@ -19,6 +19,7 @@ import {
   auditModal,
   editObligationModal,
   editDraftModal,
+  verifyPacketModal,
   connectModal,
   addMappingModal,
 } from "../slack/blocks.js";
@@ -325,23 +326,16 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
   });
-  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, respond, body, action, client }: any) => {
+  // Gate 2 — open the Proof-of-Done packet as a focused modal (from the Home "👀 Verify" row or the
+  // DM nudge). The owner reviews the assembled evidence and signs via the modal's submit
+  // (CALLBACKS.verifyPacket); no card is left behind in the DM history. Tenant-scoped read.
+  app.action(new RegExp(`^${ACTIONS.verify}:`), async ({ ack, body, action, client }: any) => {
     await ack();
     const team = await resolveTeam(client, body);
     if (!team) return;
     try {
-      const { draftSent } = await orch.verify(obligationOf(action), body.user.id, team);
-      // Lock the packet only when verification actually succeeded — if it's blocked (e.g. flag
-      // OFF) leave the card live so the owner can flip the flag and click Verify again.
-      if (draftSent) {
-        await respond({
-          replace_original: true,
-          text: "Verified — closure draft ready.",
-          blocks: [{ type: "section", text: { type: "mrkdwn", text: ":ballot_box_with_check: *Verified* — the closure draft is in your DMs to review and send." } }],
-        }).catch(() => undefined);
-      } else {
-        await respond({ replace_original: false, response_type: "ephemeral", text: ":no_entry: Not verifiable yet — the evidence doesn't reconcile (or this was already handled)." }).catch(() => undefined);
-      }
+      const packet = await orch.assemblePacket(obligationOf(action), team);
+      if (packet) await client.views.open({ trigger_id: body.trigger_id, view: verifyPacketModal(packet.obligation, packet.assessment) });
     } catch (err) {
       if (!(await handledCrossTenant(client, body, err))) throw err;
     }
@@ -538,6 +532,39 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     } catch (err) {
       if (await handledCrossTenant(client, body, err)) return;
       await dmUser(client, body.user.id, `:warning: Couldn't create the work item (${err instanceof Error ? err.message : "error"}). The commitment is confirmed — click *Confirm* again to retry once the system recovers.`);
+    }
+  });
+  // Gate-2 modal submit — the human signs the verdict. verify() re-gathers proof and refuses if the
+  // evidence still doesn't reconcile (e.g. production flag OFF); on refusal we re-render the packet so
+  // the owner sees exactly why. Tenant-scoped: verify() enforces acting team == the obligation's team.
+  app.view(CALLBACKS.verifyPacket, async ({ ack, body, view, client }: any) => {
+    const id = view.private_metadata;
+    let team: string;
+    try {
+      team = requireTeam(body);
+    } catch {
+      await ack();
+      await dmUser(client, body.user.id, ":warning: Couldn't determine your workspace — action blocked.");
+      return;
+    }
+    try {
+      const { draftSent } = await orch.verify(id, body.user.id, team);
+      if (draftSent) {
+        await ack(); // close the modal — the send nudge is now in the owner's DMs
+        await republishHome(client, body.user.id, team);
+      } else {
+        // Blocked — keep the modal open, re-rendered with the (still-failing) evidence packet.
+        const packet = await orch.assemblePacket(id, team);
+        await ack(packet ? { response_action: "update", view: verifyPacketModal(packet.obligation, packet.assessment) } : {});
+      }
+    } catch (err) {
+      if (err instanceof CrossTenantWriteError) {
+        await ack();
+        await dmUser(client, body.user.id, ":lock: That obligation belongs to another workspace — action blocked.");
+        return;
+      }
+      await ack();
+      await dmUser(client, body.user.id, ":warning: Couldn't verify right now — please try again.");
     }
   });
   app.view(CALLBACKS.editDraft, async ({ ack, body, view }: any) => {

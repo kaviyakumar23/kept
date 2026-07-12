@@ -38,9 +38,9 @@ A fresh install reads **no** proof source until it connects its own. In **App Ho
    ✅ DM: confirm card **Acme — CSV export** · *Confirm · Edit · Not a request*. No fake work-item line.
 4. **Gate 1.** Click **Confirm**.  ✅ Card **locks** → *"✅ Confirmed — now tracked."*
 5. **Mark delivered.** App Home → the promise → **✅ Mark delivered**.
-   ✅ DM: Proof-of-Done packet — **✍️ Marked delivered by the owner ✓ · attested** → **✅ Ready to close** (no proof source → attestation is enough).
-6. **Gate 2.** Click **Verify it's available**.  ✅ Packet **locks** → *"☑️ Verified"* + a **closure-draft DM**.
-7. **Approve.** Click **Approve & send**.  ✅ Draft **locks** → sanitized closure **posts in the channel thread** (no internal refs).
+   ✅ DM: a thin **👀 Review & verify** nudge. Click it (or the promise's **👀 Verify** on Home) → the **Proof-of-Done** modal opens: **✍️ Marked delivered by the owner ✓ · attested** → **✅ Ready to close** (no proof source → attestation is enough).
+6. **Gate 2.** In the modal, click **Verify it's available** (the submit *is* your signature).  ✅ Modal closes → a **📣 Review & send** nudge lands in your DM.
+7. **Approve.** Open that nudge (or the promise's **📣 Send** on Home) → the closure-draft modal → **Approve & send**.  ✅ Sanitized closure **posts in the channel thread** (no internal refs).
 8. **Customer reply.** In that **same thread** (Reply in thread), reply: `works now`
    ✅ DM: *"✅ Acme confirmed 'CSV export' is working — closed."* Promise is now **✅ Kept**.
 
@@ -70,22 +70,23 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 ### Step 2 — Gate 1
 - Click **Confirm**.  ✅ Card locks → *"✅ Confirmed."*
 
-### Step 3 — Mark delivered → **the block**
-- App Home → the promise → **✅ Mark delivered**. *(At this instant Kept reads the live Acme flag.)*
-  ✅ DM: evidence packet showing **✍️ Marked delivered by the owner ✓** **and** **🚩 Production flag OFF ✗ · read live** → verdict **⛔ Not ready to close.**
-  ❗ **If it says "Ready to close" / verifies instead:** the flag wasn't OFF in **production** at read time, **or** the customer isn't mapped (see Troubleshooting). Re-do Step 0.
+### Step 3 — Mark delivered → open the packet → **the block**
+- App Home → the promise → **✅ Mark delivered**. You get a **👀 Review & verify** nudge in DM.
+- Open it (or click **👀 Verify** on the Home row). *(At this instant Kept reads the live Acme flag.)*
+  ✅ **Proof-of-Done modal** shows **✍️ Marked delivered by the owner ✓** **and** **🚩 Production flag OFF ✗ · read live** → verdict **⛔ Not ready to close.**
+  ❗ **If it says "Ready to close" instead:** the flag wasn't OFF in **production** at read time, **or** the customer isn't mapped (see Troubleshooting). Re-do Step 0.
 
-### Step 4 — try to Verify anyway → **refused**
-- Click **Verify it's available**.
-  ✅ **Ephemeral refusal:** *"Not verifiable yet — the evidence doesn't reconcile."* (engine returns `INSUFFICIENT_EVIDENCE`). The card stays live so you can retry.
+### Step 4 — try to Verify anyway → **refused, in place**
+- In the modal, click **Verify it's available**.
+  ✅ The engine returns `INSUFFICIENT_EVIDENCE` and the **modal re-renders still showing ⛔ Production flag OFF** — you cannot sign a close the evidence won't support.
 
 ### Step 5 — flip the flag ON → Verify → **passes**
 - In LaunchDarkly (**Production**), toggle `sso-login-fix` **ON** → **Review and save**. *(Optionally re-run the smoke check → should say ON.)*
-- Click **Verify it's available** again. *(Verify re-reads the live flag.)*
-  ✅ Packet → **☑️ Verified**, and you get the **closure-draft DM**. Same promise, opposite outcome — driven only by the real flag.
+- Re-open the packet (👀 Verify on Home) → click **Verify it's available** again. *(Verify re-reads the live flag.)*
+  ✅ Modal closes → you get a **📣 Review & send** nudge. Same promise, opposite outcome — driven only by the real flag.
 
 ### Step 6 — close the loop
-- **Approve & send** → the sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
+- Open the send nudge (or **📣 Send** on Home) → **Approve & send** → the sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
 
 ### Troubleshooting — "it said Verified with the flag OFF"
 | Cause | How to confirm | Fix |
@@ -98,8 +99,8 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 ---
 
 ## Test C — Surfaces
-15. **App Home:** ⚡ Needs you · Open/Overdue/At-risk/Awaiting-verify tiles · 📚 ledger by customer · 🧾 Receipts. Plain-language status (no raw enum names).
-16. **Receipts** on a closed promise → modal timeline: *Promise captured → Confirmed → Verified → Closure posted → Customer confirmed*, timestamped.
+15. **App Home (the cockpit):** compact counts strip · ⚡ *Needs you now* pointer · 📋 ledger grouped by customer, each open promise carrying its own action (**Confirm / Mark delivered / 👀 Verify / 📣 Send**) + 🧾 Receipts; closed promises collapse to a *Kept:* line. Plain-language status (no raw enum names).
+16. **Receipts** on any promise → modal timeline: *Promise captured → Confirmed → Verified → Closure posted → Customer confirmed*, timestamped.
 17. `/kept` → ephemeral ledger for Acme.
 
 ---
@@ -107,9 +108,10 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 ## Where things appear
 | Surface | Where |
 |--|--|
-| Confirm card, evidence packet, closure draft, owner notices | **Your DM** from Kept |
+| Confirm card, then thin **Review & verify / Review & send** nudges | **Your DM** from Kept |
+| Proof-of-Done packet + closure draft | **Modals** — opened from a DM nudge *or* the Home row |
 | Sanitized closure | **In the channel thread** |
-| Mark delivered, tiles, ledger, Receipts, 🔌 Connections | **App Home → Home tab** |
+| Drive the whole lifecycle (Confirm/Verify/Send/Mark delivered), ledger, Receipts, 🔌 Connections | **App Home → Home tab** |
 | `/kept customer`, `/kept` | **Slash commands** |
 
 ## Reset for a clean re-run

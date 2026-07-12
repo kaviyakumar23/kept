@@ -6,7 +6,7 @@ import type { ObligationId } from "../domain/ids.js";
 import { userActor } from "../domain/events.js";
 import { project } from "../domain/projection.js";
 import { resolve, type ResolutionCandidate } from "../engine/entityGraph.js";
-import { assessFulfillment } from "../engine/reconciliation.js";
+import { assessFulfillment, type FulfillmentAssessment } from "../engine/reconciliation.js";
 import { notifyKey } from "../engine/idempotency.js";
 import { buildClosureDraft } from "../policy/audience.js";
 import { buildTrustView, type TrustView } from "./trustView.js";
@@ -21,7 +21,7 @@ import { usagePeriod, type UsageStore } from "../store/usageStore.js";
 import type { RtsRetriever } from "../slack/rts.js";
 import { EMPTY_RTS, type RtsContext } from "../slack/rts.js";
 import type { Notifier, SentMessage } from "../slack/notifier.js";
-import { confirmCard, possibleFulfillmentCard, closureDraftCard } from "../slack/blocks.js";
+import { confirmCard, verifyNudge, sendNudge } from "../slack/blocks.js";
 import { ticketDone, prMerged, prodDeploy } from "../eval/scenarios.js";
 
 export interface OrchestratorDeps {
@@ -437,7 +437,7 @@ export class KeptOrchestrator {
         text: assessment.sufficientForVerification
           ? `Possible fulfillment — verify ${updated.customer} / ${updated.outcome}?`
           : `Proof-of-Done blocked — ${updated.customer} / ${updated.outcome} not verifiably available`,
-        blocks: possibleFulfillmentCard(updated, assessment),
+        blocks: verifyNudge(updated),
       }, updated.team);
       verifyCardSent = assessment.sufficientForVerification;
     }
@@ -476,7 +476,7 @@ export class KeptOrchestrator {
         text: assessment.sufficientForVerification
           ? `Ready to verify — ${updated.customer} / ${updated.outcome}`
           : `Marked delivered, but blocked — ${updated.customer} / ${updated.outcome}`,
-        blocks: possibleFulfillmentCard(updated, assessment),
+        blocks: verifyNudge(updated),
       }, updated.team);
       verifyCardSent = assessment.sufficientForVerification;
     }
@@ -524,10 +524,9 @@ export class KeptOrchestrator {
     );
     if (r.status !== "applied" || !r.obligation) return { obligation: r.obligation ?? null, draftSent: false };
 
-    const draft = buildClosureDraft(r.obligation);
     await this.d.notifier.sendPrivate(this.owner(r.obligation, EMPTY_RTS), {
       text: `Ready to close the loop with ${r.obligation.customer}`,
-      blocks: closureDraftCard(r.obligation, draft),
+      blocks: sendNudge(r.obligation),
     }, r.obligation.team);
     return { obligation: r.obligation, draftSent: true };
   }
@@ -681,6 +680,17 @@ export class KeptOrchestrator {
     const o = await this.d.service.getObligation(id, this.now());
     if (o && actingTeam && o.team !== actingTeam) throw new CrossTenantWriteError(actingTeam, o.team, id);
     return o;
+  }
+
+  /**
+   * Assemble the current Proof-of-Done packet for DISPLAY — the Home "👀 Verify" row or the DM
+   * nudge opens this in a modal. A pure, tenant-scoped read (invariant #4); the authoritative
+   * re-gather-and-gate happens in verify() on the modal's submit, so opening it has no side effect.
+   */
+  async assemblePacket(id: ObligationId, actingTeam?: string): Promise<{ obligation: Obligation; assessment: FulfillmentAssessment } | null> {
+    const o = await this.obligation(id, actingTeam);
+    if (!o) return null;
+    return { obligation: o, assessment: assessFulfillment(o.evidence) };
   }
 
   /** The auto-generated sanitized closure text (to prefill the edit-reply modal). Tenant-scoped. */

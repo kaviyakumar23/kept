@@ -51,6 +51,7 @@ export const CALLBACKS = {
   editDraft: "kept_edit_draft_modal",
   connectProvider: "kept_connect_provider",
   addMapping: "kept_add_mapping_modal",
+  verifyPacket: "kept_verify_packet_modal",
 } as const;
 export const FIELDS = {
   outcome: { block: "b_outcome", action: "i_outcome" },
@@ -187,10 +188,13 @@ function evidencePacketRows(evidence: Evidence[]): string[] {
   return rows.map((r) => `•  ${r}`);
 }
 
-/** Gate 2 — the Proof-of-Done evidence packet + verdict. A human signs; the agent assembled it. */
-export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAssessment): SlackBlock[] {
+const PACKET_LEGEND =
+  "_read live_ = Kept queried the source just now · _reported_ = your pipeline pushed it · _attested_ = a human marked it delivered. A closed ticket is never enough on its own.";
+
+/** The shared Proof-of-Done body — evidence rows + verdict + rationale. Reused by the DM card and
+ *  the Home verify modal, so a promise reads identically wherever the owner opens it. No buttons. */
+function evidencePacketBlocks(o: Obligation, assessment: FulfillmentAssessment): SlackBlock[] {
   return [
-    header("Kept · Proof-of-Done"),
     section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}`),
     section(`*What Kept gathered*\n${evidencePacketRows(o.evidence).join("\n")}`),
     divider,
@@ -200,6 +204,14 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
         : "⛔ *Not ready to close* — the evidence doesn't agree yet.",
     ),
     context(assessment.rationale),
+  ];
+}
+
+/** Gate 2 — the Proof-of-Done evidence packet + verdict. A human signs; the agent assembled it. */
+export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAssessment): SlackBlock[] {
+  return [
+    header("Kept · Proof-of-Done"),
+    ...evidencePacketBlocks(o, assessment),
     {
       type: "actions",
       elements: [
@@ -207,7 +219,42 @@ export function possibleFulfillmentCard(o: Obligation, assessment: FulfillmentAs
         button("Not yet", ACTIONS.notYet, o.id),
       ],
     },
-    context("_read live_ = Kept queried the source just now · _reported_ = your pipeline pushed it · _attested_ = a human marked it delivered. A closed ticket is never enough on its own."),
+    context(PACKET_LEGEND),
+  ];
+}
+
+/** Gate 2 as a focused modal — opened from the Home row or the DM nudge. The evidence is shown; the
+ *  modal's *submit* IS the human signature. On a blocked verdict the engine still refuses on submit
+ *  and the handler re-renders this modal with the (still-failing) packet. private_metadata = id. */
+export function verifyPacketModal(o: Obligation, assessment: FulfillmentAssessment): SlackView {
+  return {
+    type: "modal",
+    callback_id: CALLBACKS.verifyPacket,
+    private_metadata: o.id,
+    title: { type: "plain_text", text: "Proof-of-Done" },
+    submit: { type: "plain_text", text: "Verify it's available" },
+    close: { type: "plain_text", text: "Not yet" },
+    blocks: [...evidencePacketBlocks(o, assessment), context(PACKET_LEGEND)],
+  };
+}
+
+/** Thin owner DM — "something's ready to verify", one button that opens the packet modal. Replaces
+ *  the full packet card in the DM so the app's message history stays a scannable nudge list, not a
+ *  wall of stacked cards. The evidence lives in the modal, one click away. */
+export function verifyNudge(o: Obligation): SlackBlock[] {
+  return [
+    section(`👀 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is ready for your review.`),
+    context("Kept gathered the delivery evidence. Open it to see what reconciles — and sign only if it does."),
+    { type: "actions", elements: [button("👀 Review & verify", ACTIONS.verify, o.id, "primary")] },
+  ];
+}
+
+/** Thin owner DM — "verified, ready to send", one button that opens the closure-draft modal. */
+export function sendNudge(o: Obligation): SlackBlock[] {
+  return [
+    section(`📣 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is verified and ready to close.`),
+    context("Review the sanitized reply, then send it to the customer thread when you're happy."),
+    { type: "actions", elements: [button("📣 Review & send", ACTIONS.editDraft, o.id, "primary")] },
   ];
 }
 
@@ -441,7 +488,7 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
         { type: "mrkdwn", text: `*Production feature flag:* ${flagOn ? "ON ✅" : "OFF ⛔"}` },
       ],
     },
-    context("Start here → 1) *Mark work shipped* (you'll be DM'd the evidence packet, flag OFF ⛔). 2) *Verify it's available* on that packet → the engine refuses. 3) *Toggle production flag* ON → *Verify* again → it passes → *Approve & send* the sanitized closure."),
+    context("Start here → 1) *Mark work shipped* → Kept DMs a nudge; open it (or the promise on Home) for the evidence packet, flag OFF ⛔. 2) *Verify it's available* → the engine refuses. 3) *Toggle production flag* ON → *Verify* again → it passes → *Review & send* the sanitized closure."),
     {
       type: "actions",
       elements: [
@@ -454,17 +501,34 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
   ];
 }
 
-/** App Home blocks for one obligation — the status-chip row (+ Receipts), and for a promise
- *  that's being worked, a "Mark delivered" action so a team with no automated proof source can
- *  still push it into the Proof-of-Done gate (Option A — integrations are optional). */
-function obligationBlocks(o: Obligation): SlackBlock[] {
-  const out: SlackBlock[] = [
-    { type: "section", text: { type: "mrkdwn", text: ledgerLine(o) }, accessory: button("🧾 Receipts", ACTIONS.history, o.id) },
-  ];
-  if (o.state === "OPEN" || o.state === "IN_PROGRESS") {
-    out.push({ type: "actions", elements: [button("✅ Mark delivered", ACTIONS.markDelivered, o.id, "primary")] });
+/** The one action a promise is waiting on, by state — so every Home row can be acted on in place
+ *  (the cockpit). Verify/Send open focused modals; Confirm/Mark-delivered act directly. Terminal
+ *  and awaiting-customer rows have no pending owner action (null → just Receipts). */
+function primaryActionFor(o: Obligation): { label: string; action: string } | null {
+  switch (o.state) {
+    case "CANDIDATE": return { label: "✅ Confirm", action: ACTIONS.confirm };
+    case "OPEN":
+    case "IN_PROGRESS":
+    case "REOPENED": return { label: "✅ Mark delivered", action: ACTIONS.markDelivered };
+    case "POSSIBLE_FULFILLMENT": return { label: "👀 Verify", action: ACTIONS.verify };
+    case "VERIFIED": return { label: "📣 Send", action: ACTIONS.editDraft };
+    default: return null; // CUSTOMER_NOTIFIED / CLOSED / DISMISSED / CANCELLED
   }
-  return out;
+}
+
+/** App Home row for one obligation — the status line plus its next action, so the whole lifecycle
+ *  is driveable from the Home tab (no hunting through DMs). Rows with a pending action render as a
+ *  section + [action · 🧾 Receipts]; settled rows collapse to one line with Receipts as accessory. */
+function obligationBlocks(o: Obligation): SlackBlock[] {
+  const primary = primaryActionFor(o);
+  const receipts = button("🧾 Receipts", ACTIONS.history, o.id);
+  if (!primary) {
+    return [{ type: "section", text: { type: "mrkdwn", text: ledgerLine(o) }, accessory: receipts }];
+  }
+  return [
+    { type: "section", text: { type: "mrkdwn", text: ledgerLine(o) } },
+    { type: "actions", elements: [button(primary.label, primary.action, o.id, "primary"), receipts] },
+  ];
 }
 /** Stable de-dupe by id (an obligation can be both overdue and awaiting-verify). */
 function dedupeById(list: Obligation[]): Obligation[] {
@@ -474,6 +538,12 @@ function dedupeById(list: Obligation[]): Obligation[] {
   return out;
 }
 const OPEN_STATE = (o: Obligation): boolean => !["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state);
+const TERMINAL_STATE = (o: Obligation): boolean => ["CLOSED", "DISMISSED", "CANCELLED"].includes(o.state);
+/** Sort key so the promises needing a human float to the top of each customer's list. */
+const ACTION_RANK: Partial<Record<ObligationState, number>> = {
+  POSSIBLE_FULFILLMENT: 0, VERIFIED: 1, CANDIDATE: 2, REOPENED: 3, OPEN: 4, IN_PROGRESS: 4, CUSTOMER_NOTIFIED: 6,
+};
+const actionRank = (o: Obligation): number => (ACTION_RANK[o.state] ?? 5) - (o.flags.is_overdue ? 0.5 : 0);
 
 /** The App Home tab — every customer's request-and-commitment ledger, with drill-in. */
 export function appHomeView(
@@ -498,23 +568,18 @@ export function appHomeView(
     return { type: "home", blocks };
   }
   const a = analytics(obligations, now);
-  // ⚡ Needs you — the actionable items (awaiting your verify · overdue) pulled to the top.
-  const needsYou = dedupeById([...a.awaitingVerify, ...a.overdue]);
-  if (needsYou.length > 0) {
-    blocks.push(divider, section(`⚡ *Needs you*  ·  ${needsYou.length}`));
-    for (const o of needsYou.slice(0, 5)) blocks.push(...obligationBlocks(o));
-    if (needsYou.length > 5) blocks.push(context(`…and ${needsYou.length - 5} more in the ledger below.`));
+  // At-a-glance counts — one compact strip (replaces the 2×2 emoji-number tile grid).
+  blocks.push(
+    divider,
+    section(`🔵 *${a.counts.open}* open      🔴 *${a.overdue.length}* overdue      🟡 *${a.atRisk.length}* at risk      👀 *${a.awaitingVerify.length}* to verify`),
+  );
+  // ⚡ Needs you now — a one-line pointer to what's waiting on the owner. The actual action buttons
+  // live on each ledger row below (sorted so these float to the top), so this doesn't re-render them.
+  const needsNow = dedupeById([...a.awaitingVerify, ...a.overdue]);
+  if (needsNow.length > 0) {
+    const items = needsNow.slice(0, 4).map((o) => `${statusOf(o.state).emoji} ${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}`);
+    blocks.push(context(`⚡ *Needs you now:*  ${items.join("     ·     ")}${needsNow.length > 4 ? `   +${needsNow.length - 4} more` : ""}`));
   }
-  // Insight tiles (flag/state-derived → deterministic) — the at-a-glance counts.
-  blocks.push(divider, {
-    type: "section",
-    fields: [
-      { type: "mrkdwn", text: `*Open*\n🔵 ${a.counts.open}` },
-      { type: "mrkdwn", text: `*Overdue*\n🔴 ${a.overdue.length}` },
-      { type: "mrkdwn", text: `*At risk*\n🟡 ${a.atRisk.length}` },
-      { type: "mrkdwn", text: `*Awaiting verify*\n👀 ${a.awaitingVerify.length}` },
-    ],
-  });
   // The differentiator, quantified. Every one is a broken promise a ticket-only tool would have
   // shipped to the customer as "Done". Shown once Kept has actually caught one.
   if (a.blockedCatches > 0) {
@@ -538,8 +603,8 @@ export function appHomeView(
       blocks.push(context(`${DRIFT_EMOJI[r.bucket]} *${escapeMrkdwn(r.customer)}* — ${escapeMrkdwn(r.outcome)}: _${r.bucket.toLowerCase()}_${why}`));
     }
   }
-  // The full ledger, grouped by customer.
-  blocks.push(divider, section("📚 *The ledger*"));
+  // The ledger — grouped by customer, actionable promises first, settled ones collapsed to a line.
+  blocks.push(divider, section("📋 *The ledger*  ·  every promise carries its next step — act right here."));
   const byCustomer = new Map<string, Obligation[]>();
   for (const o of obligations) {
     const list = byCustomer.get(o.customer) ?? [];
@@ -547,9 +612,13 @@ export function appHomeView(
     byCustomer.set(o.customer, list);
   }
   for (const [customer, list] of byCustomer) {
-    const openCount = list.filter(OPEN_STATE).length;
-    blocks.push(section(`*${escapeMrkdwn(customer)}*  ·  ${openCount} open`));
-    for (const o of list) blocks.push(...obligationBlocks(o));
+    const active = list.filter((o) => !TERMINAL_STATE(o)).sort((x, y) => actionRank(x) - actionRank(y));
+    const kept = list.filter((o) => o.state === "CLOSED");
+    const dropped = list.filter((o) => o.state === "DISMISSED" || o.state === "CANCELLED");
+    blocks.push(section(`*${escapeMrkdwn(customer)}*  ·  ${active.length} open`));
+    for (const o of active) blocks.push(...obligationBlocks(o));
+    if (kept.length > 0) blocks.push(context(`✅ *Kept:* ${kept.slice(0, 6).map((o) => escapeMrkdwn(o.outcome)).join("   ·   ")}${kept.length > 6 ? `   +${kept.length - 6} more` : ""}`));
+    if (dropped.length > 0) blocks.push(context(`⚪ *Closed:* ${dropped.slice(0, 6).map((o) => escapeMrkdwn(o.outcome)).join("   ·   ")}`));
   }
   blocks.push(...connectionsBlocks(configured, mappings));
   return { type: "home", blocks };

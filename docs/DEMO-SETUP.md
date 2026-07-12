@@ -68,7 +68,7 @@ Since **Acme** is mapped to the flag, use a **different, unmapped customer** her
 1. In a channel, run `/kept customer Globex` (Globex is **not** mapped to any flag).
 2. Post: `We'll ship the CSV export by Friday.`  → confirm-card DM **Globex — CSV export** → **Confirm**.
 3. App Home → **✅ Mark delivered** → packet: **✍️ Marked delivered ✓ → ✅ Ready to close** *(no proof source for Globex → the attestation alone is enough — this is Option A)*.
-4. **Verify → Approve & send** → reply `works now` in-thread → **✅ Kept**.
+4. Open the **👀 Review & verify** nudge (or **👀 Verify** on the Home row) → in the Proof-of-Done modal click **Verify it's available** → open the **📣 Review & send** nudge → **Approve & send** → reply `works now` in-thread → **✅ Kept**.
 
 *(Test A proves the no-integration path. Test B — with the mapped customer Acme — is the differentiator.)*
 
@@ -91,20 +91,20 @@ Since **Acme** is mapped to the flag, use a **different, unmapped customer** her
 ### Step 2 — Confirm
 - Click **Confirm** → card locks.
 
-### Step 3 — Mark delivered → **the block**
-- App Home → the promise → **✅ Mark delivered**. *(Kept reads the live Acme flag now.)*
-  ✅ Packet shows **✍️ Marked delivered ✓** **and** **🚩 Production flag OFF ✗ · read live** → **⛔ Not ready to close.**
+### Step 3 — Mark delivered → open the packet → **the block**
+- App Home → the promise → **✅ Mark delivered** → open the **👀 Review & verify** nudge (or **👀 Verify** on the Home row). *(Kept reads the live Acme flag now.)*
+  ✅ The **Proof-of-Done modal** shows **✍️ Marked delivered ✓** **and** **🚩 Production flag OFF ✗ · read live** → **⛔ Not ready to close.**
   ❗ If it says "Ready to close": the flag wasn't OFF in production at read time, or LaunchDarkly/mapping isn't set in **this** workspace (see Troubleshooting).
 
-### Step 4 — Verify → **refused**
-- Click **Verify it's available** → ephemeral **"Not verifiable yet…"** (`INSUFFICIENT_EVIDENCE`). The card stays live.
+### Step 4 — Verify → **refused, in place**
+- In the modal, click **Verify it's available** → the engine returns `INSUFFICIENT_EVIDENCE` and the **modal re-renders still showing ⛔ flag OFF**. You can't sign a close the evidence won't support.
 
 ### Step 5 — flip ON → Verify → **passes**
 - LaunchDarkly (Production) → `sso-login-fix` **ON** → Review and save. *(Re-run the smoke → should say ON.)*
-- Click **Verify it's available** again → ✅ **Verified** + closure-draft DM. Same promise, opposite outcome.
+- Re-open the packet → **Verify it's available** again → ✅ modal closes, a **📣 Review & send** nudge lands. Same promise, opposite outcome.
 
 ### Step 6 — close the loop
-- **Approve & send** → sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
+- Open the send nudge (or **📣 Send** on Home) → **Approve & send** → sanitized closure posts in the thread → reply `works now` in-thread → **✅ Kept**.
 
 ---
 
