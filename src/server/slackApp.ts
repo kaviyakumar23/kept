@@ -183,10 +183,11 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       // configured connections; both reads are scoped to `teamId`. Undefined store (single-token /
       // dev path) → no Connections section is rendered.
       const configured = deps.tenantConfig ? await deps.tenantConfig.listConfigured(teamId) : undefined;
+      const mappings = deps.tenantConfig ? (await deps.tenantConfig.get(teamId, "proof_targets")) ?? undefined : undefined;
       const obligations = await orch.allObligations(teamId);
       // Demo workspace only — surface the judge-operable panel + live flag state.
       const demo = isDemoTeam(teamId) ? { obligation: activeDemoObligation(obligations), flagOn: demoFlagOn() } : undefined;
-      await client.views.publish({ user_id: userId, view: appHomeView(obligations, undefined, configured, demo) });
+      await client.views.publish({ user_id: userId, view: appHomeView(obligations, undefined, configured, demo, mappings) });
     } catch {
       /* App Home publish is best-effort */
     }
@@ -448,13 +449,30 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
     await deps.tenantConfig.remove(team, provider);
     await republishHome(client, body.user.id, team);
   });
-  app.action(new RegExp(`^${ACTIONS.addMapping}:`), async ({ ack, body, client }: any) => {
+  app.action(new RegExp(`^${ACTIONS.addMapping}:`), async ({ ack, body, action, client }: any) => {
     await ack();
     if (!deps.tenantConfig) return;
     const team = await resolveTeam(client, body);
     if (!team) return;
     const config = (await deps.tenantConfig.get(team, "proof_targets")) ?? {};
-    await client.views.open({ trigger_id: body.trigger_id, view: addMappingModal(config) });
+    // "Add mapping" carries value "proof_targets" (fresh); a row's ✏️ Edit carries the mapping key.
+    const val = action?.value;
+    const prefillKey = val && val !== "proof_targets" && config[val] ? val : undefined;
+    await client.views.open({ trigger_id: body.trigger_id, view: addMappingModal(config, prefillKey) });
+  });
+  app.action(new RegExp(`^${ACTIONS.removeMapping}:`), async ({ ack, body, action, client }: any) => {
+    await ack();
+    if (!deps.tenantConfig) return;
+    const team = await resolveTeam(client, body);
+    if (!team) return;
+    const key = action?.value;
+    const config = (await deps.tenantConfig.get(team, "proof_targets")) ?? {};
+    if (key && key in config) {
+      const rest = { ...config }; // remove just this one, keep the rest
+      delete rest[key];
+      await deps.tenantConfig.set(team, "proof_targets", rest);
+    }
+    await republishHome(client, body.user.id, team);
   });
 
   // --- 🎬 Demo Controls (App Home) — judge-operable hero flow, DEMO WORKSPACE ONLY ---

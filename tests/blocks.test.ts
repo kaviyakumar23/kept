@@ -8,6 +8,7 @@ import {
   reminderMessage,
   appHomeView,
   auditModal,
+  addMappingModal,
   editObligationModal,
   editDraftModal,
   actionId,
@@ -120,6 +121,29 @@ describe("Block Kit builders", () => {
   it("empty App Home shows an inviting empty state, not a dead end", () => {
     const json = JSON.stringify(appHomeView([]));
     expect(json).toContain("No promises tracked yet");
+  });
+
+  it("Connections lists each proof-target mapping with an edit + remove control", () => {
+    const json = JSON.stringify(
+      appHomeView([], Date.now(), ["launchdarkly"], undefined, {
+        Acme: { flag: { key: "sso-login-fix", environment: "production" } },
+        Globex: { flag: { key: "globex-billing" } },
+      }),
+    );
+    expect(json).toContain("Acme");
+    expect(json).toContain("sso-login-fix");
+    expect(json).toContain("Globex"); // multiple mappings coexist
+    expect(json).toContain(actionId(ACTIONS.removeMapping, "Acme")); // remove just this one
+    expect(json).toContain(actionId(ACTIONS.addMapping, "Acme")); // edit (pre-fills the modal)
+  });
+
+  it("edit-mapping modal pre-fills the flag + env for an existing key", () => {
+    const json = JSON.stringify(
+      addMappingModal({ Acme: { flag: { key: "sso-login-fix", environment: "staging" } } }, "Acme"),
+    );
+    expect(json).toContain("Edit proof-target mapping"); // title reflects edit mode
+    expect(json).toContain("sso-login-fix"); // flag pre-filled
+    expect(json).toContain("staging"); // environment pre-filled
   });
 
   it("edit-obligation modal prefills fields and carries the obligation id", () => {

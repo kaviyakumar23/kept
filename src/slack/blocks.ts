@@ -36,6 +36,7 @@ export const ACTIONS = {
   connect: "kept_connect",
   disconnect: "kept_disconnect",
   addMapping: "kept_add_mapping",
+  removeMapping: "kept_remove_mapping",
   // App Home "🎬 Demo Controls" (demo workspace only) — the in-flight demo obligation id rides
   // in the action_id suffix + `value`, exactly like the per-obligation gate buttons.
   demoShip: "kept_demo_ship",
@@ -370,7 +371,7 @@ const CONNECT_PROVIDERS: { provider: Extract<IntegrationProvider, "launchdarkly"
  * is the acting team's `tenantConfig.listConfigured(teamId)` result (tenant-scoped, invariant #4).
  * Undefined = no tenant-config store wired (single-token / dev path) → the section is omitted.
  */
-function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
+function connectionsBlocks(configured?: IntegrationProvider[], mappings?: ProofTargetsConfig): SlackBlock[] {
   if (!configured) return [];
   const on = new Set(configured);
   const blocks: SlackBlock[] = [
@@ -392,11 +393,29 @@ function connectionsBlocks(configured?: IntegrationProvider[]): SlackBlock[] {
       });
     }
   }
-  blocks.push({
-    type: "section",
-    text: { type: "mrkdwn", text: `*Proof-target mapping* — ${on.has("proof_targets") ? "Configured ✓" : "None yet"}` },
-    accessory: button("Add mapping", ACTIONS.addMapping, "proof_targets"),
-  });
+  // Proof-target mappings — one row per (customer/subject → flag), each editable + removable.
+  blocks.push(divider, section("*Proof-target mappings* — which flag proves each customer's work"));
+  const keys = Object.keys(mappings ?? {});
+  if (keys.length === 0) {
+    blocks.push(context("None yet — map a customer to a LaunchDarkly flag so Kept can verify their promises."));
+  } else {
+    for (const key of keys) {
+      const m = mappings![key];
+      const target = m.flag
+        ? `\`${escapeMrkdwn(m.flag.key)}\`${m.flag.environment ? `  ·  ${escapeMrkdwn(m.flag.environment)}` : ""}`
+        : m.ci
+          ? `CI \`${escapeMrkdwn(m.ci.owner)}/${escapeMrkdwn(m.ci.repo)}\``
+          : "—";
+      blocks.push(
+        { type: "section", text: { type: "mrkdwn", text: `*${escapeMrkdwn(key)}*  →  ${target}` } },
+        { type: "actions", elements: [
+          button("✏️ Edit", ACTIONS.addMapping, key),
+          button("✕ Remove", ACTIONS.removeMapping, key, "danger"),
+        ] },
+      );
+    }
+  }
+  blocks.push({ type: "actions", elements: [button("Add mapping", ACTIONS.addMapping, "proof_targets", "primary")] });
   return blocks;
 }
 
@@ -462,6 +481,7 @@ export function appHomeView(
   now: number = Date.now(),
   configured?: IntegrationProvider[],
   demo?: { obligation: Obligation | null; flagOn: boolean },
+  mappings?: ProofTargetsConfig,
 ): SlackView {
   const blocks: SlackBlock[] = [
     header("Kept"),
@@ -474,7 +494,7 @@ export function appHomeView(
       divider,
       section("*No promises tracked yet.*\nWhen your team commits to a customer in a shared channel — _“we’ll ship the SSO fix by Friday”_ — Kept surfaces it right here for you to confirm."),
     );
-    blocks.push(...connectionsBlocks(configured));
+    blocks.push(...connectionsBlocks(configured, mappings));
     return { type: "home", blocks };
   }
   const a = analytics(obligations, now);
@@ -531,7 +551,7 @@ export function appHomeView(
     blocks.push(section(`*${escapeMrkdwn(customer)}*  ·  ${openCount} open`));
     for (const o of list) blocks.push(...obligationBlocks(o));
   }
-  blocks.push(...connectionsBlocks(configured));
+  blocks.push(...connectionsBlocks(configured, mappings));
   return { type: "home", blocks };
 }
 
@@ -671,14 +691,17 @@ export function connectModal(
 }
 
 /** "Add mapping" → map a customer / subject key to the LaunchDarkly flag that proves it shipped. */
-export function addMappingModal(config: ProofTargetsConfig): SlackView {
-  const existing = Object.keys(config ?? {});
+/** Add OR edit a proof-target mapping. `prefillKey` (from the row's ✏️ Edit) pre-fills the fields. */
+export function addMappingModal(config: ProofTargetsConfig, prefillKey?: string): SlackView {
+  const cfg = config ?? {};
+  const existing = Object.keys(cfg);
+  const pre = prefillKey ? cfg[prefillKey] : undefined;
   const blocks: SlackBlock[] = [section("Map a *customer or subject key* to the LaunchDarkly flag that proves it shipped.")];
   if (existing.length) blocks.push(context(`Already mapped: ${existing.map(escapeMrkdwn).join(", ")}`));
   blocks.push(
-    inputBlock(FIELDS.mapKey.block, "Customer or subject key", FIELDS.mapKey.action, "", { placeholder: "Acme  ·  a subject key  ·  or *" }),
-    inputBlock(FIELDS.mapFlag.block, "LaunchDarkly flag key", FIELDS.mapFlag.action, ""),
-    inputBlock(FIELDS.mapEnv.block, "Environment (default production)", FIELDS.mapEnv.action, "production", { optional: true }),
+    inputBlock(FIELDS.mapKey.block, "Customer or subject key", FIELDS.mapKey.action, prefillKey ?? "", { placeholder: "Acme  ·  a subject key  ·  or *" }),
+    inputBlock(FIELDS.mapFlag.block, "LaunchDarkly flag key", FIELDS.mapFlag.action, pre?.flag?.key ?? ""),
+    inputBlock(FIELDS.mapEnv.block, "Environment (default production)", FIELDS.mapEnv.action, pre?.flag?.environment ?? "production", { optional: true }),
   );
-  return modal(CALLBACKS.addMapping, "Add proof-target mapping", blocks, "Save mapping", "proof_targets");
+  return modal(CALLBACKS.addMapping, prefillKey ? "Edit proof-target mapping" : "Add proof-target mapping", blocks, "Save mapping", "proof_targets");
 }
