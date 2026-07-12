@@ -243,7 +243,7 @@ export function verifyPacketModal(o: Obligation, assessment: FulfillmentAssessme
  *  wall of stacked cards. The evidence lives in the modal, one click away. */
 export function verifyNudge(o: Obligation): SlackBlock[] {
   return [
-    section(`👀 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is ready for your review.`),
+    section(`*${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is ready for your review.`),
     context("Kept gathered the delivery evidence. Open it to see what reconciles — and sign only if it does."),
     { type: "actions", elements: [button("Review & verify", ACTIONS.verify, o.id, "primary")] },
   ];
@@ -252,7 +252,7 @@ export function verifyNudge(o: Obligation): SlackBlock[] {
 /** Thin owner DM — "verified, ready to send", one button that opens the closure-draft modal. */
 export function sendNudge(o: Obligation): SlackBlock[] {
   return [
-    section(`📣 *${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is verified and ready to close.`),
+    section(`*${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}* is verified and ready to close.`),
     context("Review the sanitized reply, then send it to the customer thread when you're happy."),
     { type: "actions", elements: [button("Review & send", ACTIONS.editDraft, o.id, "primary")] },
   ];
@@ -384,7 +384,7 @@ export function auditHistoryView(o: Obligation, events: ObligationEvent[]): Slac
     return `${ts}  ${receiptLine(e)}${who}`;
   });
   return [
-    header("🧾 Receipts — the full ledger"),
+    header("Receipts — the full ledger"),
     section(`*${escapeMrkdwn(o.customer)}* — ${escapeMrkdwn(o.outcome)}\nStatus: *${statusChip(o.state)}*  ·  ${o.history_count} events, append-only & human-signed at both gates`),
     divider,
     section(lines.join("\n") || "_no events_"),
@@ -423,7 +423,7 @@ function connectionsBlocks(configured?: IntegrationProvider[], mappings?: ProofT
   const on = new Set(configured);
   const blocks: SlackBlock[] = [
     divider,
-    header("🔌 Connections"),
+    header("Connections"),
     context("Connect this workspace's own proof sources. Kept reads them only for your team."),
   ];
   for (const { provider, label } of CONNECT_PROVIDERS) {
@@ -479,7 +479,7 @@ export function demoControlsBlocks(obligation: Obligation | null, flagOn: boolea
     : "_none yet — click Reset demo to seed a fresh one_";
   return [
     divider,
-    header("🎬 Demo Controls"),
+    header("Demo Controls"),
     context("Judge-operable hero flow. Drive the whole loop from these buttons — the engine will personally block you until the production flag is ON."),
     {
       type: "section",
@@ -579,18 +579,18 @@ export function appHomeView(
   const needsNow = dedupeById([...a.awaitingVerify, ...a.overdue]);
   if (needsNow.length > 0) {
     const items = needsNow.slice(0, 4).map((o) => `${statusOf(o.state).emoji} ${escapeMrkdwn(o.customer)} — ${escapeMrkdwn(o.outcome)}`);
-    blocks.push(context(`⚡ *Needs you now:*  ${items.join("     ·     ")}${needsNow.length > 4 ? `   +${needsNow.length - 4} more` : ""}`));
+    blocks.push(context(`*Needs you now:*  ${items.join("     ·     ")}${needsNow.length > 4 ? `   +${needsNow.length - 4} more` : ""}`));
   }
   // The differentiator, quantified. Every one is a broken promise a ticket-only tool would have
   // shipped to the customer as "Done". Shown once Kept has actually caught one.
   if (a.blockedCatches > 0) {
-    blocks.push(section(`🛡️ *${a.blockedCatches} close${a.blockedCatches === 1 ? "" : "s"} blocked before reaching a customer* — promises that read “Done” but weren’t actually shipped (flag off · CI red · status degraded).`));
+    blocks.push(section(`*${a.blockedCatches} close${a.blockedCatches === 1 ? "" : "s"} blocked before reaching a customer* — promises that read “Done” but weren’t actually shipped (flag off · CI red · status degraded).`));
   }
   // W5 — promise-drift radar band (certainty-decay derived → deterministic): which
   // commitments are softening / slipping / going silent. Rendered only when something drifts.
   const radar = driftRadar(obligations, now);
   if (radar.counts.drifting > 0) {
-    blocks.push(divider, section(`📉 *Drift radar*  ·  ${radar.counts.drifting} drifting`));
+    blocks.push(divider, section(`*Drift radar*  ·  ${radar.counts.drifting} drifting`));
     blocks.push({
       type: "section",
       fields: [
@@ -605,7 +605,7 @@ export function appHomeView(
     }
   }
   // The ledger — grouped by customer, actionable promises first, settled ones collapsed to a line.
-  blocks.push(divider, section("📋 *The ledger*  ·  every promise carries its next step — act right here."));
+  blocks.push(divider, section("*The ledger*  ·  every promise carries its next step — act right here."));
   const byCustomer = new Map<string, Obligation[]>();
   for (const o of obligations) {
     const list = byCustomer.get(o.customer) ?? [];

@@ -28,7 +28,7 @@ You'll paste two values when you connect LaunchDarkly. Get them now:
 ---
 
 ## Part 2 — Connect LaunchDarkly
-1. App Home → scroll to **🔌 Connections** → next to **LaunchDarkly** click **Connect**.
+1. App Home → scroll to **Connections** → next to **LaunchDarkly** click **Connect**.
 2. In the modal, enter **exactly**:
    | Field | Value |
    |--|--|
@@ -43,7 +43,7 @@ You'll paste two values when you connect LaunchDarkly. Get them now:
 
 ## Part 3 — Map the customer to the flag  ← the step people miss
 Connecting LaunchDarkly isn't enough; Kept needs to know *which flag proves which customer's work*.
-1. App Home → **🔌 Connections** → **Add mapping**.
+1. App Home → **Connections** → **Add mapping**.
 2. Enter **exactly**:
    | Field | Value |
    |--|--|

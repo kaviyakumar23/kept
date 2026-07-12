@@ -17,7 +17,7 @@ There are two ways this happens:
 > ⚠️ **Expected gotcha:** App Home → 🔌 **Connections will show LaunchDarkly / Jira / GitHub as "Not connected"** in your workspace. That panel reflects *per-tenant* connections only — it does **not** know about the operator env. The sources still work (the `npm run smoke` check proves it). Don't let "Not connected" mislead you.
 
 ### B) Per-tenant Connections — every other workspace + the sandbox
-A fresh install reads **no** proof source until it connects its own. In **App Home → 🔌 Connections**:
+A fresh install reads **no** proof source until it connects its own. In **App Home → Connections**:
 1. **LaunchDarkly → Connect** → *API access token* + *Project key* + *Environment* = `production` → **Save**.
 2. **Jira → Connect** → *Base URL* + *Email* + *API token* (+ *Cloud ID*) → **Save**.
 3. **GitHub → Connect** → *Personal access token* → **Save**.
@@ -111,7 +111,7 @@ It only works when **(a)** the customer is **Acme** (mapped to `sso-login-fix`),
 | Confirm card, then thin **Review & verify / Review & send** nudges | **Your DM** from Kept |
 | Proof-of-Done packet + closure draft | **Modals** — opened from a DM nudge *or* the Home row |
 | Sanitized closure | **In the channel thread** |
-| Drive the whole lifecycle (Confirm/Verify/Send/Mark delivered), ledger, Receipts, 🔌 Connections | **App Home → Home tab** |
+| Drive the whole lifecycle (Confirm/Verify/Send/Mark delivered), ledger, Receipts, Connections | **App Home → Home tab** |
 | `/kept customer`, `/kept` | **Slash commands** |
 
 ## Reset for a clean re-run
