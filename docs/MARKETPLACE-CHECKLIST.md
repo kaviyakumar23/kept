@@ -95,48 +95,62 @@ Slack uses this to suggest your app when someone shares a link to your domain.
 
 **Pricing:** Free.
 
-**Support URL:** host `docs/SUPPORT.md` content at a public URL (e.g. `https://HOST/support` or a
-Vercel page). **Privacy policy URL:** host `docs/PRIVACY.md` similarly. Both are required listing
-fields.
+**Support URL:** `https://kept-iota.vercel.app/support` · **Privacy policy URL:**
+`https://kept-iota.vercel.app/privacy` · **Docs URL:** `https://kept-iota.vercel.app/docs` — all
+live. Privacy + Support are required listing fields; the Docs page is optional but strengthens the
+listing (reference it in the long description below).
 
 **Gallery images:** at least one, **1600 × 1000 px (8:5)**, PNG/JPG. Adapt the existing assets in
 `docs/` (`slack-cards.png`, `demo.png`, `architecture.png`) — resize/pad to exactly 1600×1000.
 `<TODO>` produce final-sized images.
 
-### Short description (draft — ~10 words, fits the card)
+### Short description (shown on the listing card — keep ≤ 140 characters)
 
-> Never drop a customer promise. Human-verified obligation ledger for Slack.
+> Kept checks customer promises made in Slack against Jira, GitHub Actions, and LaunchDarkly before your team calls the work done.
+
+_(124 characters.)_
 
 ### Long description (draft)
 
-> **Kept turns every promise made in a customer channel into a tracked, verified obligation —
-> and closes the loop only when a human signs off.**
+> **Don't call it done until the evidence agrees.**
 >
-> Teams make commitments in shared Slack channels every day ("we'll ship SSO by Friday",
-> "we'll get you that export"). They scroll away and get dropped. Kept watches the channels it's
-> added to, detects each commitment, and tracks it through a guarded two-gate lifecycle:
+> Your team makes promises to customers in shared Slack channels every day — "we'll ship the SSO
+> fix by Friday," "you'll have that export next week." They scroll away, and some quietly slip.
+> Kept captures each promise, tracks it, and checks it against live delivery evidence before anyone
+> tells the customer it's done.
 >
-> 1. **Confirm the commitment.** Kept DMs the owner a card to confirm what was promised, to
->    whom, and by when — nothing is tracked until a human confirms.
-> 2. **Verify it's done.** Kept assembles a proof packet from connected sources (e.g. GitHub
->    Actions) and asks a human to verify. Only after that human sign-off does Kept post a
->    customer-safe closure back in the original thread.
+> **How it works**
+> - **Capture** — Kept watches the channels you add it to and detects a customer commitment.
+> - **Confirm** — a teammate confirms it should be tracked. Nothing is tracked until a human says so.
+> - **Check** — when the work ships, Kept assembles a Proof-of-Done packet from the systems that
+>   actually ship it: **Jira** (issue status), **GitHub Actions** (CI result), and **LaunchDarkly**
+>   (production flag state).
+> - **Verify** — a teammate reviews the evidence and signs. If a Jira ticket says Done but the
+>   production flag is still off, Kept **blocks the close** and shows why.
+> - **Close the loop** — Kept posts a sanitized, customer-safe reply back in the original thread,
+>   only after a human approves.
 >
-> **Built for trust:**
-> - **Zero-copy** — Kept stores only short derived facts and links, never your message text.
-> - **Human-verified** — two human gates; Kept never auto-verifies or auto-messages a customer.
-> - **Audience-safe** — internal details (tickets, PRs, deploys) are stripped from anything a
+> Run the whole lifecycle from the **App Home** cockpit — every promise carries its next step — or
+> ask the built-in **AI Assistant**: "What's overdue?", "What did we promise Acme?", "What's
+> waiting on me to verify?"
+>
+> **Built for customer channels**
+> - **Derived facts, not message bodies** — Kept stores structured commitments, owners, due dates,
+>   source references, and verdicts — never your raw Slack messages.
+> - **Human-verified** — two human gates; Kept never auto-verifies or messages a customer on its own.
+> - **Audience-safe** — internal details (tickets, PRs, deploys, flags) are stripped from anything a
 >   customer sees.
-> - **Tenant-isolated** — every read is scoped to your workspace.
-> - **Minimal, granular scopes** — no blanket `search:read`, no `admin.*`.
+> - **Workspace-isolated** — data and connected credentials are scoped to your workspace.
+> - **Minimal, granular scopes** — no blanket search or admin access.
 >
-> Ask the built-in AI Assistant "What's overdue?" or "What did we promise Acme this week?" and
-> get an answer straight from the ledger.
+> Connect your own Jira, GitHub Actions, and LaunchDarkly in **App Home → Connections**. No
+> integrations yet? Kept still works end to end on a teammate's "mark delivered" attestation.
 >
-> _Honesty note: Slack is the live surface and GitHub Actions is a live proof source. Linear,
-> Jira, LaunchDarkly, and Statuspage are simulated in this build with real API skeletons._
+> **Learn how to use it:** https://kept-iota.vercel.app/docs   ·   **Support:**
+> https://kept-iota.vercel.app/support
 
-`<TODO: confirm>` trim/expand to Slack's current character limits for each field.
+`<TODO: confirm>` Slack's current field limits before pasting (short description is typically capped
+at ~140 characters; the long description allows much more). Trim if a field rejects the text.
 
 ## 7. Answer the Security & Compliance questionnaire 🧑
 
