@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    <style>
+      .h{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;}
+      .m{font-family:'Menlo','SF Mono',monospace;}
+    </style>
+    <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/>
+    </marker>
+    <marker id="arwB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2563EB"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#F8FAFC"/>
+  <rect width="1600" height="8" fill="#2563EB"/>
+
+  <!-- title -->
+  <text x="80" y="86" class="h" font-size="42" font-weight="700" fill="#0F172A">Kept — Proof-of-Done architecture</text>
+  <text x="80" y="126" class="h" font-size="22" fill="#475569">The LLM <tspan font-weight="700">proposes</tspan> · code <tspan font-weight="700">decides</tspan> · humans <tspan font-weight="700">sign</tspan> at two gates · zero-copy, tenant-isolated ledger</text>
+
+  <!-- tech badges -->
+  <g class="m" font-size="15" font-weight="600">
+    <rect x="1090" y="58" width="130" height="34" rx="17" fill="#E6F4F1" stroke="#BFE3DB"/><text x="1155" y="80" fill="#0F766E" text-anchor="middle">Slack AI</text>
+    <rect x="1232" y="58" width="90" height="34" rx="17" fill="#E6F4F1" stroke="#BFE3DB"/><text x="1277" y="80" fill="#0F766E" text-anchor="middle">MCP</text>
+    <rect x="1334" y="58" width="186" height="34" rx="17" fill="#E6F4F1" stroke="#BFE3DB"/><text x="1427" y="80" fill="#0F766E" text-anchor="middle">Real-Time Search</text>
+  </g>
+
+  <!-- ================= LANE A: CAPTURE → CONFIRM ================= -->
+  <text x="80" y="200" class="m" font-size="15" letter-spacing="2" fill="#0F766E">CAPTURE → CONFIRM</text>
+
+  <!-- A1 Slack -->
+  <rect x="80" y="220" width="240" height="110" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="100" y="256" class="h" font-size="19" font-weight="700" fill="#0F172A">Slack channel</text>
+  <text x="100" y="282" class="h" font-size="14.5" fill="#64748B">shared customer channel</text>
+  <text x="100" y="304" class="m" font-size="13" fill="#94A3B8">“we’ll ship X by Friday”</text>
+  <rect x="100" y="312" width="150" height="24" rx="12" fill="#E6F4F1" stroke="#BFE3DB"/><text x="175" y="329" class="m" font-size="12" font-weight="600" fill="#0F766E" text-anchor="middle">Real-Time Search</text>
+
+  <!-- A2 Classify -->
+  <rect x="392" y="220" width="240" height="110" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="412" y="256" class="h" font-size="19" font-weight="700" fill="#0F172A">Classify + extract</text>
+  <text x="412" y="282" class="h" font-size="14.5" fill="#DC2626" font-weight="600">LLM PROPOSES a Command</text>
+  <text x="412" y="304" class="h" font-size="13.5" fill="#64748B">never emits an event / acts</text>
+  <rect x="412" y="312" width="72" height="24" rx="12" fill="#E6F4F1" stroke="#BFE3DB"/><text x="448" y="329" class="m" font-size="12" font-weight="600" fill="#0F766E" text-anchor="middle">Slack AI</text>
+
+  <!-- A3 decide() -->
+  <rect x="704" y="220" width="240" height="110" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="724" y="256" class="m" font-size="19" font-weight="700" fill="#0F172A">decide()</text>
+  <text x="724" y="282" class="h" font-size="14.5" font-weight="600" fill="#2563EB">CODE DECIDES</text>
+  <text x="724" y="304" class="h" font-size="13.5" fill="#64748B">pure · the only event source</text>
+
+  <!-- A4 Gate 1 -->
+  <rect x="1016" y="220" width="240" height="110" rx="14" fill="#EFF4FF" stroke="#2563EB" stroke-width="2"/>
+  <text x="1036" y="256" class="h" font-size="19" font-weight="700" fill="#1D4ED8">👤 Gate 1 — Confirm</text>
+  <text x="1036" y="282" class="h" font-size="14.5" fill="#475569">a human confirms tracking</text>
+  <text x="1036" y="304" class="h" font-size="13.5" fill="#64748B">one private click</text>
+
+  <!-- A5 Ledger -->
+  <rect x="1328" y="220" width="192" height="110" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="1348" y="256" class="h" font-size="19" font-weight="700" fill="#0F172A">Event ledger</text>
+  <text x="1348" y="282" class="h" font-size="14.5" fill="#64748B">Postgres</text>
+  <text x="1348" y="304" class="h" font-size="13.5" fill="#64748B">zero-copy · append-only</text>
+
+  <!-- lane A arrows -->
+  <g fill="none" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arw)">
+    <line x1="320" y1="275" x2="386" y2="275"/>
+    <line x1="632" y1="275" x2="698" y2="275"/>
+    <line x1="944" y1="275" x2="1010" y2="275"/>
+    <line x1="1256" y1="275" x2="1322" y2="275"/>
+  </g>
+
+  <!-- wrap connector: ledger → collector -->
+  <path d="M1424 330 L1424 420 L200 420 L200 556" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arwB)"/>
+  <rect x="640" y="398" width="320" height="30" rx="15" fill="#EFF4FF" stroke="#D7E3FF"/>
+  <text x="800" y="419" class="h" font-size="15" font-weight="600" fill="#1D4ED8" text-anchor="middle">a delivery signal enters the Proof-of-Done gate</text>
+
+  <!-- ================= LANE B: PROVE → CLOSE ================= -->
+  <text x="80" y="540" class="m" font-size="15" letter-spacing="2" fill="#0F766E">PROVE → CLOSE</text>
+
+  <!-- B1 Collector -->
+  <rect x="80" y="560" width="240" height="120" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="100" y="596" class="h" font-size="19" font-weight="700" fill="#0F172A">Proof-of-Done</text>
+  <text x="100" y="620" class="h" font-size="14.5" fill="#64748B">agent gathers evidence</text>
+  <text x="100" y="642" class="h" font-size="13.5" fill="#64748B">code picks every read</text>
+  <rect x="100" y="650" width="66" height="24" rx="12" fill="#E6F4F1" stroke="#BFE3DB"/><text x="133" y="667" class="m" font-size="12" font-weight="600" fill="#0F766E" text-anchor="middle">MCP</text>
+
+  <!-- B2 Sources -->
+  <rect x="392" y="560" width="240" height="120" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="412" y="592" class="h" font-size="17" font-weight="700" fill="#0F172A">Live proof sources</text>
+  <text x="412" y="620" class="h" font-size="14.5" fill="#334155">🚩 LaunchDarkly — flag</text>
+  <text x="412" y="642" class="h" font-size="14.5" fill="#334155">🎫 Jira — issue status</text>
+  <text x="412" y="664" class="h" font-size="14.5" fill="#334155">🔧 GitHub Actions — CI</text>
+
+  <!-- B3 Reconcile (BLOCK) -->
+  <rect x="704" y="560" width="240" height="120" rx="14" fill="#FEF2F2" stroke="#DC2626" stroke-width="2"/>
+  <text x="724" y="596" class="h" font-size="19" font-weight="700" fill="#B91C1C">Reconcile</text>
+  <text x="724" y="622" class="h" font-size="14.5" font-weight="600" fill="#DC2626">flag OFF → CLOSE BLOCKED</text>
+  <text x="724" y="646" class="h" font-size="13.5" fill="#7F1D1D">ticket-Done is never enough</text>
+  <text x="724" y="668" class="h" font-size="13.5" fill="#7F1D1D">or: owner attests (Option A)</text>
+
+  <!-- B4 Gate 2 -->
+  <rect x="1016" y="560" width="240" height="120" rx="14" fill="#EFF4FF" stroke="#2563EB" stroke-width="2"/>
+  <text x="1036" y="596" class="h" font-size="19" font-weight="700" fill="#1D4ED8">👤 Gate 2 — Verify</text>
+  <text x="1036" y="622" class="h" font-size="14.5" fill="#475569">a human signs the verdict</text>
+  <text x="1036" y="646" class="h" font-size="13.5" fill="#64748B">engine refuses if evidence</text>
+  <text x="1036" y="666" class="h" font-size="13.5" fill="#64748B">is insufficient</text>
+
+  <!-- B5 Sanitizer/closure -->
+  <rect x="1328" y="560" width="192" height="120" rx="14" fill="#fff" stroke="#E2E8F0"/>
+  <text x="1348" y="596" class="h" font-size="18" font-weight="700" fill="#0F172A">🛡️ Sanitize</text>
+  <text x="1348" y="622" class="h" font-size="14" fill="#64748B">no internal leak</text>
+  <text x="1348" y="646" class="h" font-size="14" fill="#334155">→ closure posted</text>
+  <text x="1348" y="668" class="h" font-size="14" fill="#334155">to the Slack thread</text>
+
+  <!-- lane B arrows -->
+  <g fill="none" stroke="#94A3B8" stroke-width="2.5" marker-end="url(#arw)">
+    <line x1="320" y1="620" x2="386" y2="620"/>
+    <line x1="632" y1="620" x2="698" y2="620"/>
+    <line x1="944" y1="620" x2="1010" y2="620"/>
+    <line x1="1256" y1="620" x2="1322" y2="620"/>
+  </g>
+
+  <!-- return-to-Slack + customer loop-close -->
+  <path d="M1424 680 L1424 760 L200 760 L200 800" fill="none" stroke="#0F766E" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arw)"/>
+  <rect x="80" y="800" width="440" height="66" rx="14" fill="#E6F4F1" stroke="#BFE3DB"/>
+  <text x="100" y="832" class="h" font-size="17" font-weight="700" fill="#0B5346">Customer replies “works now” in-thread</text>
+  <text x="100" y="855" class="h" font-size="14" fill="#0F766E">→ loop CLOSED · owner notified · never auto-notified</text>
+
+  <!-- footer principle -->
+  <text x="560" y="835" class="h" font-size="16" fill="#475569">Two human gates. Zero-copy (derived facts + refs only).</text>
+  <text x="560" y="858" class="h" font-size="16" fill="#475569">Per-tenant isolation. Audience firewall on every customer-facing surface.</text>
+  <text x="1180" y="845" class="m" font-size="15" fill="#94A3B8">kept-iota.vercel.app</text>
+</svg>

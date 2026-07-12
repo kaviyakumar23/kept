@@ -90,8 +90,10 @@ Kept is TypeScript (ESM, Node 20+), four deterministic layers around a pure engi
 ## Accomplishments that we're proud of
 
 - A genuinely **pure decision core** — `decide()` and `canApply()` do no I/O — which makes the guarantees testable and the engine replayable.
-- **179 hermetic tests + a live integration suite.** The engine, the Slack AI Assistant router, a real MCP client↔server round-trip, the Proof-of-Done gate, tenant isolation, and the trust page all run in-memory and deterministic; the integration suite verifies real Postgres + Redis/BullMQ (self-skipping when a service env is absent).
-- **8 adversarial verification rounds**, where we attacked our own guarantees and turned every finding into a permanent regression test — command-path leak checks and forged-evidence rejection, the all-Unicode zero-copy fix, retry-stable idempotency keys, an MCP-path self-heal for a confirmed-but-orphaned obligation, the Assistant/analytics hardening sweep, and a Round-8 pass over the new Proof-of-Done, trust-page, and tenancy surfaces.
+- **299 hermetic tests + a live integration suite.** The engine, the Slack AI Assistant router, a real MCP client↔server round-trip, the Proof-of-Done gate, tenant isolation, and the trust page all run in-memory and deterministic; the integration suite verifies real Postgres + Redis/BullMQ (self-skipping when a service env is absent).
+- **9 adversarial rounds** — the latest a **multi-agent, workflow-driven** sweep that attacked each guarantee independently and found (then fixed, then locked with regression tests) two real gaps we'd missed: proof adapters silently falling back to the *operator's* credentials for another tenant, and an evidence row mislabelling a live read as a webhook push. Every finding across all rounds is now a permanent regression test.
+- **A production-hardening pass that closed the gap between "demo" and "product":** gate cards lock after one click (idempotent — no double-verify, no duplicate customer post), webhook endpoints are authenticated (no forged proof), the hosted app never fabricates a work item (a ticket appears only when a real tracker is connected), proof credentials are **strictly per-tenant** (no installer ever reads through the operator's accounts), and evidence rows are labelled by provenance (*read live* vs *reported* vs *attested*).
+- **Integrations are optional (Option A).** A team with no automated proof source can still drive the full loop: the owner **manually attests delivery** (a first-class `manual_delivery` signal), which is sufficient to verify — *unless a connected proof source contradicts it*, in which case the guardrail wins (a flag that's OFF still blocks a "marked delivered" promise). The customer identity is anchored to the **channel** (`/kept customer <name>`), not re-guessed from each message.
 - **Proof-of-Done that actually blocks.** The flag-OFF case isn't a slide — `npm run demo` shows the engine refusing to verify with ticket Done + merge + deploy in hand, then flipping to green the instant the flag goes ON.
 - **A clean transport-agnostic core and a polished Slack-native UX** — confirm/verify/closure cards, edit modals that re-run the leak check on submit, an App Home dashboard with the drift band, a slash-command ledger, and the customer trust page — every guarantee mapping to a specific guard in a specific file.
 
@@ -129,7 +131,8 @@ BUILT WITH (Devpost tags field): TypeScript, Node.js, Slack Bolt, Slack OAuth, B
 TRY IT OUT (Devpost links field):
   • GitHub repo:   https://github.com/kaviyakumar23/kept
   • Landing page:  https://kept-iota.vercel.app   (live on Vercel)
-  • Run it:        npm install → npm test (179 hermetic tests) → npm run demo (full-lifecycle storyboard incl. the flag-OFF block) → npm start (Bolt OAuth app + webhook server)
+  • Live app:      https://kept-slack-agent.fly.dev  (Bolt OAuth, HTTP mode, on Fly.io + Postgres)
+  • Run it:        npm install → npm test (299 hermetic tests) → npm run demo (full-lifecycle storyboard incl. the flag-OFF block) → npm run smoke (live health/integration check) → npm start (Bolt OAuth app + webhook server)
                    Each external dependency upgrades from its simulated adapter to the real one when its env var is set: DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, JIRA_EMAIL+JIRA_API_TOKEN (live Jira over REST; MCP-capable via ATLASSIAN_MCP_TOKEN once OAuth is wired), LAUNCHDARKLY_MCP_TOKEN (live flag state over LaunchDarkly's hosted MCP), GITHUB_TOKEN (live CI).
 
 SUBMISSION TRACK: Slack Agent for Organizations

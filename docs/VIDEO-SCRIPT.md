@@ -1,104 +1,93 @@
 # Kept — demo video script (Slack Agent for _Organizations_)
 
-**Target length: 2:40 (hard ceiling 3:00).** Shot-by-shot. Open cold on the flag-OFF **block** — the one thing a ticket-tracker structurally cannot do — then show the agent assembling the Evidence Packet, the human signing, the drift radar, and the customer trust page. Caption every beat. State the honesty line once, plainly.
+**Target 2:45 · hard ceiling 3:00 · 1080p · public YouTube.** Judges mostly watch the first 30–60s and often
+watch **muted** — so: face-first hook, big kinetic captions, put the strongest beat first.
 
-**Recording notes.** Everything here is real and runnable: `npm start` (Bolt OAuth app + webhook server) drives the live Slack cards; `npm run demo` prints the same end-to-end storyboard offline (a clean fallback if the workspace is flaky). Keep the customer channel `#acme-collab` and the owner's DM both on screen where noted. Captions are burned-in lower-thirds. VO = voiceover.
+## Non-negotiable rules (read before recording)
+- **No third-party trademarks / UIs on screen.** Do **not** screen-record Jira, GitHub, or LaunchDarkly.
+  Drive **everything** through Kept's own **Demo Controls** panel and cards, so every signal appears as **text
+  inside Kept** ("Ticket Done ✓", "Production flag OFF ✗"). This is how the app is built — and it's the safe path.
+- **Real human voiceover**, not TTS. Short sentences, confident verbs. No "we tried to…".
+- **Burn in captions** (judges skim muted). 1080p. **Pre-warm the LLM** with a throwaway message before takes.
+- **Royalty-free music only** — save the license file. One negative sound cue on the block (below); silence elsewhere there.
+- Four moments, nothing more: **the block → capture/Gate 1 → sign & close → the customer loop-close**.
+  Drift radar + trust page get a 1-second flash. Feature tours are how strong projects bore judges.
 
----
-
-## Segment 1 — COLD OPEN: the block (0:00 – 0:18) · 18s
-
-| | |
-|---|---|
-| **Screen** | The owner's DM. A card titled **"Kept · Proof-of-Done evidence packet — Acme · SSO login fix."** Rows animate in: *Ticket Done ✓ · Code merged ✓ · Prod deploy ✓ · **Feature flag OFF ✗.*** Verdict stamps red: **"blocked — not verifiably available."** |
-| **VO** | "A Jira ticket just flipped to **Done**. Every other tool would tell the customer it's fixed. Watch what Kept does instead." |
-| **Caption** | `Ticket says Done. Kept checked the feature flag — it's OFF in production.` |
-| **Cut** | Owner clicks **Verify** → a red inline notice: *"blocked (INSUFFICIENT_EVIDENCE) — state still POSSIBLE_FULFILLMENT."* |
-| **VO** | "The deploy never shipped. So Kept **blocks the close** — even though the ticket, the PR, and the deploy all say go." |
-| **Caption** | `Your ticketer tracks status. Kept verifies reality.` |
-
-## Segment 2 — Why this matters (0:18 – 0:33) · 15s
-
-| | |
-|---|---|
-| **Screen** | Simple title card / competitor logos fade: Pylon · Thena · ClearFeed → struck through. Then the Kept wordmark. |
-| **VO** | "Pylon, Thena, ClearFeed — they track ticket status. That's exactly how a customer gets told 'it's fixed' when it isn't. Kept treats every promise as a first-class **obligation**, and never treats a ticket or a merged PR as truth." |
-| **Caption** | `False "done" is the trust-killer. Kept is built to catch it.` |
-
-## Segment 3 — Capture → Gate 1 (0:33 – 0:58) · 25s
-
-| | |
-|---|---|
-| **Screen** | `#acme-collab` (a shared customer channel). A customer message: **"Can you get the SSO bug fixed by Friday?"** |
-| **VO** | "Start where the promise is made — a shared customer channel. Kept's model reads the message and **proposes** an obligation. It never commits anything on its own." |
-| **Caption** | `The LLM proposes. Code decides. (No event without a human gate.)` |
-| **Screen** | Cut to the owner's **private** DM: a confirm card — outcome, due date, **prior commitments to Acme** (pulled from the ledger via Real-Time Search), and a **⚠ roadmap-conflict** warning. |
-| **VO** | "The owner gets a private card — with prior commitments to this account and a warning that Friday beats the roadmap. **Gate 1.** Click Confirm—" |
-| **Screen** | Owner clicks **Confirm**. Toast: *"Created PROJ-119 via MCP."* |
-| **VO** | "—and only now does Kept open a work item, over MCP. Code chose that tool call, not the model." |
-| **Caption** | `Gate 1 = confirm. Only then does the work item get created (MCP).` |
-
-## Segment 4 — The agent assembles proof (0:58 – 1:22) · 24s
-
-| | |
-|---|---|
-| **Screen** | Fast montage of webhook events landing on the obligation: **Linear → Done**, **PR #449 merged**, **prod deploy**. Then a status line: *"Kept queried LaunchDarkly (get_flag_state) over MCP."* |
-| **VO** | "Engineering ships. Ticket Done, PR merged, deployed to prod. A normal tool would call that finished. Kept goes one step further — it **gathers Proof-of-Done itself**: the flag state, the CI run, the status page." |
-| **Screen** | Back to the **Evidence Packet** from the cold open — now we understand it. Flag OFF ✗ → **blocked**. |
-| **VO** | "The flag is off. The capability isn't reachable. So the Evidence Packet reads blocked — and the verify card never even goes out." |
-| **Caption** | `Proof-of-Done: flag / CI / deploy / status — reconciled, not trusted.` |
-
-## Segment 5 — Flip ON → sign → close the loop (1:22 – 1:52) · 30s
-
-| | |
-|---|---|
-| **Screen** | A LaunchDarkly toggle flips **ON** (or a caption: *"flag flipped ON in production"*). The Evidence Packet re-renders **green**: *Feature flag ON ✓ → available.* |
-| **VO** | "Someone flips the flag on. Kept re-gathers the proof — now every source agrees. **The agent did ninety-five percent of the work.** The owner does the last five: **Gate 2 — they sign.**" |
-| **Screen** | Owner clicks **Verify it's available**. Then a **closure-draft card** appears: a customer-safe reply with a badge *"4 internal items redacted (linear, feature_flag, github) · Leak-safe ✅."* |
-| **VO** | "Kept drafts the reply, strips every internal reference — ticket keys, PR numbers, the flag — and checks it for leaks. The owner approves." |
-| **Screen** | Cut to `#acme-collab`: the closure posts **in the original thread**. |
-| **Caption** | `Gate 2 = a human signs. The customer hears it — in the original thread, sanitized.` |
-
-## Segment 6 — Wow #2: promise-drift radar (1:52 – 2:12) · 20s
-
-| | |
-|---|---|
-| **Screen** | Customer replies **"it still fails for one user."** The obligation flips **REOPENED** — ticket still shows Done. Cut to **App Home**: the **drift band** lights up — *Drifting: 1 · Softening: 1* — with the reading *"Acme — SSO login fix: softening (drift 0.30) — customer reopened — disputed."* |
-| **VO** | "And it outlives the ticket. The customer says it still fails — Kept reopens the obligation even though the ticket's frozen at Done. Across every account, Kept scores **promise drift**: 'next Tuesday' becoming 'soon' becoming silence — quantified." |
-| **Caption** | `Promise-drift radar: softened, slipped, disputed, gone quiet — measured.` |
-
-## Segment 7 — Wow #3: the customer trust page (2:12 – 2:28) · 16s
-
-| | |
-|---|---|
-| **Screen** | Terminal: `/kept trust Acme` → a URL. Open the **trust page** in a browser: buckets **Kept · In progress · Verifying · At-risk**, a footer *"4 internal details withheld · noindex, no-store."* |
-| **VO** | "Every account gets a private trust page — what you've kept, what's in flight — through the **same sanitizer** as the channel. No ticket, no PR, no flag ever shows. A retention weapon a CSM can just send." |
-| **Caption** | `Per-account trust page — audience-safe by construction.` |
-
-## Segment 8 — The engineering + honesty close (2:28 – 2:40) · 12s
-
-| | |
-|---|---|
-| **Screen** | Three quiet title cards, then the Marketplace/Organizations frame. |
-| **VO** | "Three qualifying technologies, all real: the **Slack AI Assistant**, **MCP** for work items and proof, and the **Real-Time Search API**. Multi-tenant OAuth, tenant isolation as a P0 invariant, zero-copy storage, two human gates. And we're honest about the seams:" |
-| **Caption** | `Slack AI Assistant · MCP · Real-Time Search API — multi-tenant, zero-copy, two gates.` |
-| **VO (honesty beat)** | "Slack is live. GitHub Actions is a **genuine live** proof source. Linear, Jira, LaunchDarkly, and Statuspage are **simulated over an in-process MCP server** with real API skeletons — a token swaps in the real thing." |
-| **Caption** | `Honest by design: Slack + GitHub Actions live; Linear/Jira/LaunchDarkly/Statuspage simulated via MCP.` |
-| **End card** | **Kept — verify reality, then close the loop.** Slack Agent for Organizations · Marketplace · App ID `<APP_ID_TBD>` · github.com/kaviyakumar23/kept |
+VO = voiceover. `[SCREEN]` = what's shown. `[CAPTION]` = burned-in lower-third.
 
 ---
 
-## Timing summary
+## 0:00 – 0:12 · COLD OPEN — the face, not the feature
+`[SCREEN]` You, to camera. Plain background. No logo, no intro.
+**VO (you, direct):** "The ticket said **Done**. The feature was **never live**. And the customer found out **before you did**."
+Beat. "That's the most expensive lie in B2B software. This is the tool that catches it."
+`[CAPTION]` **The ticket said Done. The feature was never live.**
 
-| Segment | Beat | Length | Ends |
-|---|---|---:|---:|
-| 1 | Cold open — the flag-OFF block | 0:18 | 0:18 |
-| 2 | Why it matters (vs Pylon/Thena/ClearFeed) | 0:15 | 0:33 |
-| 3 | Capture → Gate 1 confirm → work item (MCP) | 0:25 | 0:58 |
-| 4 | Agent assembles Proof-of-Done | 0:24 | 1:22 |
-| 5 | Flag ON → Gate 2 sign → sanitized closure | 0:30 | 1:52 |
-| 6 | Wow #2 — reopen + promise-drift radar | 0:20 | 2:12 |
-| 7 | Wow #3 — customer trust page | 0:16 | 2:28 |
-| 8 | Three techs + engineering + honesty close | 0:12 | 2:40 |
+## 0:12 – 0:30 · The block (pattern-match killer by 0:30)
+`[SCREEN]` Cut to Kept's **Proof-of-Done** card in a DM. Rows animate in as text: **🎫 Ticket Done ✓ · 🔀 Code merged ✓ · 🚀 Prod deploy ✓** … then **🚩 Production flag OFF ✗ · read live**.
+**VO:** "This is **not** another follow-up bot. Watch what happens when someone says 'Done' — and it isn't."
+`[SCREEN]` The verdict stamps red: **⛔ Not ready to close.** Owner clicks **Verify it's available** →
+**⟵ SLOW DOWN. Hold 1.5s of silence. One low negative sound cue.** Red inline: *"Not verifiable — INSUFFICIENT_EVIDENCE."*
+`[CAPTION]` **Jira said Done. The live flag said no. Kept blocked the close.**
+**VO:** "Every other tool would've told the customer it's fixed. Kept refuses — and shows you exactly why."
 
-**One-line spine (if you cut for time):** *Ticket says Done → flag is OFF → Kept blocks it → agent assembles proof → flag flips ON → human signs → sanitized close in-thread → drift radar → trust page.* Segments 3 and 4 are the ones to trim first; never cut Segment 1 or the Segment 8 honesty beat.
+## 0:30 – 1:00 · MOMENT 1 — capture → Gate 1 (the discipline)
+`[SCREEN]` A shared customer channel. Message: **"We'll ship the SSO fix for Acme by Friday."**
+**VO:** "Start where the promise is made. Kept's model **reads** the message and **proposes** an obligation — it never commits anything itself."
+`[CAPTION]` **The LLM proposes. Code decides. Humans sign.**
+`[SCREEN]` The owner's private DM: a confirm card — outcome, due date, owner. A single click: **Confirm**. Card locks to *"✅ Confirmed."*
+**VO:** "The owner confirms — one private click. **Gate one.** That's the only way anything enters the ledger."
+
+## 1:00 – 1:40 · MOMENT 2 — resolve the block, sign, close
+`[SCREEN]` Kept's **Demo Controls** panel. Click **Toggle production flag → ON**. (Text flips: *Production flag: ON ✅*. No third-party UI.)
+**VO:** "Now the fix actually ships — the flag goes on. Kept **re-reads the live flag**, and the packet turns green."
+`[SCREEN]` The evidence packet re-renders: **🚩 Production flag ON ✓ · read live**. Owner clicks **Verify it's available** → *"☑️ Verified."*
+**VO:** "The agent did ninety-five percent — gathering, reconciling. The human does the last five: **Gate two — they sign.**"
+`[SCREEN]` **The audience-firewall beat.** Split: on the left, Kept's internal note — *"🛡️ 4 internal details kept out of the reply."* On the right, the **sanitized** message posting into the customer thread: *"the SSO fix is now available on your side — could you confirm?"* No ticket, no PR, no flag.
+`[CAPTION]` **The customer never sees a ticket number. By construction.**
+
+## 1:40 – 2:05 · MOMENT 3 — the customer closes the loop + the number
+`[SCREEN]` The customer replies in-thread: **"works now"**. Kept DMs the owner: *"✅ Acme confirmed — closed."* Promise flips to **✅ Kept**.
+**VO:** "The customer confirms, in their own words, in the original thread. **Only now** is it closed."
+`[SCREEN]` **Full-screen stat card. White text, black screen, 2 seconds:**
+> **Closes blocked before reaching a customer: 3**
+**VO:** "Three times in this demo, Kept stopped a 'done' that wasn't. That's three conversations you never have to un-have."
+
+## 2:05 – 2:20 · The 1-second flashes (drift + trust page + receipts)
+`[SCREEN]` Quick cuts, ~1s each: the **drift radar** band (*"Acme — softening"*), the **customer trust page** (Kept / In progress / Verifying), the **🧾 Receipts** timeline scrolling (every state, signed).
+**VO:** "It scores promise **drift** before things go quiet, gives each account a private **trust page**, and every step is a signed, replayable **receipt**."
+
+## 2:20 – 2:35 · The three techs + honesty + architecture flash
+`[SCREEN]` The **architecture diagram** flashes up; three badges pulse.
+**VO:** "Three qualifying technologies, all real: the **Slack AI Assistant**, **MCP** for proof and work items, and the **Real-Time Search API**."
+**VO (honesty beat — say it plainly):** "And we're honest about the seams. Slack is live. **LaunchDarkly, Jira, and GitHub Actions are live** — the flag read is a real MCP call. Where a tenant hasn't connected a source, Kept says so and lets a human attest instead. It never fakes a connection."
+`[CAPTION]` **Slack AI · MCP · Real-Time Search — live proof, tenant-isolated, zero-copy, two human gates.**
+
+## 2:35 – 2:45 · THE META-MOVE close (this is the whole argument)
+`[SCREEN]` Back to your face. Then an end card.
+**VO:** "Kept's entire thesis is: **don't take anyone's word for it. Demand proof.** So don't take *this video's* word for it either. Kept wouldn't."
+Beat. "Open the sandbox. Press **Verify**. And get **blocked yourself.**"
+`[END CARD]` **Kept — verify reality, then close the loop.** · Slack Agent for Organizations · Marketplace App `A0BBEJQ2CMC` · kept-iota.vercel.app
+
+---
+
+## Timing
+| Beat | Length | Ends |
+|---|---:|---:|
+| Cold open — the face + the line | 0:12 | 0:12 |
+| The block (+ silence beat) | 0:18 | 0:30 |
+| M1 · capture → Gate 1 | 0:30 | 1:00 |
+| M2 · flag ON → sign → sanitized close | 0:40 | 1:40 |
+| M3 · customer loop-close + stat card | 0:25 | 2:05 |
+| Flashes · drift / trust / receipts | 0:15 | 2:20 |
+| Three techs + honesty + architecture | 0:15 | 2:35 |
+| Meta-move close | 0:10 | 2:45 |
+
+**Spine (if you cut):** face+line → the block (silence) → confirm → flip ON → sign → sanitized close → "works now" →
+**stat card** → 1s flashes → three techs + honesty → *"press Verify and get blocked yourself."*
+**Never cut:** the cold-open line, the silence on the block, the stat card, or the meta-move close.
+
+## Muted-first checklist
+- Every VO line also exists as a caption. The block, the stat card, and the close read with **sound off**.
+- Tight crops; zoom into the **one row that matters** (the red flag-OFF line).
+- Watch the final cut **on a phone** — if the red ✗ is legible there, it's legible everywhere.
