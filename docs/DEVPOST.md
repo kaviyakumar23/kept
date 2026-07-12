@@ -45,6 +45,23 @@ Ten lifecycle states, two mandatory human gates, one source of truth that lives 
 
 **Reframing human-in-the-loop.** This isn't approval fatigue. The agent does the work — gathering, reconciling, drafting, sanitizing; the human only **signs the verdict** at two gates. *The agent does 95%; you sign.*
 
+## How the integrations work together
+
+![How Kept's integrations reconcile a single promise](https://kept-iota.vercel.app/assets/how-it-works.png)
+
+No single source is "truth" — Kept **reconciles** them. Each integration answers a different question: **Slack** (*what was promised, and did the customer confirm?*), **Jira** (*is the ticket done?*), **GitHub Actions** (*did CI pass?*), your **deploy** pipeline (*released to prod?*), and **LaunchDarkly** (*is the feature actually switched ON for real users?*). Everything except Slack is **optional** — connect what you have; with none connected, the owner manually attests ("Mark delivered").
+
+**One promise to Acme, end to end:**
+
+1. **Slack** — a teammate says *"we'll ship the SSO fix by Friday."* You **Confirm** (Gate 1).
+2. **Jira** flips to Done ✓ · **GitHub Actions** CI passes ✓ · the release **deploys** to prod ✓.
+3. **LaunchDarkly** — Kept reads the flag in production: it's **OFF ✗**. The code shipped, but the feature is still switched off — Acme can't use it.
+4. **Kept reconciles → BLOCKS.** Three signals say done, but the flag vetoes: *Ticket ✓ · CI ✓ · Deploy ✓ · **Flag OFF ✗** → not ready to close.* Verify is refused.
+5. Someone **flips the flag ON** → Kept re-reads → all four agree → you **Verify** (Gate 2, a human signs).
+6. **Slack** — a **sanitized** closure posts in the original Acme thread (no ticket, PR, or flag). Acme replies *"works now"* → the loop closes.
+
+That step-4 block — one *negative* proof vetoing three *positive* ones — is the whole reason Kept exists.
+
 ## Two more reasons to keep it (the wow features)
 
 - **Promise-drift radar.** "Next Tuesday" becomes "soon" becomes silence. Kept quantifies that decay — every live commitment gets a **drift score** (language softened, date slipped, scope moved, gone quiet, disputed) and surfaces the drifting ones in the App Home band and the Assistant's *"what's slipping?"* answer. Pure, deterministic, derived from the same event log; nothing is persisted.
