@@ -683,6 +683,26 @@ export class KeptOrchestrator {
   }
 
   /**
+   * W3 — Real-Time Search from the Assistant pane. The `message.im` event that drives the
+   * Assistant carries an `action_token`, so this is the reliable place to exercise the
+   * Marketplace-legal `assistant.search.context` path (bot token + action_token + granular
+   * `search:read.public`). Returns EPHEMERAL "where related discussion lives" notes only
+   * (zero-copy, invariant #2) — never persisted. Fault-isolated: no token or any error → [].
+   */
+  async searchSlackContext(teamId: string, queryText: string, actionToken?: string): Promise<string[]> {
+    if (!actionToken) return [];
+    const ctx = await this.d.rts.retrieve({
+      team: teamId,
+      customer: queryText.slice(0, 200),
+      subject_canonical: "",
+      channel: "",
+      userId: "",
+      actionToken,
+    });
+    return ctx.notes;
+  }
+
+  /**
    * A single obligation projection (for opening a modal). Tenant-scoped like the write
    * path (invariant #4): when an `actingTeam` is supplied (the clicking user's workspace)
    * it MUST equal the obligation's owning team, else the read is blocked. Omitting it

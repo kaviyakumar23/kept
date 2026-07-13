@@ -205,7 +205,12 @@ export class SlackAssistantSearchRetriever implements RtsRetriever {
         limit,
       });
       results = res.results?.messages ?? [];
-    } catch {
+      console.log(`[kept] RTS assistant.search.context ok — ${results.length} result(s) for "${query.customer}"`);
+    } catch (err) {
+      // Fault-isolated: a search failure / not-allowlisted API must never block the pipeline. Log the
+      // Slack-side reason (e.g. missing_scope, not_allowed_token_type, method_deprecated) for observability.
+      const reason = (err as { data?: { error?: string }; message?: string })?.data?.error ?? (err as Error)?.message ?? String(err);
+      console.warn(`[kept] RTS assistant.search.context failed: ${reason}`);
       return EMPTY_RTS; // search failure / not-allowlisted must never block the pipeline
     }
     // Tenant isolation: only same-team results (defense-in-depth atop the per-team client).

@@ -32,12 +32,26 @@ export function buildKeptAssistant(deps: { orch: KeptOrchestrator; llm: LlmProvi
       const viewerId: string | undefined = message?.user;
       // W1 — the Assistant answers ONLY over the acting workspace's ledger.
       const teamId: string = context?.teamId ?? message?.team;
+      // W3 — the Real-Time Search action_token rides on the message.im event that drives the pane.
+      const actionToken: string | undefined = message?.action_token ?? context?.actionToken;
       try {
         await setStatus("Reading the ledger…");
         const intent = await classifyLedgerQuery(deps.llm, text);
         const obligations = await deps.orch.allObligations(teamId);
         const answer = answerLedgerQuery(intent, obligations, now(), viewerId);
-        await say({ text: answer.text, blocks: answer.blocks as any });
+        // W3 — enrich with related live Slack context via the Real-Time Search API
+        // (assistant.search.context). Best-effort + fault-isolated: any failure just omits the line.
+        let notes: string[] = [];
+        try {
+          notes = await deps.orch.searchSlackContext(teamId, text, actionToken);
+        } catch (e) {
+          console.warn("[kept] assistant RTS enrich failed:", e);
+        }
+        const blocks: any[] = Array.isArray(answer.blocks) ? [...answer.blocks] : [];
+        if (notes.length) {
+          blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: `Related discussion in Slack: ${notes.join(" · ")}` }] });
+        }
+        await say(blocks.length ? { text: answer.text, blocks } : { text: answer.text });
       } catch (err) {
         console.error("[kept] assistant query failed:", err);
         await say("Sorry — I couldn't read the ledger just now. Try a narrower question (e.g. a specific customer), or open the App Home tab.");
