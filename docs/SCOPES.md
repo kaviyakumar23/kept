@@ -9,7 +9,7 @@ the Marketplace submission's per-scope justification field.
 Marketplace constraint (CLAUDE.md invariant #6): **granular scopes only. No blanket `search:read`,
 `read`, `post`, or `client`; no `admin.*` or `identity.*`.**
 
-## The exact scopes requested (13)
+## The exact scopes requested (10)
 
 | # | Scope | Why Kept needs it (code path) | Read/Write |
 | - | ----- | ----------------------------- | ---------- |
@@ -23,25 +23,15 @@ Marketplace constraint (CLAUDE.md invariant #6): **granular scopes only. No blan
 | 8 | `groups:history` | Same detection path for **private / Slack Connect shared** channels (`message.groups` event) — the core "shared customer channel" surface. | read |
 | 9 | `channels:read` | Public channel metadata (name/membership) used when routing cards and rendering the ledger. | read |
 | 10 | `groups:read` | Private / shared channel metadata for the same purpose. | read |
-| 11 | `search:read.public` | **Real-Time Search** (`assistant.search.context`) — cross-channel context from public channels the bot can see. Runtime-gated by `KEPT_RTS=1`. | read |
-| 12 | `search:read.files` | File results inside the RTS response. Runtime-gated by `KEPT_RTS=1`. | read |
-| 13 | `search:read.users` | User results inside the RTS response. Runtime-gated by `KEPT_RTS=1`. | read |
 
-## ⚠️ Decision before submission — the three `search:read.*` scopes (11–13)
+## `search:read.*` — removed for v1 (RTS gated off)
 
-**`KEPT_RTS` is NOT set in the production deploy (confirmed 2026-07-13), so the Real-Time Search
-feature is OFF and scopes 11–13 are requested at install but never exercised.** Slack's guideline
-is explicit: *don't request scopes for unimplemented/unused functionality*, and a reviewer will ask
-"what uses `search:read.*`?" Two honest options — pick one before submitting:
-
-- **(A) Remove scopes 11–13** from `slack-manifest.yaml` + `src/config.ts` until RTS ships. This is
-  the least-privilege default and removes the objection; the install consent screen gets smaller.
-  Re-add them when RTS is enabled. (Nothing in production breaks — RTS is already off.)
-- **(B) Enable `KEPT_RTS=1`** in production so the scopes are genuinely used. Verify RTS works live
-  first (`assistant.search.context` needs the event `action_token`; confirm it's available on your
-  plan) — riskier to flip untested at submission time.
-
-Recommendation: **(A) remove them for the first submission**, re-add with RTS in a later version.
+Kept ships a Real-Time Search retriever (`assistant.search.context`) gated by `KEPT_RTS=1`. That flag
+is **off in production** (confirmed 2026-07-13), so the three granular `search:read.public/.files/.users`
+scopes it needs were **removed** from `src/config.ts` + `slack-manifest.yaml` for the initial
+submission — an unused scope is a least-privilege liability and a predictable reviewer objection.
+Re-add all three (and set `KEPT_RTS=1`) when RTS is enabled in a later version. The blanket
+`search:read` stays banned regardless.
 
 ## Banned / blanket scopes — explicitly NOT requested
 
@@ -63,7 +53,7 @@ justification to give.
 ## Verify the two lists match
 
 ```bash
-# Should print the same 13 scopes from both sources.
-grep -oE '"(chat:write|im:write|mpim:write|im:history|assistant:write|commands|channels:history|groups:history|channels:read|groups:read|search:read\.[a-z]+)"' src/config.ts | tr -d '"' | sort -u
-grep -oE '\b(chat:write|im:write|mpim:write|im:history|assistant:write|commands|channels:history|groups:history|channels:read|groups:read|search:read\.[a-z]+)\b' slack-manifest.yaml | sort -u
+# Should print the same 10 scopes from both sources.
+grep -oE '"(chat:write|im:write|mpim:write|im:history|assistant:write|commands|channels:history|groups:history|channels:read|groups:read)"' src/config.ts | tr -d '"' | sort -u
+grep -oE '\b(chat:write|im:write|mpim:write|im:history|assistant:write|commands|channels:history|groups:history|channels:read|groups:read)\b' slack-manifest.yaml | sort -u
 ```

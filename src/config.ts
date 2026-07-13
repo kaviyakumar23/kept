@@ -156,9 +156,8 @@ export const SLACK_BOT_SCOPES: string[] = [
   "groups:history",
   "channels:read",
   "groups:read",
-  // W3 — Real-Time Search API (assistant.search.context). GRANULAR search scopes only;
-  // never the banned blanket `search:read`. Gated at runtime by KEPT_RTS=1.
-  "search:read.public",
-  "search:read.files",
-  "search:read.users",
+  // W3 — Real-Time Search (assistant.search.context) needs granular `search:read.public/.files/.users`.
+  // REMOVED for the initial Marketplace submission: RTS is gated OFF (KEPT_RTS unset), so requesting
+  // them would be unused scopes (least privilege). Re-add all three here + in slack-manifest.yaml when
+  // RTS is enabled. The blanket `search:read` remains BANNED (invariant #6).
 ];

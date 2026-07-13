@@ -72,13 +72,11 @@ oauth_config:
       - groups:history # read messages in private / Slack Connect shared channels Kept is in
       - channels:read # channel metadata
       - groups:read # private/shared channel metadata
-      # W3 — Real-Time Search API (assistant.search.context), gated by KEPT_RTS=1.
-      # GRANULAR scopes ONLY (invariant #6) — the blanket `search:read` is BANNED.
-      - search:read.public # cross-channel context from public channels the bot can see
-      - search:read.files # file results in the RTS response
-      - search:read.users # user results in the RTS response
-    # NOTE: the legacy cross-channel search (classic search.messages) needed the BANNED
-    # blanket user `search:read`; it is superseded by the bot-token RTS above and removed.
+      # W3 — Real-Time Search (assistant.search.context) needs granular search:read.public/.files/.users.
+      # REMOVED for the initial Marketplace submission: RTS is gated OFF (KEPT_RTS unset) so these would
+      # be unused scopes (least privilege). Re-add all three when RTS ships. `search:read` stays BANNED.
+    # NOTE: the legacy classic search.messages path needed the BANNED blanket user `search:read`;
+    # it is superseded by the (currently disabled) bot-token RTS retriever and not requested.
 
 settings:
   event_subscriptions:
