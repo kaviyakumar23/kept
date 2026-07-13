@@ -12,3 +12,9 @@ coverage/
 *.key
 secrets/
 .vercel/
+gallery-src/
+
+# local agent-skills tooling (LaunchDarkly agent-skills) — not part of the app
+.agents/
+.claude/skills/
+skills-lock.json
