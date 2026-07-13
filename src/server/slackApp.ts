@@ -538,32 +538,30 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
   // evidence still doesn't reconcile (e.g. production flag OFF); on refusal we re-render the packet so
   // the owner sees exactly why. Tenant-scoped: verify() enforces acting team == the obligation's team.
   app.view(CALLBACKS.verifyPacket, async ({ ack, body, view, client }: any) => {
+    // ACK FIRST, within Slack's 3-second view_submission deadline. verify() re-reads a LIVE proof
+    // source (LaunchDarkly/Jira via REST/MCP), which can take longer than 3s — doing that work before
+    // ack() makes Slack time out and the submit appear to "do nothing" (+ a duplicate-ack error on the
+    // retry). So we ack now (closing the modal) and verify in the background, reporting via App Home + DM.
+    await ack();
     const id = view.private_metadata;
     let team: string;
     try {
       team = requireTeam(body);
     } catch {
-      await ack();
       await dmUser(client, body.user.id, ":warning: Couldn't determine your workspace — action blocked.");
       return;
     }
     try {
       const { draftSent } = await orch.verify(id, body.user.id, team);
-      if (draftSent) {
-        await ack(); // close the modal — the send nudge is now in the owner's DMs
-        await republishHome(client, body.user.id, team);
-      } else {
-        // Blocked — keep the modal open, re-rendered with the (still-failing) evidence packet.
-        const packet = await orch.assemblePacket(id, team);
-        await ack(packet ? { response_action: "update", view: verifyPacketModal(packet.obligation, packet.assessment) } : {});
+      await republishHome(client, body.user.id, team);
+      if (!draftSent) {
+        await dmUser(client, body.user.id, ":no_entry: *Not verifiable yet* — the evidence doesn't reconcile (e.g. the production flag is still OFF). Fix the signal, then open the promise and click *Verify* again.");
       }
     } catch (err) {
       if (err instanceof CrossTenantWriteError) {
-        await ack();
         await dmUser(client, body.user.id, ":lock: That obligation belongs to another workspace — action blocked.");
         return;
       }
-      await ack();
       await dmUser(client, body.user.id, ":warning: Couldn't verify right now — please try again.");
     }
   });
