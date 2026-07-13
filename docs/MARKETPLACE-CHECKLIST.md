@@ -104,11 +104,11 @@ listing (reference it in the long description below).
 `docs/` (`slack-cards.png`, `demo.png`, `architecture.png`) — resize/pad to exactly 1600×1000.
 `<TODO>` produce final-sized images.
 
-### Short description (shown on the listing card — keep ≤ 140 characters)
+### Short description (Slack guideline: **10 words or fewer** so it doesn't get cut off)
 
-> Kept checks customer promises made in Slack against Jira, GitHub Actions, and LaunchDarkly before your team calls the work done.
+> Verify customer promises against live delivery evidence before closing.
 
-_(124 characters.)_
+_(9 words. Alternates: "Check customer promises before your team calls them done." (9) · "Human-verified customer promises, checked against live delivery evidence." (8).)_
 
 ### Long description (draft)
 

@@ -565,7 +565,7 @@ export function appHomeView(
       divider,
       section("*No promises tracked yet.*\nWhen your team commits to a customer in a shared channel — _“we’ll ship the SSO fix by Friday”_ — Kept surfaces it right here for you to confirm."),
     );
-    blocks.push(...connectionsBlocks(configured, mappings));
+    blocks.push(...connectionsBlocks(configured, mappings), homeFooter());
     return { type: "home", blocks };
   }
   const a = analytics(obligations, now);
@@ -621,8 +621,13 @@ export function appHomeView(
     if (kept.length > 0) blocks.push(context(`✅ *Kept:* ${kept.slice(0, 6).map((o) => escapeMrkdwn(o.outcome)).join("   ·   ")}${kept.length > 6 ? `   +${kept.length - 6} more` : ""}`));
     if (dropped.length > 0) blocks.push(context(`⚪ *Closed:* ${dropped.slice(0, 6).map((o) => escapeMrkdwn(o.outcome)).join("   ·   ")}`));
   }
-  blocks.push(...connectionsBlocks(configured, mappings));
+  blocks.push(...connectionsBlocks(configured, mappings), homeFooter());
   return { type: "home", blocks };
+}
+
+/** App Home footer — surfaces help/support and pricing (Slack Home-tab guideline). */
+function homeFooter(): SlackBlock {
+  return context("Kept is free.   Need a hand?  <https://kept-iota.vercel.app/docs|Docs>  ·  <https://kept-iota.vercel.app/support|Support>");
 }
 
 // --- modals ----------------------------------------------------------------
