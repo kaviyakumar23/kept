@@ -1,4 +1,4 @@
-# Kept — demo video script (Slack Agent for _Organizations_)
+# Kept — demo video script (≤3 min · New Slack Agent track — built with Slack AI + MCP)
 
 **Target 2:45 · hard ceiling 3:00 · 1080p · public YouTube.** Judges mostly watch the first 30–60s and often
 watch **muted** — so: face-first hook, big kinetic captions, put the strongest beat first.
@@ -57,17 +57,19 @@ Beat. "That's the most expensive lie in B2B software. This is the tool that catc
 `[SCREEN]` Quick cuts, ~1s each: the **drift radar** band (*"Acme — softening"*), the **customer trust page** (Kept / In progress / Verifying), the **🧾 Receipts** timeline scrolling (every state, signed).
 **VO:** "It scores promise **drift** before things go quiet, gives each account a private **trust page**, and every step is a signed, replayable **receipt**."
 
-## 2:20 – 2:35 · The three techs + honesty + architecture flash
-`[SCREEN]` The **architecture diagram** flashes up; three badges pulse.
-**VO:** "Three qualifying technologies, all real: the **Slack AI Assistant**, **MCP** for proof and work items, and the **Real-Time Search API**."
-**VO (honesty beat — say it plainly):** "And we're honest about the seams. Slack is live. **LaunchDarkly, Jira, and GitHub Actions are live** — the flag read is a real MCP call. Where a tenant hasn't connected a source, Kept says so and lets a human attest instead. It never fakes a connection."
-`[CAPTION]` **Slack AI · MCP · Real-Time Search — live proof, tenant-isolated, zero-copy, two human gates.**
+## 2:20 – 2:35 · The tech + honesty + architecture flash
+`[SCREEN]` The **architecture diagram** flashes up; the badges pulse.
+**VO:** "Two live technologies: the **Slack AI Assistant** you just saw answer, and **MCP** — the proof collector that gathers evidence from the systems that ship the work."
+**VO (honesty beat — say it plainly):** "And we're honest about the seams. Slack is live. Jira, GitHub Actions, and LaunchDarkly are real integrations Kept reads **live** the moment a workspace connects its own — and where nothing's connected, Kept says so and lets a human attest instead. It never fakes a connection."
+`[CAPTION]` **Slack AI · MCP — live proof, tenant-isolated, zero-copy, two human gates.**
+_(Note: an RTS retriever is built in the codebase but gated OFF in production, so it's deliberately not claimed here.)_
 
 ## 2:35 – 2:45 · THE META-MOVE close (this is the whole argument)
 `[SCREEN]` Back to your face. Then an end card.
 **VO:** "Kept's entire thesis is: **don't take anyone's word for it. Demand proof.** So don't take *this video's* word for it either. Kept wouldn't."
 Beat. "Open the sandbox. Press **Verify**. And get **blocked yourself.**"
-`[END CARD]` **Kept — verify reality, then close the loop.** · Slack Agent for Organizations · Marketplace App `A0BBEJQ2CMC` · kept-iota.vercel.app
+`[END CARD]` **Kept — verify reality, then close the loop.** · Built with Slack AI + MCP · kept-iota.vercel.app
+_(If you submit to the **Organizations** track instead, swap that middle line for: "Slack Agent for Organizations · Marketplace App `A0BBEJQ2CMC`".)_
 
 ---
 
