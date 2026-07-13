@@ -642,8 +642,20 @@ export class KeptOrchestrator {
    * the owner, so the existing Verify button on that packet routes to them and refuses (flag OFF).
    */
   async markDemoShipped(team: string, obligationId: ObligationId): Promise<Obligation | null> {
-    const o = await this.obligation(obligationId, team); // tenant-scoped read (throws on cross-tenant)
-    if (!o?.work_item) return null;
+    let o = await this.obligation(obligationId, team); // tenant-scoped read (throws on cross-tenant)
+    if (!o) return null;
+    // The demo tenant links its OWN Jira ref so the Proof-of-Done packet shows a real ticket_status
+    // row (production uses NoopWorkItemAdapter, so the demo seed doesn't mint one). Demo-only path —
+    // real tenants never call markDemoShipped, so this never fabricates a ref for a customer.
+    if (!o.work_item) {
+      const demoRef = `PROJ-${obligationId.slice(-4).toUpperCase()}`;
+      await this.d.service.dispatch(
+        { kind: "LINK_WORK_ITEM", work_system: "jira", work_ref: demoRef },
+        this.ctx(obligationId, `${obligationId}:demolink`),
+      );
+      o = await this.obligation(obligationId, team);
+      if (!o?.work_item) return null;
+    }
     const ref = o.work_item.ref;
     const refs: ResolutionCandidate["refs"] =
       o.work_item.system === "jira" ? { jira: ref } : { linear: ref };
