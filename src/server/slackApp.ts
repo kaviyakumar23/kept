@@ -720,7 +720,25 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       return;
     }
 
-    const customer = text || "Acme";
+    // `/kept help` (or a bare `/kept`) → usage, so unknown input never silently renders an empty
+    // default ledger. (Slack Marketplace: respond to "help"/unknown input with usage instructions.)
+    if (!text || /^(help|\?|usage)$/i.test(text)) {
+      await respond({
+        response_type: "ephemeral",
+        text: [
+          "*Kept* — customer promises, checked against live delivery evidence before you call them done.",
+          "",
+          "• `/kept <customer>` — show the ledger for a customer",
+          "• `/kept customer <name>` — bind this channel to a customer (`/kept customer clear` to unbind)",
+          "• `/kept trust <customer>` — create a private, audience-safe trust page for that customer",
+          "• `/kept untrust <customer>` — revoke that trust page",
+          "",
+          "Or run the whole lifecycle from the *Kept* app's *Home* tab, or ask its *Assistant*: “What’s overdue?”",
+        ].join("\n"),
+      });
+      return;
+    }
+    const customer = text;
     const obligations = await orch.ledgerFor(team, customer);
     await respond({ blocks: ledgerView(customer, obligations) as any });
   });

@@ -204,6 +204,7 @@
 
       <h2>What the model does &mdash; and does not do</h2>
       <p>Kept's core design principle is: <strong>the model proposes; code decides.</strong> The model classifies and extracts. A single pure, deterministic function is the only thing that can change state or trigger an action.</p>
+      <p><strong>The model can be wrong.</strong> Language models sometimes misread a message or extract a field incorrectly. Kept treats every model output as a <em>suggestion for a human to review</em> &mdash; it never relies on the model's judgment alone, nothing is tracked until a person confirms it, and no message reaches a customer until a person signs the verdict.</p>
       <div class="split">
         <div class="split-card model">
           <span class="tag"><span class="dot" style="background:var(--accent);"></span>The model proposes</span>
@@ -240,6 +241,8 @@
       <h2>Retention &amp; data handling</h2>
       <p>Kept is <strong>zero-copy</strong>: it persists only derived, structured, human-confirmed facts (the customer, a normalized outcome, the owner, the due date) plus references back to the original Slack messages. It <strong>never</strong> stores raw message bodies, model prompts, or model responses &mdash; this is enforced in code before every write.</p>
       <p>The model input and output are processed transiently and are not stored by Kept. OpenAI handles API data under its own API data-usage policy; API inputs and outputs are <strong>not used to train OpenAI's models</strong>. For a full picture of what Kept stores and for how long, see our <a href="/privacy.html">Privacy Policy</a>.</p>
+      <p><strong>Data tenancy &amp; residency.</strong> Each workspace's data and connected credentials are isolated from every other workspace's &mdash; every read is scoped to the acting workspace. Kept's application and database run on Fly.io in the Singapore (<span class="mono">sin</span>) region; model inference is served by OpenAI's hosted API. Uninstalling the app deletes your workspace's stored token and ledger.</p>
+      <p><strong>AI Assistant &amp; Slack plans.</strong> Kept's conversational Assistant pane relies on Slack's agents-and-assistants feature, which requires a paid Slack plan. The rest of Kept &mdash; capturing, confirming, verifying, and closing promises &mdash; works on any plan without it.</p>
 
       <h2>Human oversight &mdash; two gates</h2>
       <p>Kept never takes an autonomous customer-facing action. Every commitment passes through <strong>two human gates</strong>:</p>

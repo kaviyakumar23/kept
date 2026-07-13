@@ -146,6 +146,10 @@ _(124 characters.)_
 > Connect your own Jira, GitHub Actions, and LaunchDarkly in **App Home → Connections**. No
 > integrations yet? Kept still works end to end on a teammate's "mark delivered" attestation.
 >
+> _Kept uses AI to read commitments and route questions; the model can make mistakes, so a person
+> confirms every commitment and signs every closure. The AI Assistant requires a paid Slack plan;
+> the rest of Kept works without it._
+>
 > **Learn how to use it:** https://kept-iota.vercel.app/docs   ·   **Support:**
 > https://kept-iota.vercel.app/support
 
