@@ -779,5 +779,5 @@ export function addMappingModal(config: ProofTargetsConfig, prefillKey?: string)
     inputBlock(FIELDS.mapFlag.block, "LaunchDarkly flag key", FIELDS.mapFlag.action, pre?.flag?.key ?? ""),
     inputBlock(FIELDS.mapEnv.block, "Environment (default production)", FIELDS.mapEnv.action, pre?.flag?.environment ?? "production", { optional: true }),
   );
-  return modal(CALLBACKS.addMapping, prefillKey ? "Edit proof-target mapping" : "Add proof-target mapping", blocks, "Save mapping", "proof_targets");
+  return modal(CALLBACKS.addMapping, prefillKey ? "Edit proof-target" : "Add proof-target", blocks, "Save mapping", "proof_targets");
 }

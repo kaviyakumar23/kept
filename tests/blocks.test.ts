@@ -141,7 +141,7 @@ describe("Block Kit builders", () => {
     const json = JSON.stringify(
       addMappingModal({ Acme: { flag: { key: "sso-login-fix", environment: "staging" } } }, "Acme"),
     );
-    expect(json).toContain("Edit proof-target mapping"); // title reflects edit mode
+    expect(json).toContain("Edit proof-target"); // title reflects edit mode (≤24 chars — Slack modal-title limit)
     expect(json).toContain("sso-login-fix"); // flag pre-filled
     expect(json).toContain("staging"); // environment pre-filled
   });
