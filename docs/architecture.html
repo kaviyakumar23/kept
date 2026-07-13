@@ -1,151 +1,143 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><style>
   *{margin:0;box-sizing:border-box;font-family:-apple-system,'Segoe UI',system-ui,Helvetica,Arial,sans-serif}
-  body{width:1920px;height:700px;background:#0B1220;color:#E8EEF7;overflow:hidden;position:relative;
-       background-image:radial-gradient(120% 65% at 12% -10%, rgba(37,99,235,.30) 0%, rgba(37,99,235,0) 55%);}
-  .pad{padding:40px 54px}
+  body{width:1760px;height:800px;background:#0B1220;color:#E8EEF7;overflow:hidden;position:relative;
+       background-image:radial-gradient(120% 60% at 15% -8%, rgba(37,99,235,.26) 0%, rgba(37,99,235,0) 55%);}
+  .pad{padding:38px 46px}
   .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
   /* header */
-  .top{display:flex;align-items:center;gap:13px}
-  .mark{width:44px;height:44px;border-radius:12px;background:#2563EB;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -8px rgba(37,99,235,.9)}
-  .eyebrow{font-size:12px;letter-spacing:.24em;color:#7FA3EA;font-weight:600}
-  h1{font-size:29px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
-  .sub{font-size:14.5px;color:#9DB0CE;margin-top:9px;max-width:1180px;line-height:1.45}
+  .top{display:flex;align-items:center;gap:12px}
+  .mark{width:42px;height:42px;border-radius:11px;background:#2563EB;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -8px rgba(37,99,235,.9)}
+  .eyebrow{font-size:11.5px;letter-spacing:.24em;color:#7FA3EA;font-weight:600}
+  h1{font-size:27px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+  .sub{font-size:13.5px;color:#9DB0CE;margin-top:7px;max-width:1300px;line-height:1.4}
   .sub b{color:#DCE7F7}
-  /* logo chip (white so every logo reads on dark) */
-  .lchip{width:30px;height:30px;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none}
-  .lchip.sm{width:26px;height:26px;border-radius:7px}
-  .lchip.mcp{background:#0E1B36;border:1px solid #2E64D6;color:#93B4FF;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.02em}
-  /* qualifying tech banner */
-  .tech{margin-top:18px;display:flex;gap:14px}
-  .tbadge{flex:1 1 0;display:flex;align-items:center;gap:13px;background:#101E39;border:1px solid #2A4478;border-radius:14px;padding:14px 18px;box-shadow:0 0 0 1px rgba(46,100,214,.18)}
-  .tbadge .lchip{width:38px;height:38px;border-radius:10px}
-  .tb-k{font-size:10px;letter-spacing:.16em;color:#6F87B0;font-weight:700}
-  .tb-t{font-size:16px;font-weight:600;margin:2px 0 3px}
-  .tb-d{font-size:12.5px;color:#9FB1CE;line-height:1.4}
-  .tb-d .mono{color:#B9C7DF}
-  /* flow */
-  .flow{display:flex;align-items:stretch;margin-top:18px}
-  .col{flex:1 1 0;display:flex}
-  .arrow{flex:0 0 40px;display:flex;align-items:center;justify-content:center}
-  .card{background:#111C31;border:1px solid #22314C;border-radius:15px;padding:15px 15px 13px;width:100%;position:relative}
-  .card.accent{border-color:#2E64D6;box-shadow:0 0 0 1px rgba(46,100,214,.32)}
-  .card.block{border-color:#8A3B2F;background:#1B1310;box-shadow:0 0 0 1px rgba(200,60,45,.26)}
-  .card.green{border-color:#2E6B4B}
-  .chd{display:flex;align-items:center;gap:9px;margin-bottom:7px}
-  .k{font-size:10px;letter-spacing:.1em;color:#6E86AE;font-weight:700;text-transform:uppercase}
-  .t{font-size:16px;font-weight:600;margin:6px 0 6px;letter-spacing:-.01em;line-height:1.2}
-  .d{font-size:12.2px;line-height:1.48;color:#9FB1CE}
-  .d b{color:#DCE7F7;font-weight:600}
-  .rows{margin-top:8px;display:flex;flex-direction:column;gap:5px}
-  .row{font-size:11.6px;display:flex;align-items:center;gap:7px;color:#B9C7DF}
+  /* logo chip */
+  .lc{width:26px;height:26px;border-radius:7px;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .lc.mcp{background:#0E1B36;border:1px solid #2E64D6;color:#93B4FF;font-family:'IBM Plex Mono',monospace;font-size:8.5px;font-weight:700}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#CFE0FF;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.5);border-radius:999px;padding:3px 9px;display:inline-flex;align-items:center;gap:5px}
+  .tag.mcp{color:#93B4FF}
+  /* layout */
+  .stage{margin-top:20px;display:flex;align-items:stretch;gap:0}
+  .zone{border:1px solid #26385A;border-radius:16px;background:rgba(17,28,49,.55);padding:13px 14px;display:flex;flex-direction:column}
+  .zone.slack{flex:1 1 0}
+  .zone.kept{flex:1.55 1 0;background:rgba(16,30,57,.6);border-color:#2E4778}
+  .zone.ext{flex:1 1 0}
+  .zh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}
+  .zh .l{display:flex;align-items:center;gap:9px}
+  .zh .zt{font-size:14px;font-weight:700}
+  .zh .zk{font-size:10px;letter-spacing:.12em;color:#7C93BC;text-transform:uppercase;font-weight:600}
+  /* component box */
+  .box{background:#0E1830;border:1px solid #24334F;border-radius:11px;padding:10px 12px;margin-bottom:9px}
+  .box:last-child{margin-bottom:0}
+  .box.hot{border-color:#2E64D6;box-shadow:0 0 0 1px rgba(46,100,214,.28)}
+  .box.red{border-color:#8A3B2F;background:#1B1310}
+  .bt{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .bd{font-size:11.3px;color:#9AACCB;line-height:1.4;margin-top:3px}
+  .bd b{color:#D7E2F3;font-weight:600}
+  .bd .mono{color:#B7C6DF}
+  .mini{font-size:10px;color:#7E93B8;margin-top:5px;font-family:'IBM Plex Mono',monospace;letter-spacing:.02em}
+  .gates{display:flex;gap:6px;margin-top:7px}
+  .g{font-size:10px;font-weight:700;color:#8FE3B3;background:rgba(46,107,75,.2);border:1px solid #2E6B4B;border-radius:6px;padding:3px 7px}
   .ok{color:#5FD08A;font-weight:700}.no{color:#F0857A;font-weight:700}
-  .gate{margin-top:8px;display:inline-flex;align-items:center;gap:7px;background:rgba(46,107,75,.2);border:1px solid #2E6B4B;border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:600;color:#8FE3B3}
-  .verdict{margin-top:8px;font-size:12.5px;font-weight:700;color:#F0857A;display:flex;align-items:center;gap:6px}
-  /* external systems logo strip inside the MCP card */
-  .ext{margin-top:9px;display:flex;flex-direction:column;gap:6px}
-  .extrow{display:flex;align-items:center;gap:8px;font-size:11.6px;color:#C6D2E8}
-  .extrow b{color:#fff;font-weight:600}
-  /* backbone */
-  .backbone{margin-top:16px;background:#0E1830;border:1px solid #21314E;border-radius:13px;padding:12px 18px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
-  .bb{display:flex;flex-direction:column;gap:2px}
-  .bb .l{font-size:9.5px;letter-spacing:.12em;color:#6E86AE;text-transform:uppercase;font-weight:700}
-  .bb .v{font-size:12.5px;color:#D3DFF2}.bb .v b{color:#fff;font-weight:600}
-  .sep{width:1px;align-self:stretch;background:#21314E}
+  .down{display:flex;justify-content:center;margin:-3px 0 6px}
+  /* connector between zones */
+  .conn{flex:0 0 118px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 6px}
+  .clab{font-size:10px;color:#8296B9;text-align:center;line-height:1.35}
+  .clab b{color:#C6D2E8;font-weight:600}
+  /* data layer */
+  .data{margin-top:14px;position:relative}
+  .dl-arrow{display:flex;justify-content:center;margin-bottom:6px}
+  .dband{background:#0E1830;border:1px solid #26385A;border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .dband .dt{display:flex;align-items:center;gap:10px}
+  .dband .dt .n{font-size:14px;font-weight:700}
+  .dband .di{font-size:12px;color:#B3C2DC}.dband .di b{color:#fff;font-weight:600}
+  .sep{width:1px;height:34px;background:#26385A}
+  /* footer */
   .inv{margin-top:13px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-  .pill{font-size:12px;color:#C4D3EC;background:#0E1830;border:1px solid #21314E;border-radius:999px;padding:6px 13px;display:flex;align-items:center;gap:7px}
+  .pill{font-size:11.5px;color:#C4D3EC;background:#0E1830;border:1px solid #21314E;border-radius:999px;padding:6px 12px;display:flex;align-items:center;gap:7px}
   .dot{width:6px;height:6px;border-radius:50%;background:#2563EB}
-  .foot{position:absolute;bottom:16px;right:54px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5C7196}
+  .foot{position:absolute;bottom:16px;right:46px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#5C7196}
+  svg.ar{overflow:visible}
 </style></head>
 <body><div class="pad">
 
   <div class="top">
-    <span class="mark"><svg width="27" height="27" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
-    <div><div class="eyebrow">KEPT · ARCHITECTURE</div><h1>How Kept turns a Slack promise into a verified closure</h1></div>
+    <span class="mark"><svg width="26" height="26" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span>
+    <div><div class="eyebrow">KEPT · SYSTEM ARCHITECTURE</div><h1>Slack client · Kept agent on Fly.io · external proof sources</h1></div>
   </div>
-  <div class="sub">A customer promise made in Slack becomes a signed, sanitized closure — checked against live delivery evidence first. Built on <b>Slack AI (Agent Builder)</b> for the agent surface and <b>MCP</b> for proof collection. The model <b>proposes</b>; a pure engine <b>decides</b>; a human <b>signs</b>.</div>
+  <div class="sub">The <b>Slack AI Assistant / Agent Builder</b> is the client surface; the <b>Kept</b> agent runs on Fly.io; an <b>MCP client</b> reads live delivery evidence from external systems. Data flows left→right and back; the deterministic engine is the only component that writes state.</div>
 
-  <!-- QUALIFYING TECHNOLOGIES -->
-  <div class="tech">
-    <div class="tbadge">
-      <span class="lchip"><svg width="24" height="24" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg></span>
-      <div><div class="tb-k">QUALIFYING TECH · 1</div><div class="tb-t">Slack AI — Assistant &amp; Agent Builder</div><div class="tb-d">The agent surface. An in-Slack Assistant answers ledger questions and drives the confirm / verify / close flow via <span class="mono">app.assistant</span> + Block Kit.</div></div>
-    </div>
-    <div class="tbadge">
-      <span class="lchip mcp">MCP</span>
-      <div><div class="tb-k">QUALIFYING TECH · 2</div><div class="tb-t">MCP — Model Context Protocol</div><div class="tb-d">The proof layer. Kept's Proof-of-Done collector is an <b>MCP client</b> (<span class="mono">@modelcontextprotocol/sdk</span>) that calls tools to read delivery evidence.</div></div>
-    </div>
-  </div>
+  <!-- 3 ZONES -->
+  <div class="stage">
 
-  <!-- FLOW -->
-  <div class="flow">
-    <!-- 1 Slack surface -->
-    <div class="col"><div class="card">
-      <div class="chd"><span class="lchip sm"><svg width="20" height="20" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg></span><span class="k">Slack surface</span></div>
-      <div class="t">Promise in a channel</div>
-      <div class="d"><i>"We'll ship the SSO fix for Acme by Friday."</i> The Slack AI Assistant + App Home are the live surface.</div>
-      <div class="rows"><div class="row"><span style="color:#7FA3EA">▸</span> Bolt · HTTP OAuth (multi-tenant)</div><div class="row"><span style="color:#7FA3EA">▸</span> Assistant · App Home cockpit</div></div>
-    </div></div>
-    <div class="arrow"><svg width="24" height="18"><path d="M2 9 H18 M13 3 L19 9 L13 15" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-
-    <!-- 2 LLM proposes -->
-    <div class="col"><div class="card">
-      <div class="chd"><span class="k">Proposer · language only</span></div>
-      <div class="t">LLM proposes a Command</div>
-      <div class="d">Classifies + extracts <b>customer · outcome · owner · due</b>. Returns a suggestion — <b>never writes state</b>.</div>
-      <div class="rows"><div class="row"><span style="color:#B69BFF">◆</span> OpenAI <span class="mono">gpt-5.4-mini</span> · forced tool-use + Zod</div><div class="row"><span style="color:#B69BFF">◆</span> no key → local heuristic fallback</div></div>
-    </div></div>
-    <div class="arrow"><svg width="24" height="18"><path d="M2 9 H18 M13 3 L19 9 L13 15" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-
-    <!-- 3 decide + store -->
-    <div class="col"><div class="card accent">
-      <div class="chd"><span class="k">Agent logic · code decides</span></div>
-      <div class="t">decide() → event store</div>
-      <div class="d">idempotency → leak &amp; evidence check → <b>zero-copy</b> → reconciliation → allowed transition. The only thing that emits an event.</div>
-      <div class="rows"><div class="row"><span class="ok">✓</span> PostgreSQL append-only log · 17 kinds</div><div class="row"><span class="ok">✓</span> tenant-isolated by <span class="mono">team_id</span></div></div>
-      <div class="gate">👤 Gate 1 — a human confirms</div>
-    </div></div>
-    <div class="arrow"><svg width="24" height="18"><path d="M2 9 H18 M13 3 L19 9 L13 15" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-
-    <!-- 4 MCP proof collector + external systems -->
-    <div class="col"><div class="card block">
-      <div class="chd"><span class="lchip mcp">MCP</span><span class="k">Proof-of-Done · MCP client</span></div>
-      <div class="t">Verify against reality</div>
-      <div class="d">The MCP client reads live delivery evidence from external systems, then <span class="mono">assessFulfillment</span> reconciles it:</div>
-      <div class="ext">
-        <div class="extrow"><span class="lchip sm"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#2684FF" d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg></span><b>Jira</b> — ticket Done <span class="ok">✓</span></div>
-        <div class="extrow"><span class="lchip sm"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#181717" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></span><b>GitHub Actions</b> — CI green <span class="ok">✓</span></div>
-        <div class="extrow"><span class="lchip sm"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#405BFF" d="M12 1q.7 10.3 11 11-10.3.7-11 11-.7-10.3-11-11Q11.3 11.3 12 1Z"/></svg></span><b>LaunchDarkly</b> — prod flag OFF <span class="no">✗</span></div>
+    <!-- SLACK -->
+    <div class="zone slack">
+      <div class="zh">
+        <div class="l"><span class="lc"><svg width="18" height="18" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg></span><div><div class="zt">Slack workspace</div><div class="zk">client surface</div></div></div>
+        <span class="tag">Slack AI</span>
       </div>
-      <div class="verdict">⛔ Close refused — not actually shipped</div>
-    </div></div>
-    <div class="arrow"><svg width="24" height="18"><path d="M2 9 H18 M13 3 L19 9 L13 15" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="box"><div class="bt">Shared customer channel</div><div class="bd">Where the promise is made. Kept only reads channels it's added to.</div></div>
+      <div class="box"><div class="bt">AI Assistant · Agent Builder</div><div class="bd">Conversational agent pane — <i>"What's overdue?"</i> · drives confirm / verify / close.</div></div>
+      <div class="box"><div class="bt">App Home cockpit</div><div class="bd">The obligation ledger + every next action, per promise.</div></div>
+      <div class="box"><div class="bt"><span class="mono">/kept</span> slash commands · DMs</div><div class="bd">Ledger, channel binding, trust page, reminders.</div></div>
+    </div>
 
-    <!-- 5 closure -->
-    <div class="col"><div class="card green">
-      <div class="chd"><span class="lchip sm"><svg width="20" height="20" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg></span><span class="k">Audience firewall → Slack</span></div>
-      <div class="t">Signed, sanitized closure</div>
-      <div class="d"><span class="mono">sanitizeForAudience</span> strips every internal ref, then posts back in the <b>original customer thread</b>.</div>
-      <div class="rows"><div class="row"><span class="no">✗</span> ticket / PR / flag never leak out</div><div class="row"><span class="ok">✓</span> customer confirms → <b>Kept</b></div></div>
-      <div class="gate">👤 Gate 2 — a human signs</div>
-    </div></div>
+    <!-- connector -->
+    <div class="conn">
+      <div class="clab"><b>Events API</b> · Block Kit · interactivity · OAuth install</div>
+      <svg class="ar" width="88" height="26"><path d="M4 8 H80 M74 3 L82 8 L74 13" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M84 20 H8 M14 15 L6 20 L14 25" stroke="#31456D" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="clab mono" style="color:#6E86AE">signed HTTPS</div>
+    </div>
+
+    <!-- KEPT APP -->
+    <div class="zone kept">
+      <div class="zh">
+        <div class="l"><span class="lc" style="background:#2563EB"><svg width="17" height="17" viewBox="0 0 24 24"><circle cx="6" cy="6.5" r="1.7" fill="#fff"/><circle cx="6" cy="12" r="1.7" fill="#fff"/><circle cx="6" cy="17.5" r="1.7" fill="#fff"/><path d="M7.4 6.7 L15.6 11.4 M7.4 12 H15.6 M7.4 17.3 L15.6 12.6" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".85"/><circle cx="17.2" cy="12" r="2.7" fill="#fff"/></svg></span><div><div class="zt">Kept — agent application</div><div class="zk">Fly.io · always-on container</div></div></div>
+      </div>
+      <div class="box"><div class="bt">Bolt · OAuth HTTP receiver</div><div class="bd">Routes events / actions / commands + <span class="mono">/webhooks/*</span>. Per-tenant bot tokens (multi-workspace install).</div></div>
+      <div class="down"><svg class="ar" width="16" height="16"><path d="M8 2 V13 M3 8 L8 14 L13 8" stroke="#3E5A8E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="box"><div class="bt">LLM Proposer <span class="tag" style="padding:1px 7px;font-size:9px">OpenAI gpt-5.4-mini</span></div><div class="bd">Classifies + extracts <b>customer · outcome · owner · due</b> → <b>proposes a Command</b>. Forced tool-use + Zod. <b>Never writes state.</b></div></div>
+      <div class="down"><svg class="ar" width="16" height="16"><path d="M8 2 V13 M3 8 L8 14 L13 8" stroke="#3E5A8E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="box hot"><div class="bt">decide() — pure guard + state machine</div><div class="bd">idempotency → leak &amp; evidence check → <b>zero-copy</b> → reconciliation → allowed transition. <b>The only component that emits an event.</b></div><div class="gates"><span class="g">👤 Gate 1 · confirm</span><span class="g">👤 Gate 2 · verify</span></div></div>
+      <div class="down"><svg class="ar" width="16" height="16"><path d="M8 2 V13 M3 8 L8 14 L13 8" stroke="#3E5A8E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="box red"><div class="bt"><span class="lc mcp" style="width:22px;height:22px">MCP</span> Proof-of-Done collector <span class="tag mcp" style="padding:1px 7px;font-size:9px">MCP client</span></div><div class="bd"><span class="mono">@modelcontextprotocol/sdk</span> — calls tools to read live evidence, then <span class="mono">assessFulfillment</span> reconciles. Notifier + Scheduler post owner DMs &amp; reminders.</div></div>
+    </div>
+
+    <!-- connector -->
+    <div class="conn">
+      <div class="clab"><b>MCP tools</b> + REST · read-only · per workspace</div>
+      <svg class="ar" width="88" height="26"><path d="M4 8 H80 M74 3 L82 8 L74 13" stroke="#3E5A8E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M84 20 H8 M14 15 L6 20 L14 25" stroke="#31456D" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="clab mono" style="color:#6E86AE">HTTPS</div>
+    </div>
+
+    <!-- EXTERNAL -->
+    <div class="zone ext">
+      <div class="zh"><div class="l"><div><div class="zt">External systems</div><div class="zk">read-only, per-workspace creds</div></div></div></div>
+      <div class="box"><div class="bt">OpenAI API</div><div class="bd">LLM inference for the Proposer. Zero-copy — nothing persisted.</div></div>
+      <div class="box"><div class="bt"><span class="lc"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#2684FF" d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.001 1.001 0 0 0 23.013 0Z"/></svg></span> Jira</div><div class="bd">Issue status — is the work item Done?</div></div>
+      <div class="box"><div class="bt"><span class="lc"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#181717" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></span> GitHub Actions</div><div class="bd">CI conclusion — did the workflow pass?</div></div>
+      <div class="box"><div class="bt"><span class="lc"><svg width="17" height="17" viewBox="0 0 24 24"><path fill="#405BFF" d="M12 1q.7 10.3 11 11-10.3.7-11 11-.7-10.3-11-11Q11.3 11.3 12 1Z"/></svg></span> LaunchDarkly</div><div class="bd">Production flag state — is it actually on?</div></div>
+    </div>
   </div>
 
-  <!-- BACKBONE -->
-  <div class="backbone">
-    <div class="bb"><span class="l">Runs on</span><span class="v"><b>Fly.io</b> — always-on container + <b>PostgreSQL</b> (events · installs · scheduler)</span></div>
-    <div class="sep"></div>
-    <div class="bb"><span class="l">Data flow</span><span class="v">Slack → LLM propose → decide()+store → MCP evidence → sanitized reply → Slack</span></div>
-    <div class="sep"></div>
-    <div class="bb"><span class="l">Verified</span><span class="v"><b>317</b> tests · adversarially hardened · zero-copy</span></div>
+  <!-- DATA LAYER -->
+  <div class="data">
+    <div class="dl-arrow"><svg class="ar" width="18" height="20"><path d="M9 2 V15 M4 10 L9 16 L14 10" stroke="#3E5A8E" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 16 V4 M14 10 L9 3 L4 10" stroke="#31456D" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,0)"/></svg></div>
+    <div class="dband">
+      <div class="dt"><span class="lc" style="background:#2A3550"><span class="mono" style="font-size:9px;color:#9FB4D6;font-weight:700">DB</span></span><span class="n">PostgreSQL · Fly volume</span></div>
+      <div class="sep"></div>
+      <div class="di"><b>Append-only event store</b> (17 event kinds · state = a pure fold) · installations · tenant config · reminders</div>
+      <div class="sep"></div>
+      <div class="di"><b>Zero-copy</b> — derived facts + refs only, never raw messages · <b>tenant-isolated</b> by <span class="mono">team_id</span></div>
+    </div>
   </div>
+
   <div class="inv">
+    <span class="pill"><span class="dot"></span>Data flow: Slack → propose → decide()+store → MCP evidence → sanitized reply → Slack</span>
     <span class="pill"><span class="dot"></span>The LLM proposes, code decides</span>
-    <span class="pill"><span class="dot"></span>Zero-copy — derived facts, never raw messages</span>
-    <span class="pill"><span class="dot"></span>Tenant isolation by team_id</span>
     <span class="pill"><span class="dot"></span>Two human gates</span>
-    <span class="pill"><span class="dot"></span>Reads sources live · never fakes a connection</span>
+    <span class="pill"><span class="dot"></span>317 tests · adversarially hardened</span>
   </div>
-
   <div class="foot">kept-iota.vercel.app · github.com/kaviyakumar23/kept</div>
 </div></body></html>
