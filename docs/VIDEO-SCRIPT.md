@@ -4,10 +4,14 @@
 
 ## Non-negotiable rules (read before recording)
 - **No face, no webcam.** Open and close on **screen + title cards**, not a person. The hook lands as an AI-voiced line over a title card, then cuts straight to the product.
-- **AI voiceover (TTS).** Pick one **calm, confident, mid-paced** voice and use it for the whole video. Generate each line as its own clip, then place it against the matching screen action in the edit.
-  - Write for the ear: **short sentences, one idea each.** Use periods and commas for pacing; an ellipsis `…` for a held beat.
-  - **Spell things the way TTS should say them** in the VO: write **"Gate one" / "Gate two"**, **"ninety-five percent"**, and say **"the model"** (never the version string). `SSO`, `CI`, `MCP` read fine as letters.
-  - The **silence beat** on the block is a *gap you leave in the edit* — TTS won't pause on its own. Drop one low negative sound cue there; silence elsewhere.
+- **AI voiceover — but it must sound human, not narrated.** The goal is a real person talking to a colleague. How to get there:
+  - **Voice + engine:** use a top-tier neural TTS (ElevenLabs Multilingual v2 is the safe pick; Cartesia / PlayHT also good). Choose a **conversational** voice — *not* a "documentary/announcer" one. Settings: **Stability ~40–50%** (lower = more natural variation), **Similarity/Clarity high**, a little **Style** if offered. The first take is rarely best — **re-roll any clip that sounds flat or rushed.**
+  - **Write like you talk:** keep the contractions ("it's", "you'd", "we're"), vary sentence length, let lines breathe. Say each line out loud yourself first — if you wouldn't phrase it that way, rewrite it.
+  - **Punctuate for breath, not grammar:** a comma is a micro-pause, `…` is a real beat, a period is a full stop, `?` lifts the tone. Split long lines into two. This is what kills the robotic monotone.
+  - **Slightly slower than feels right.** Rushed TTS sounds synthetic; a calm, unhurried pace reads as human and confident.
+  - **Kill the TTS tells:** never feed numbers, symbols, or version strings — spell them ("Gate one", "ninety-five percent", "the model"). Phonetically respell any word it fumbles. `SSO`, `CI`, `MCP` read fine as letters.
+  - **Generate line-by-line**, keep the best take of each, then space them in the edit with natural gaps — real people pause between sentences. Lay a **soft music bed** underneath so it isn't sterile.
+  - The **silence beat** on the block is an **edit gap** — TTS won't pause on its own. Hold 1.5s with one low sound cue.
 - **No third-party UIs on screen.** Do **not** screen-record Jira, GitHub, or LaunchDarkly. Drive **everything** through Kept's own **Demo Controls** panel + cards, so every signal shows as **text inside Kept** ("Production flag OFF ✗", "flag ON ✓").
 - **Burn in captions for every line** (muted-first). 1080p. **Pre-warm the model** with a throwaway message before takes so first classification isn't slow.
 - **Royalty-free music only** — keep the license file.
