@@ -720,6 +720,30 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
       return;
     }
 
+    // `/kept notify [on|off]` — configure the proactive at-risk / overdue reminders for THIS
+    // workspace (Slack guideline: let customers configure notification type/frequency). The
+    // action-required confirm/verify/send cards are core workflow and are always delivered.
+    const notify = /^notif(?:y|ications)?(?:\s+(on|off|mute|unmute))?$/i.exec(text);
+    if (notify) {
+      if (!deps.tenantConfig) {
+        await respond({ response_type: "ephemeral", text: ":information_source: Notification preferences aren't available on this deployment." });
+        return;
+      }
+      const arg = (notify[1] || "").toLowerCase();
+      const cur = (await deps.tenantConfig.get(team, "notifications")) ?? {};
+      const remindersOn = cur.reminders !== false; // default ON
+      if (!arg) {
+        await respond({ response_type: "ephemeral", text: `:bell: Reminders are *${remindersOn ? "on" : "off"}* for this workspace — Kept ${remindersOn ? "sends" : "does not send"} proactive at-risk / overdue nudges to owners. Change with \`/kept notify on\` or \`/kept notify off\`.\n_(Confirm, verify, and send cards are core workflow and are always delivered.)_` });
+        return;
+      }
+      const turnOff = arg === "off" || arg === "mute";
+      await deps.tenantConfig.set(team, "notifications", { ...cur, reminders: !turnOff });
+      await respond({ response_type: "ephemeral", text: turnOff
+        ? ":no_bell: Reminders *muted* — Kept won't send proactive at-risk / overdue nudges. Re-enable with `/kept notify on`."
+        : ":bell: Reminders *on* — Kept will nudge owners about at-risk and overdue promises." });
+      return;
+    }
+
     // `/kept help` (or a bare `/kept`) → usage, so unknown input never silently renders an empty
     // default ledger. (Slack Marketplace: respond to "help"/unknown input with usage instructions.)
     if (!text || /^(help|\?|usage)$/i.test(text)) {
@@ -732,6 +756,7 @@ export function buildSlackApp(deps: SlackAppDeps): { app: App; orch: KeptOrchest
           "• `/kept customer <name>` — bind this channel to a customer (`/kept customer clear` to unbind)",
           "• `/kept trust <customer>` — create a private, audience-safe trust page for that customer",
           "• `/kept untrust <customer>` — revoke that trust page",
+          "• `/kept notify on|off` — turn proactive at-risk / overdue reminders on or off",
           "",
           "Or run the whole lifecycle from the *Kept* app's *Home* tab, or ask its *Assistant*: “What’s overdue?”",
         ].join("\n"),

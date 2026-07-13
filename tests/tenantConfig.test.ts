@@ -43,6 +43,29 @@ describe("tenant config — encryption at rest", () => {
   });
 });
 
+describe("tenant config — notification preferences (Slack: configurable notifications)", () => {
+  beforeAll(() => {
+    process.env.KEPT_CONFIG_KEY = "0".repeat(64);
+  });
+
+  it("round-trips a per-workspace reminders setting; unset defaults to ON", async () => {
+    const store = new InMemoryTenantConfigStore();
+    // Unset → undefined → the reminder handler treats it as ON (default).
+    expect(await store.get("T1", "notifications")).toBeNull();
+    await store.set("T1", "notifications", { reminders: false }); // /kept notify off
+    expect((await store.get("T1", "notifications"))?.reminders).toBe(false);
+    await store.set("T1", "notifications", { reminders: true }); // /kept notify on
+    expect((await store.get("T1", "notifications"))?.reminders).toBe(true);
+  });
+
+  it("is tenant-scoped — one workspace muting reminders never affects another (invariant #4)", async () => {
+    const store = new InMemoryTenantConfigStore();
+    await store.set("T_MUTED", "notifications", { reminders: false });
+    expect((await store.get("T_MUTED", "notifications"))?.reminders).toBe(false);
+    expect(await store.get("T_OTHER", "notifications")).toBeNull(); // unaffected → reminders on
+  });
+});
+
 describe("tenant config — per-tenant isolation (invariant #4)", () => {
   it("a config set for team A is NOT readable by team B", async () => {
     const store = new InMemoryTenantConfigStore();

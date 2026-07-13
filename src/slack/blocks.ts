@@ -625,9 +625,10 @@ export function appHomeView(
   return { type: "home", blocks };
 }
 
-/** App Home footer — surfaces help/support and pricing (Slack Home-tab guideline). */
+/** App Home footer — surfaces help/support, pricing, and the notification control (Slack Home-tab
+ *  + notification-preference guidelines). */
 function homeFooter(): SlackBlock {
-  return context("Kept is free.   Need a hand?  <https://kept-iota.vercel.app/docs|Docs>  ·  <https://kept-iota.vercel.app/support|Support>");
+  return context("Kept is free.   Reminders: `/kept notify`   ·   Need a hand?  <https://kept-iota.vercel.app/docs|Docs>  ·  <https://kept-iota.vercel.app/support|Support>");
 }
 
 // --- modals ----------------------------------------------------------------
